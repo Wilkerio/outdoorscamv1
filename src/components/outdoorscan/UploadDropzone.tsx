@@ -5,59 +5,43 @@ import type { Point } from "@/lib/outdoorscan/types";
 export function UploadDropzone() {
   const { setPoints, log } = useSession();
 
-  const normalizeCoord = (valor: any) => {
-    if (valor === null || valor === undefined || valor === "") return null;
-    const num = parseFloat(String(valor).replace(",", "."));
-    if (isNaN(num)) return null;
-    if (Math.abs(num) > 180) return num / 1_000_000;
-    return num;
-  };
-
   return (
-    <div className="flex justify-center p-8 bg-card rounded-xl border border-border">
+    <div style={{ padding: "20px", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid #333", marginBottom: "20px" }}>
+      <p style={{ fontWeight: "bold", marginBottom: "10px", color: "#fff" }}>Selecione sua planilha:</p>
       <input
         type="file"
-        accept=".xlsx,.xls"
-        className="block w-full text-sm text-slate-500
-          file:mr-4 file:py-2 file:px-4
-          file:rounded-full file:border-0
-          file:text-sm file:font-semibold
-          file:bg-primary file:text-primary-foreground
-          hover:file:bg-primary/90"
+        accept=".xlsx"
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
-          log("info", `Lendo arquivo: ${file.name}...`);
-          const buffer = await file.arrayBuffer();
-          const wb = XLSX.read(buffer, { type: "array" });
+          log("info", `Lendo: ${file.name}`);
+          const buf = await file.arrayBuffer();
+          const wb = XLSX.read(buf);
           const ws = wb.Sheets[wb.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
           
-          const normalizados: Point[] = rows.map((row, i) => {
-            const novo: any = {};
-            Object.keys(row).forEach((k) => {
-              novo[k.trim()] = typeof row[k] === "string" ? row[k].trim() : row[k];
-            });
+          const norm: Point[] = rows.map((r, i) => {
+            const n: any = {};
+            Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
             
+            // Mantemos o mapeamento mínimo necessário para o resto do app não quebrar
             return {
               id: `${Date.now()}-${i}`,
-              cod: String(novo["Cod."] ?? "").trim(),
-              endereco: String(novo["Endereço"] ?? "").trim(),
-              bairro: String(novo["Bairro"] ?? "").trim(),
-              cidade: String(novo["Cidade"] ?? "").trim(),
-              lat: normalizeCoord(novo["Latitude"]) ?? NaN,
-              lng: normalizeCoord(novo["Longitude"]) ?? NaN,
-              rawLat: novo["Latitude"],
-              rawLng: novo["Longitude"],
-              formato: String(novo["Formato"] ?? "").trim(),
-              foto: String(novo["Foto"] ?? "").trim(),
-              empresa: String(novo["Empresa"] ?? "").trim(),
+              cod: String(n["Cod."] || n["Código"] || i),
+              lat: parseFloat(String(n["Latitude"] || 0).replace(",", ".")),
+              lng: parseFloat(String(n["Longitude"] || 0).replace(",", ".")),
               status: "AGUARDANDO",
+              endereco: n["Endereço"] || "",
+              bairro: n["Bairro"] || "",
+              cidade: n["Cidade"] || "",
+              formato: n["Formato"] || "",
+              empresa: n["Empresa"] || "",
+              foto: n["Foto"] || "",
             };
           });
           
-          setPoints(normalizados);
-          log("success", `✅ ${normalizados.length} pontos carregados`);
+          setPoints(norm);
+          log("success", `✅ ${norm.length} pontos carregados`);
         }}
       />
     </div>
