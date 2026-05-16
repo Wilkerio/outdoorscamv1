@@ -6,7 +6,7 @@ const corsHeaders = {
 
 const PROMPTS: Record<string, string> = {
   verify:
-    "Esta foto de rua contém um outdoor, painel publicitário, anúncio ou placa de propaganda visível? Responda APENAS com uma palavra: SIM ou NAO.",
+    `Analise esta foto de rua com MUITO RIGOR. Existe um outdoor, painel publicitário ou banner CLARAMENTE VISÍVEL e LEGÍVEL nesta foto? NÃO aprove se: - O outdoor estiver muito distante ou pequeno - Estiver parcialmente cortado - Não for possível ler o conteúdo - For apenas uma placa de trânsito ou sinalização de rua. Responda APENAS: SIM ou NAO.`,
   zoom:
     "Avalie o enquadramento do outdoor/painel publicitário nesta foto. Está bem visível e centralizado? Responda APENAS com uma palavra: OTIMO, BOM ou RUIM.",
 };
