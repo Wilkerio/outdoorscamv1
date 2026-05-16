@@ -151,38 +151,24 @@ const Ctx = createContext<SessionState | null>(null);
   }, [points, sheetName]);
 
 
-    const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
-      try {
-        const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-        if (!apiKey || apiKey === "YOUR_KEY_HERE") {
-          throw new Error("Chave DeepSeek não configurada.");
+    const callAiVision = useCallback(
+      async (task: "verify" | "zoom", base64Image: string): Promise<string> => {
+        try {
+          const { data, error } = await supabase.functions.invoke("ai-vision", {
+            body: { task, image: base64Image },
+          });
+          if (error || !data || data.error) {
+            console.error("ai-vision error:", error || data?.error);
+            return "";
+          }
+          return (data.answer as string) || "";
+        } catch (err) {
+          console.error("ai-vision exception:", err);
+          return "";
         }
-
-        const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: 'deepseek-vl2',
-            max_tokens: 10,
-            messages: [{
-              role: 'user',
-              content: [
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
-                { type: 'text', text: 'Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO' }
-              ]
-            }]
-          })
-        }).then(r => r.json());
-
-        return res.choices?.[0]?.message?.content?.toUpperCase().includes('SIM');
-      } catch (err) {
-        console.error("Erro DeepSeek:", err);
-        return false;
-      }
-    }, []);
+      },
+      []
+    );
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
@@ -246,53 +232,86 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // Fluxo com IA: testar 8 ângulos
+        // PASSO 1: Testar 8 ângulos para localizar o outdoor
         const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
-        let melhorUrl = "";
-        let melhorHeading = 0;
+        let melhorHeading: number | null = null;
 
         for (const heading of angulos) {
           const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
-          
           const { data, error } = await supabase.functions.invoke("google-proxy", {
             body: { url: fotoUrl },
           });
-
           if (error || !data?.image) {
             log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
             continue;
           }
-
-          const temOutdoor = await verificarOutdoorDeepSeek(data.image);
+          const resposta = await callAiVision("verify", data.image);
+          const temOutdoor = resposta.includes("SIM");
           log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
-
           if (temOutdoor) {
-            melhorUrl = fotoUrl;
             melhorHeading = heading;
             break;
           }
-          if (!melhorUrl) {
-            melhorUrl = fotoUrl;
-            melhorHeading = heading;
+        }
+
+        if (melhorHeading === null) {
+          log("warn", `${cod} — ⚠️ Outdoor não encontrado, salvando visão padrão (0°)`);
+          melhorHeading = 0;
+        }
+
+        // PASSO 2: Ajustar zoom no ângulo escolhido
+        log("info", `${cod} — 🔎 Ajustando zoom...`);
+        const zooms = [
+          { fov: 80, pitch: 0 },
+          { fov: 65, pitch: 5 },
+          { fov: 50, pitch: 8 },
+        ];
+        const scoreMap: Record<string, number> = { OTIMO: 3, BOM: 2, RUIM: 1 };
+        let melhorZoomUrl: string | null = null;
+        let melhorZoom = zooms[0];
+        let melhorScore = 0;
+
+        for (const zoom of zooms) {
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=${zoom.pitch}&fov=${zoom.fov}&key=${key}`;
+          const { data, error } = await supabase.functions.invoke("google-proxy", {
+            body: { url: fotoUrl },
+          });
+          if (error || !data?.image) {
+            log("warn", `${cod} — Erro ao carregar FOV ${zoom.fov}°`);
+            continue;
+          }
+          const avaliacao = await callAiVision("zoom", data.image);
+          const matched = (["OTIMO", "BOM", "RUIM"] as const).find((k) => avaliacao.includes(k));
+          const score = matched ? scoreMap[matched] : 1;
+          log("info", `${cod} — FOV ${zoom.fov}°: ${matched ?? "RUIM"}`);
+          if (score > melhorScore) {
+            melhorScore = score;
+            melhorZoomUrl = fotoUrl;
+            melhorZoom = zoom;
           }
         }
 
-        const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
+        const urlFinal =
+          melhorZoomUrl ??
+          `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=0&fov=80&key=${key}`;
+
+        // PASSO 3: Salvar a melhor foto
+        const urlPublica = await salvarFotoSupabase(cod, urlFinal);
         updatePoint(id, {
           status: "SUCESSO",
           foto_url: urlPublica,
           fotoSalva: true,
           headingSalvo: melhorHeading,
-          pitchSalvo: 0,
-          fovSalvo: 80,
+          pitchSalvo: melhorZoom.pitch,
+          fovSalvo: melhorZoom.fov,
         });
-        log("success", `✅ ${cod} — Salvo no ângulo ${melhorHeading}°`);
+        log("success", `✅ ${cod} — Foto final salva (heading ${melhorHeading}°, FOV ${melhorZoom.fov}°)`);
       } catch (err: any) {
         updatePoint(id, { status: "ERRO" });
         log("error", `❌ ${cod} — Erro: ${err.message}`);
       }
     },
-    [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
+    [updatePoint, log, salvarFotoSupabase, callAiVision]
   );
 
   const corrigirComIA = useCallback(
