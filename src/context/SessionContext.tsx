@@ -75,12 +75,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
          return;
        }
  
-       const { lat, lng, cod, id } = p;
+        const { lat, lng, cod, id, rawLat, rawLng } = p;
        const key = GMAPS_KEY;
  
        try {
          updatePoint(id, { status: "PROCESSANDO" });
          log("info", `Processando ${cod}...`);
+          log("info", `${cod} — Bruto: Lat ${rawLat} | Lng ${rawLng}`);
+          log("info", `${cod} — Normalizado: Lat ${lat} | Lng ${lng}`);
+
+          if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+            log("error", `❌ ${cod} — Coordenadas inválidas: ${rawLat}, ${rawLng}`);
+            updatePoint(id, { status: "ERRO" });
+            return;
+          }
+
+          log("info", `${cod} — URL metadata: https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`);
  
          const metaRes = await fetch(
            `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`,
