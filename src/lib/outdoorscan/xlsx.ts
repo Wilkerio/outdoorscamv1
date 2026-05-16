@@ -3,12 +3,17 @@ import type { Point } from "./types";
 
 const REQUIRED = ["Cod.", "Endereço", "Bairro", "Cidade", "Latitude", "Longitude", "Formato", "Foto", "Empresa"] as const;
 
- export const normalizeCoord = (valor: any) => {
+ export const normalizeCoord = (valor: unknown, tipo: "lat" | "lng" = "lat"): number | null => {
    if (valor === null || valor === undefined || valor === "") return null;
-   const num = parseFloat(String(valor).replace(",", "."));
+   const num = parseFloat(String(valor).replace(",", ".").trim());
    if (isNaN(num)) return null;
-   // Se valor absoluto > 90 (lat) ou > 180 (lng), provavelmente está sem ponto decimal
-   if (Math.abs(num) > 180) return num / 1_000_000;
+   const abs = Math.abs(num);
+   const limite = tipo === "lat" ? 90 : 180;
+   if (abs > limite * 10000) return num / 1_000_000;
+   if (abs > limite * 1000) return num / 100_000;
+   if (abs > limite * 100) return num / 10_000;
+   if (abs > limite * 10) return num / 1_000;
+   if (abs > limite) return num / 10;
    return num;
  };
 
@@ -40,8 +45,8 @@ const REQUIRED = ["Cod.", "Endereço", "Bairro", "Cidade", "Latitude", "Longitud
        endereco: String(r["Endereço"] ?? "").trim(),
        bairro: String(r["Bairro"] ?? "").trim(),
        cidade: String(r["Cidade"] ?? "").trim(),
-       lat: normalizeCoord(r["Latitude"]) ?? NaN,
-       lng: normalizeCoord(r["Longitude"]) ?? NaN,
+      lat: normalizeCoord(r["Latitude"], "lat") ?? NaN,
+      lng: normalizeCoord(r["Longitude"], "lng") ?? NaN,
        rawLat: r["Latitude"],
        rawLng: r["Longitude"],
        formato: String(r["Formato"] ?? "").trim(),
