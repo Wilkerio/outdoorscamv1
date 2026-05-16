@@ -91,7 +91,7 @@ export function PointCard({ point }: { point: Point }) {
            disabled={!validCoords || point.status === "PROCESSANDO"}
            onClick={() => corrigirComIA(point)}
          >
-           <Bot className="size-3.5" /> IA
+            <Bot className="size-3.5" /> 🤖 IA
          </Button>
         </div>
 
