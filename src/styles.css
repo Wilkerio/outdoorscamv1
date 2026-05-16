@@ -146,5 +146,10 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
+}
+
+html {
+  color-scheme: dark;
 }
