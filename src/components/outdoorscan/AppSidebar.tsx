@@ -1,10 +1,16 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Radar, ListChecks, History } from "lucide-react";
+ import { Link, useRouterState } from "@tanstack/react-router";
+ import { Radar, ListChecks, History, Settings, Key } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
+ import { useState } from "react";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { stats } = useSession();
+   const { stats, geminiKey, setGeminiKey } = useSession();
+   const [tempKey, setTempKey] = useState(geminiKey);
+
   const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
 
   const items = [
@@ -44,14 +50,50 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="mt-auto p-4 border-t border-border space-y-3">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground">Resumo da sessão</div>
-        <StatRow label="Sucesso" value={pct(stats.sucesso)} count={stats.sucesso} color="bg-success" />
-        <StatRow label="Erro" value={pct(stats.erro)} count={stats.erro} color="bg-destructive" />
-        <StatRow label="Sem Cobertura" value={pct(stats.semCobertura)} count={stats.semCobertura} color="bg-warning" />
-        <div className="text-xs text-muted-foreground pt-1">Total: {stats.total}</div>
-      </div>
-    </aside>
+       <div className="mt-auto p-4 border-t border-border space-y-4">
+         <div className="space-y-3">
+           <div className="text-xs uppercase tracking-wider text-muted-foreground">Resumo da sessão</div>
+           <StatRow label="Sucesso" value={pct(stats.sucesso)} count={stats.sucesso} color="bg-success" />
+           <StatRow label="Erro" value={pct(stats.erro)} count={stats.erro} color="bg-destructive" />
+           <StatRow label="Sem Cobertura" value={pct(stats.semCobertura)} count={stats.semCobertura} color="bg-warning" />
+           <div className="text-xs text-muted-foreground pt-1">Total: {stats.total}</div>
+         </div>
+
+         <Popover>
+           <PopoverTrigger asChild>
+             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs text-muted-foreground hover:text-foreground">
+               <Settings className="size-3.5" /> Configurações IA
+             </Button>
+           </PopoverTrigger>
+           <PopoverContent className="w-64 p-3" side="right" align="end">
+             <div className="space-y-3">
+               <div className="flex items-center gap-2 font-medium text-xs uppercase tracking-wider">
+                 <Key className="size-3.5" /> Gemini API Key
+               </div>
+               <div className="space-y-1.5">
+                 <Input
+                   type="password"
+                   placeholder="Insira sua chave..."
+                   value={tempKey}
+                   onChange={(e) => setTempKey(e.target.value)}
+                   className="h-8 text-xs"
+                 />
+                 <Button 
+                   size="sm" 
+                   className="w-full h-8 text-xs" 
+                   onClick={() => setGeminiKey(tempKey)}
+                 >
+                   Salvar Chave
+                 </Button>
+               </div>
+               <p className="text-[10px] text-muted-foreground leading-relaxed">
+                 Necessário para verificação automática de outdoors nas fotos.
+               </p>
+             </div>
+           </PopoverContent>
+         </Popover>
+        </div>
+     </aside>
   );
 }
 
