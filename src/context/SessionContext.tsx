@@ -53,8 +53,8 @@ const Ctx = createContext<SessionState | null>(null);
    }, []);
 
    const exportarExcel = useCallback(async () => {
-     if (!points.length) return;
-     const nome = prompt("Nome do arquivo:") || "OutdoorScan_resultado";
+     if (typeof window === "undefined" || !points.length) return;
+     const nome = window.prompt("Nome do arquivo:") || "OutdoorScan_resultado";
      const wb = new ExcelJS.Workbook();
      const ws = wb.addWorksheet(sheetName);
      
