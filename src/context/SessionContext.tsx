@@ -10,8 +10,6 @@ type Phase = "idle" | "running" | "paused" | "done";
   logs: LogEntry[];
   phase: Phase;
    currentIndex: number;
-  geminiKey: string;
-  setGeminiKey: (k: string) => void;
    log: (level: LogEntry["level"], message: string) => void;
     salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
@@ -28,14 +26,6 @@ const Ctx = createContext<SessionState | null>(null);
 
  export function SessionProvider({ children }: { children: ReactNode }) {
    const [points, setPointsState] = useState<Point[]>([]);
-   const [geminiKey, setGeminiKey] = useState<string>("");
-
-   useEffect(() => {
-     if (typeof window !== "undefined") {
-       const stored = window.localStorage.getItem("gemini_api_key");
-       if (stored) setGeminiKey(stored);
-     }
-   }, []);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -56,40 +46,39 @@ const Ctx = createContext<SessionState | null>(null);
      setCurrentIndex(0);
    }, []);
 
-   const updateGeminiKey = useCallback((k: string) => {
-     setGeminiKey(k);
-     if (typeof window !== "undefined") {
-       window.localStorage.setItem("gemini_api_key", k);
-     }
-   }, []);
 
-   const verificarOutdoorComGemini = useCallback(async (base64Image: string, apiKey: string) => {
-     try {
-       const response = await fetch(
-         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-         {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({
-             contents: [
-               {
-                 parts: [
-                   { inline_data: { mime_type: "image/jpeg", data: base64Image } },
-                   { text: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível e legível? Responda apenas: SIM ou NAO" },
-                 ],
-               },
-             ],
-           }),
-         },
-       );
-       const data = await response.json();
-       const resposta = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase();
-       return resposta?.includes("SIM");
-     } catch (err) {
-       console.error("Erro Gemini:", err);
-       return false;
-     }
-   }, []);
+    const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
+      try {
+        const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+        if (!apiKey || apiKey === "YOUR_KEY_HERE") {
+          throw new Error("Chave DeepSeek não configurada.");
+        }
+
+        const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-vl2',
+            max_tokens: 10,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                { type: 'text', text: 'Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO' }
+              ]
+            }]
+          })
+        }).then(r => r.json());
+
+        return res.choices?.[0]?.message?.content?.toUpperCase().includes('SIM');
+      } catch (err) {
+        console.error("Erro DeepSeek:", err);
+        return false;
+      }
+    }, []);
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
@@ -119,11 +108,6 @@ const Ctx = createContext<SessionState | null>(null);
         const { lat, lng, cod, id } = p;
         const key = GMAPS_KEY;
 
-        if (!geminiKey) {
-          log("error", "⚠️ Chave do Gemini não configurada.");
-          return;
-        }
-
         updatePoint(id, { status: "PROCESSANDO" });
         log("info", `🤖 ${cod} — IA testando ângulos...`);
 
@@ -146,7 +130,7 @@ const Ctx = createContext<SessionState | null>(null);
               continue;
             }
 
-            const temOutdoor = await verificarOutdoorComGemini(proxyData.image, geminiKey);
+            const temOutdoor = await verificarOutdoorDeepSeek(proxyData.image);
             log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
 
             if (temOutdoor) {
@@ -177,7 +161,7 @@ const Ctx = createContext<SessionState | null>(null);
           log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
         }
       },
-      [updatePoint, log, salvarFotoSupabase, geminiKey, verificarOutdoorComGemini]
+      [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
     );
  
    const processarPonto = useCallback(
@@ -235,7 +219,7 @@ const Ctx = createContext<SessionState | null>(null);
          log("error", `❌ ${cod} — Erro: ${err.message}`);
        }
      },
-      [updatePoint, log, salvarFotoSupabase, geminiKey, verificarOutdoorComGemini],
+       [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek],
    );
  
    const runFrom = useCallback(
@@ -326,8 +310,6 @@ const Ctx = createContext<SessionState | null>(null);
         setAdjustedPhoto,
         salvarFotoSupabase,
         corrigirComIA,
-        geminiKey,
-        setGeminiKey: updateGeminiKey,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
