@@ -19,6 +19,8 @@ export interface Point {
   foto: string;
   empresa: string;
   status: PointStatus;
+  rawLat?: any;
+  rawLng?: any;
   adjustedPhoto?: PhotoAdjustment;
   foto_url?: string;
   fotoSalva?: boolean;

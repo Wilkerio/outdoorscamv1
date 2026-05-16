@@ -3,11 +3,14 @@ import type { Point } from "./types";
 
 const REQUIRED = ["Cod.", "Endereço", "Bairro", "Cidade", "Latitude", "Longitude", "Formato", "Foto", "Empresa"] as const;
 
-function normalizeCoord(v: unknown): number {
-  const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
-  if (!Number.isFinite(n)) return NaN;
-  return Math.abs(n) > 180 ? n / 1_000_000 : n;
-}
+ export const normalizeCoord = (valor: any) => {
+   if (valor === null || valor === undefined || valor === "") return null;
+   const num = parseFloat(String(valor).replace(",", "."));
+   if (isNaN(num)) return null;
+   // Se valor absoluto > 90 (lat) ou > 180 (lng), provavelmente está sem ponto decimal
+   if (Math.abs(num) > 180) return num / 1_000_000;
+   return num;
+ };
 
 export async function parseXlsx(file: File): Promise<Point[]> {
   const buf = await file.arrayBuffer();
@@ -26,8 +29,10 @@ export async function parseXlsx(file: File): Promise<Point[]> {
       endereco: String(r["Endereço"] ?? "").trim(),
       bairro: String(r["Bairro"] ?? "").trim(),
       cidade: String(r["Cidade"] ?? "").trim(),
-      lat: normalizeCoord(r["Latitude"]),
-      lng: normalizeCoord(r["Longitude"]),
+      lat: normalizeCoord(r["Latitude"]) ?? NaN,
+      lng: normalizeCoord(r["Longitude"]) ?? NaN,
+      rawLat: r["Latitude"],
+      rawLng: r["Longitude"],
       formato: String(r["Formato"] ?? "").trim(),
       foto: String(r["Foto"] ?? "").trim(),
       empresa: String(r["Empresa"] ?? "").trim(),
