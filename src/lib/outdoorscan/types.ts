@@ -1,4 +1,4 @@
-export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO";
+ export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO";
 
 export interface PhotoAdjustment {
   heading: number;
@@ -20,6 +20,8 @@ export interface Point {
   empresa: string;
   status: PointStatus;
   adjustedPhoto?: PhotoAdjustment;
+  foto_url?: string;
+  fotoSalva?: boolean;
   error?: string;
 }
 
