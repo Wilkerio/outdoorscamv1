@@ -14,7 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      pontos: {
+        Row: {
+          bairro: string | null
+          cidade: string | null
+          cod: string | null
+          created_at: string
+          empresa: string | null
+          endereco: string | null
+          formato: string | null
+          foto_url: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          sessao_id: string | null
+          status: string
+        }
+        Insert: {
+          bairro?: string | null
+          cidade?: string | null
+          cod?: string | null
+          created_at?: string
+          empresa?: string | null
+          endereco?: string | null
+          formato?: string | null
+          foto_url?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          sessao_id?: string | null
+          status?: string
+        }
+        Update: {
+          bairro?: string | null
+          cidade?: string | null
+          cod?: string | null
+          created_at?: string
+          empresa?: string | null
+          endereco?: string | null
+          formato?: string | null
+          foto_url?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          sessao_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pontos_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessoes: {
+        Row: {
+          created_at: string
+          id: string
+          nome_arquivo: string
+          processados: number
+          status: string
+          total_pontos: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          processados?: number
+          status?: string
+          total_pontos?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          processados?: number
+          status?: string
+          total_pontos?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
