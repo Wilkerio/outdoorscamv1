@@ -187,13 +187,13 @@ const Ctx = createContext<SessionState | null>(null);
          const urlPublica = await salvarFotoSupabase(cod, bestUrl);
          const statusFinal = outdoorEncontrado ? "SUCESSO" : "SEM_OUTDOOR_VISIVEL";
          updatePoint(id, { status: statusFinal, foto_url: urlPublica, fotoSalva: true });
-         log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal}`);
+          log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal} (ângulo ${bestHeading}°)`);
        } catch (err: any) {
          updatePoint(id, { status: "ERRO" });
          log("error", `❌ ${cod} — Erro: ${err.message}`);
        }
      },
-     [updatePoint, log, salvarFotoSupabase, geminiKey, verificarFotoComGemini],
+      [updatePoint, log, salvarFotoSupabase, geminiKey, verificarOutdoorComGemini],
    );
  
    const runFrom = useCallback(
