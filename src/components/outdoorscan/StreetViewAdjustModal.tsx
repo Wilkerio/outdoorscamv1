@@ -18,17 +18,17 @@ export function StreetViewAdjustModal({
 }) {
    const { setAdjustedPhoto, salvarFotoSupabase } = useSession();
    const [saving, setSaving] = useState(false);
-  const [heading, setHeading] = useState(point.adjustedPhoto?.heading ?? 0);
-  const [pitch, setPitch] = useState(point.adjustedPhoto?.pitch ?? 0);
-  const [fov, setFov] = useState(point.adjustedPhoto?.fov ?? 80);
+   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
+   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
+   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
 
-  useEffect(() => {
-    if (open) {
-      setHeading(point.adjustedPhoto?.heading ?? 0);
-      setPitch(point.adjustedPhoto?.pitch ?? 0);
-      setFov(point.adjustedPhoto?.fov ?? 80);
-    }
-  }, [open, point.id]);
+    useEffect(() => {
+      if (open) {
+        setHeading(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
+        setPitch(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
+        setFov(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+      }
+    }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
 
    const save = async () => {
      try {

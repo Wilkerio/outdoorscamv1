@@ -130,7 +130,14 @@ const Ctx = createContext<SessionState | null>(null);
          if (meta.status !== "OK") {
            const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
            const urlPublica = await salvarFotoSupabase(cod, staticUrl);
-           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
+         updatePoint(id, { 
+           status: "SEM_COBERTURA", 
+           foto_url: urlPublica, 
+           fotoSalva: true,
+           headingSalvo: 0,
+           pitchSalvo: 0,
+           fovSalvo: 80
+         });
            log("warn", `🤖 ${cod} — Sem cobertura Street View, fallback estático.`);
            return;
          }
@@ -176,7 +183,14 @@ const Ctx = createContext<SessionState | null>(null);
          }
  
          const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
-         updatePoint(id, { status: "SUCESSO", foto_url: urlPublica, fotoSalva: true });
+         updatePoint(id, { 
+           status: "SUCESSO", 
+           foto_url: urlPublica, 
+           fotoSalva: true,
+           headingSalvo: melhorHeading,
+           pitchSalvo: 5,
+           fovSalvo: 72
+         });
          log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
        } catch (err: any) {
          updatePoint(id, { status: "ERRO" });
@@ -214,7 +228,14 @@ const Ctx = createContext<SessionState | null>(null);
            log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
            const fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
            const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
-           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
+             updatePoint(id, { 
+               status: "SEM_COBERTURA", 
+               foto_url: urlPublica, 
+               fotoSalva: true,
+               headingSalvo: 0,
+               pitchSalvo: 0,
+               fovSalvo: 80
+             });
            return;
          }
  
@@ -259,7 +280,14 @@ const Ctx = createContext<SessionState | null>(null);
  
          const urlPublica = await salvarFotoSupabase(cod, bestUrl);
          const statusFinal = outdoorEncontrado ? "SUCESSO" : "SEM_OUTDOOR_VISIVEL";
-         updatePoint(id, { status: statusFinal, foto_url: urlPublica, fotoSalva: true });
+         updatePoint(id, { 
+           status: statusFinal, 
+           foto_url: urlPublica, 
+           fotoSalva: true,
+           headingSalvo: bestHeading,
+           pitchSalvo: 5,
+           fovSalvo: 72
+         });
           log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal} (ângulo ${bestHeading}°)`);
        } catch (err: any) {
          updatePoint(id, { status: "ERRO" });
@@ -321,13 +349,20 @@ const Ctx = createContext<SessionState | null>(null);
     setCurrentIndex(0);
   }, []);
 
-   const setAdjustedPhoto = useCallback(
-     (id: string, adj: PhotoAdjustment) => {
-       updatePoint(id, { adjustedPhoto: adj, foto_url: adj.url, fotoSalva: true });
-       log("success", `Foto ajustada salva para ponto ${id}`);
-     },
-     [updatePoint, log],
-   );
+    const setAdjustedPhoto = useCallback(
+      (id: string, adj: PhotoAdjustment) => {
+        updatePoint(id, {
+          adjustedPhoto: adj,
+          foto_url: adj.url,
+          fotoSalva: true,
+          headingSalvo: adj.heading,
+          pitchSalvo: adj.pitch,
+          fovSalvo: adj.fov,
+        });
+        log("success", `Foto ajustada salva para ponto ${id}`);
+      },
+      [updatePoint, log],
+    );
 
   const total = points.length;
   const sucesso = points.filter((p) => p.status === "SUCESSO").length;
