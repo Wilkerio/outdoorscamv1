@@ -165,13 +165,13 @@ const Ctx = createContext<SessionState | null>(null);
              const temOutdoor = iaRes.response?.includes("SIM");
              log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌ Sem outdoor"}`);
  
-             if (temOutdoor) {
-               melhorUrl = fotoUrl;
-               melhorHeading = heading;
-               outdoorEncontrado = true;
-               break;
-             }
-             if (!melhorUrl) melhorUrl = fotoUrl;
+              if (temOutdoor) {
+                melhorUrl = currentUrl;
+                melhorHeading = heading;
+                outdoorEncontrado = true;
+                break;
+              }
+              if (!melhorUrl) melhorUrl = currentUrl;
            }
          }
  
