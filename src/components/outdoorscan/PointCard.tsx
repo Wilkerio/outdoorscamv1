@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Map, Camera, Link as LinkIcon } from "lucide-react";
+ import { Map, Camera, Link as LinkIcon, Bot } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { Button } from "@/components/ui/button";
 import { StreetViewAdjustModal } from "./StreetViewAdjustModal";
 import { toast } from "sonner";
+ import { useSession } from "@/context/SessionContext";
 
 const STATUS_STYLES: Record<Point["status"], string> = {
   AGUARDANDO: "bg-muted text-muted-foreground",
@@ -26,6 +27,7 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
+   const { corrigirComIA } = useSession();
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
     const previewUrl = point.foto_url || streetViewImg(point.lat, point.lng);
@@ -82,6 +84,15 @@ export function PointCard({ point }: { point: Point }) {
           >
             <Camera className="size-3.5" /> Ajustar Foto
           </Button>
+         <Button
+           size="sm"
+           variant="outline"
+           className="flex-1 min-w-0 border-primary/50 text-primary hover:bg-primary/10"
+           disabled={!validCoords || point.status === "PROCESSANDO"}
+           onClick={() => corrigirComIA(point)}
+         >
+            <Bot className="size-3.5" /> 🤖 IA
+         </Button>
         </div>
 
          {(point.foto_url || point.adjustedPhoto?.url) && (
