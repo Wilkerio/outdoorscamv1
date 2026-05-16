@@ -266,12 +266,12 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        const angulos = [0, 22, 45, 67, 90, 112, 135, 157, 180, 202, 225, 247, 270, 292, 315, 337];
+        const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
+        let melhorUrl: string | null = null;
         let melhorHeading: number | null = null;
-        let melhorQualidadeOutdoor = 0;
 
         for (const heading of angulos) {
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=5&fov=72&key=${key}`;
           const { data, error } = await supabase.functions.invoke("google-proxy", {
             body: { url: fotoUrl },
           });
@@ -279,74 +279,44 @@ const Ctx = createContext<SessionState | null>(null);
             log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
             continue;
           }
-          const { temOutdoor, qualidade, resposta } = await verificarOutdoor(data.image);
+          const { temOutdoor, resposta } = await verificarOutdoor(data.image);
           log("info", `${cod} — ${heading}°: ${temOutdoor ? `✅ ${resposta}` : "❌"}`);
-          if (temOutdoor && qualidade > melhorQualidadeOutdoor) {
+          if (temOutdoor) {
+            melhorUrl = fotoUrl;
             melhorHeading = heading;
-            melhorQualidadeOutdoor = qualidade;
-            if (qualidade === 3) break;
+            break;
           }
+          if (!melhorUrl) melhorUrl = fotoUrl;
           await new Promise((r) => setTimeout(r, 200));
         }
 
         if (melhorHeading === null) {
-          log("warn", `${cod} — ⚠️ Nenhum outdoor encontrado em 16 ângulos`);
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=0&pitch=0&fov=80&key=${key}`;
-          const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+          log("warn", `${cod} — ⚠️ Nenhum outdoor encontrado`);
+          const fallbackUrl =
+            melhorUrl ??
+            `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=0&pitch=5&fov=72&key=${key}`;
+          const urlPublica = await salvarFotoSupabase(cod, fallbackUrl);
           updatePoint(id, {
             status: "SEM_COBERTURA",
             foto_url: urlPublica,
             fotoSalva: true,
             headingSalvo: 0,
-            pitchSalvo: 0,
-            fovSalvo: 80,
+            pitchSalvo: 5,
+            fovSalvo: 72,
           });
           return;
         }
 
-        log("info", `${cod} — 🔎 Ajustando zoom...`);
-        const zooms = [
-          { fov: 80, pitch: 0 },
-          { fov: 65, pitch: 5 },
-          { fov: 50, pitch: 8 },
-        ];
-        let melhorZoomUrl: string | null = null;
-        let melhorZoom = zooms[0];
-        let melhorScore = 0;
-
-        for (const zoom of zooms) {
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=${zoom.pitch}&fov=${zoom.fov}&key=${key}`;
-          const { data, error } = await supabase.functions.invoke("google-proxy", {
-            body: { url: fotoUrl },
-          });
-          if (error || !data?.image) {
-            log("warn", `${cod} — Erro ao carregar FOV ${zoom.fov}°`);
-            continue;
-          }
-          const { qualidade: score, resposta } = await verificarOutdoor(data.image);
-          log("info", `${cod} — FOV ${zoom.fov}°: ${resposta}`);
-          if (score > melhorScore) {
-            melhorScore = score;
-            melhorZoomUrl = fotoUrl;
-            melhorZoom = zoom;
-          }
-        }
-
-        const urlFinal =
-          melhorZoomUrl ??
-          `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=0&fov=80&key=${key}`;
-
-        // PASSO 3: Salvar a melhor foto
-        const urlPublica = await salvarFotoSupabase(cod, urlFinal);
+        const urlPublica = await salvarFotoSupabase(cod, melhorUrl!);
         updatePoint(id, {
           status: "SUCESSO",
           foto_url: urlPublica,
           fotoSalva: true,
           headingSalvo: melhorHeading,
-          pitchSalvo: melhorZoom.pitch,
-          fovSalvo: melhorZoom.fov,
+          pitchSalvo: 5,
+          fovSalvo: 72,
         });
-        log("success", `✅ ${cod} — Foto final salva (heading ${melhorHeading}°, FOV ${melhorZoom.fov}°)`);
+        log("success", `✅ ${cod} — Salvo no ângulo ${melhorHeading}°`);
       } catch (err: any) {
         updatePoint(id, { status: "ERRO" });
         log("error", `❌ ${cod} — Erro: ${err.message}`);
