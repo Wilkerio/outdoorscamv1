@@ -10,6 +10,7 @@ interface SessionState {
   logs: LogEntry[];
   phase: Phase;
    currentIndex: number;
+   log: (level: LogEntry["level"], message: string) => void;
    salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
   setPoints: (p: Point[]) => void;
   start: () => void;
@@ -38,12 +39,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }, []);
 
-  const setPoints = useCallback((p: Point[]) => {
-    setPointsState(p);
-    setLogs([{ id: `${Date.now()}`, ts: Date.now(), level: "info", message: `${p.length} ponto(s) carregado(s) da planilha.` }]);
-    setPhase("idle");
-    setCurrentIndex(0);
-  }, []);
+   const setPoints = useCallback((p: Point[]) => {
+     setPointsState(p);
+     setPhase("idle");
+     setCurrentIndex(0);
+   }, []);
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
@@ -194,6 +194,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       value={{
         points,
         logs,
+        log,
         phase,
         currentIndex,
         setPoints,
