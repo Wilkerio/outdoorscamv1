@@ -62,7 +62,7 @@ const Ctx = createContext<SessionState | null>(null);
      }
    }, []);
 
-   const verificarFotoComGemini = useCallback(async (base64Image: string, apiKey: string) => {
+   const verificarOutdoorComGemini = useCallback(async (base64Image: string, apiKey: string) => {
      try {
        const response = await fetch(
          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -74,7 +74,7 @@ const Ctx = createContext<SessionState | null>(null);
                {
                  parts: [
                    { inline_data: { mime_type: "image/jpeg", data: base64Image } },
-                   { text: "Esta foto de rua contém um outdoor, painel publicitário, banner ou anúncio visível? Responda apenas: SIM ou NAO" },
+                   { text: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível e legível? Responda apenas: SIM ou NAO" },
                  ],
                },
              ],
