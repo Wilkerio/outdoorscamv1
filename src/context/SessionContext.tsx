@@ -232,8 +232,8 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // PASSO 1: Testar 8 ângulos para localizar o outdoor
-        const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
+        // PASSO 1: Testar 16 ângulos (22.5° cada) com verificação rigorosa
+        const angulos = [0, 22, 45, 67, 90, 112, 135, 157, 180, 202, 225, 247, 270, 292, 315, 337];
         let melhorHeading: number | null = null;
 
         for (const heading of angulos) {
@@ -252,11 +252,22 @@ const Ctx = createContext<SessionState | null>(null);
             melhorHeading = heading;
             break;
           }
+          await new Promise((r) => setTimeout(r, 200));
         }
 
         if (melhorHeading === null) {
-          log("warn", `${cod} — ⚠️ Outdoor não encontrado, salvando visão padrão (0°)`);
-          melhorHeading = 0;
+          log("warn", `${cod} — ⚠️ Nenhum outdoor encontrado em 16 ângulos`);
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=0&pitch=0&fov=80&key=${key}`;
+          const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+          updatePoint(id, {
+            status: "SEM_COBERTURA",
+            foto_url: urlPublica,
+            fotoSalva: true,
+            headingSalvo: 0,
+            pitchSalvo: 0,
+            fovSalvo: 80,
+          });
+          return;
         }
 
         // PASSO 2: Ajustar zoom no ângulo escolhido
