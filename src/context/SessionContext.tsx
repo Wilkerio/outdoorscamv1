@@ -264,8 +264,9 @@ const Ctx = createContext<SessionState | null>(null);
 
   const start = useCallback(() => {
     if (!points.length) return;
+    log("info", "Processamento iniciado ✅");
     void runFrom(0);
-  }, [points.length, runFrom]);
+  }, [points.length, runFrom, log]);
 
   const pause = useCallback(() => {
     setPhase("paused");
