@@ -138,66 +138,15 @@ const Ctx = createContext<SessionState | null>(null);
      return urlData.publicUrl;
    }, []);
  
-    const corrigirComIA = useCallback(
-      async (p: Point) => {
-        const { lat, lng, cod, id } = p;
-        const key = GMAPS_KEY;
-
-        updatePoint(id, { status: "PROCESSANDO" });
-        log("info", `🤖 ${cod} — IA testando ângulos...`);
-
-        try {
-          const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
-          let melhorUrl = "";
-          let melhorHeading = 0;
-          let encontrou = false;
-
-          for (const heading of angulos) {
-            const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
-            
-            // Buscar imagem para análise via proxy
-            const { data: proxyData, error: proxyError } = await supabase.functions.invoke("google-proxy", {
-              body: { url: fotoUrl },
-            });
-
-            if (proxyError || !proxyData?.image) {
-              log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
-              continue;
-            }
-
-            const temOutdoor = await verificarOutdoorDeepSeek(proxyData.image);
-            log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
-
-            if (temOutdoor) {
-              melhorUrl = fotoUrl;
-              melhorHeading = heading;
-              encontrou = true;
-              break;
-            }
-            if (!melhorUrl) {
-              melhorUrl = fotoUrl;
-              melhorHeading = heading;
-            }
-          }
-
-          const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
-          updatePoint(id, { 
-            status: "SUCESSO", 
-            foto_url: urlPublica, 
-            fotoSalva: true,
-            headingSalvo: melhorHeading,
-            pitchSalvo: 0,
-            fovSalvo: 80
-          });
-          
-          log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
-        } catch (err: any) {
-          updatePoint(id, { status: "ERRO" });
-          log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
-        }
-      },
-      [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
-    );
+  const corrigirComIA = useCallback(
+    async (p: Point) => {
+      // Basta chamar o processarPonto que agora já contém a lógica de IA
+      // e garante que se o status mudar de SUCESSO ele reprocessa (útil para o botão IA)
+      const pCopy = { ...p, fotoSalva: false }; // Forçar reprocessamento
+      return processarPonto(pCopy);
+    },
+    [processarPonto]
+  );
  
   const processarPonto = useCallback(
     async (p: Point) => {
