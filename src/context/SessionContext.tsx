@@ -9,7 +9,8 @@ interface SessionState {
   points: Point[];
   logs: LogEntry[];
   phase: Phase;
-  currentIndex: number;
+   currentIndex: number;
+   salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
   setPoints: (p: Point[]) => void;
   start: () => void;
   pause: () => void;
@@ -121,10 +122,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        for (let i = startIdx; i < snapshot.length; i += 5) {
          const batch = snapshot.slice(i, i + 5);
  
-         while (phaseRef.current === "paused") {
+         while ((phaseRef.current as Phase) === "paused") {
            await new Promise((r) => setTimeout(r, 200));
          }
-         if (phaseRef.current === "idle") return;
+         if ((phaseRef.current as Phase) === "idle") return;
  
          setCurrentIndex(i);
          await Promise.all(batch.map((p) => processarPonto(p)));
@@ -189,7 +190,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         pause,
         resume,
         reset,
-        setAdjustedPhoto,
+         setAdjustedPhoto,
+         salvarFotoSupabase,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
