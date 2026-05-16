@@ -1,4 +1,4 @@
- import { Link, useRouterState } from "@tanstack/react-router";
+  import { Link, useLocation } from "react-router-dom";
   import { Radar, ListChecks, History, Settings, Key, Download } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
  import { useState } from "react";
@@ -7,7 +7,8 @@ import { useSession } from "@/context/SessionContext";
  import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export function AppSidebar() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+   const location = useLocation();
+   const pathname = location.pathname;
       const { stats, exportarExcel, points } = useSession();
 
   const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
