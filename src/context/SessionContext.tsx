@@ -142,56 +142,17 @@ const Ctx = createContext<SessionState | null>(null);
            return;
          }
  
-         const camLat = meta.location.lat;
-         const camLng = meta.location.lng;
-         const dLat = lat - camLat;
-         const dLng = lng - camLng;
-         const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
-         const panoId = meta.pano_id;
- 
-         const angulos = [0, 45, 90, 135, 180, 225, 270, 315].map((offset) => (baseHeading + offset) % 360);
-         let melhorUrl = "";
-         let melhorHeading = baseHeading;
-         let outdoorEncontrado = false;
- 
-         for (const heading of angulos) {
-           const currentUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
-           
-           const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: currentUrl } });
- 
-           if (proxyData?.image) {
-             const iaRes = await fetch("/api/ai/vision", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({
-                 image: proxyData.image,
-                 prompt: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO",
-               }),
-             }).then((r) => r.json());
- 
-             const temOutdoor = iaRes.response?.includes("SIM");
-             log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌ Sem outdoor"}`);
- 
-              if (temOutdoor) {
-                melhorUrl = currentUrl;
-                melhorHeading = heading;
-                outdoorEncontrado = true;
-                break;
-              }
-              if (!melhorUrl) melhorUrl = currentUrl;
-           }
-         }
- 
-         const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&fov=80&pitch=0&key=${key}`;
+          const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
          updatePoint(id, { 
            status: "SUCESSO", 
            foto_url: urlPublica, 
            fotoSalva: true,
-           headingSalvo: melhorHeading,
-           pitchSalvo: 5,
-           fovSalvo: 72
+            headingSalvo: 0,
+            pitchSalvo: 0,
+            fovSalvo: 80
          });
-         log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
+          log("success", `✅ ${cod} — IA salvou foto (ângulo padrão)`);
        } catch (err: any) {
          updatePoint(id, { status: "ERRO" });
          log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
@@ -239,56 +200,17 @@ const Ctx = createContext<SessionState | null>(null);
            return;
          }
  
-         const camLat = meta.location.lat;
-         const camLng = meta.location.lng;
-         const dLat = lat - camLat;
-         const dLng = lng - camLng;
-         const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
-         const panoId = meta.pano_id;
- 
-         const angulos = [0, 45, 90, 135, 180, 225, 270, 315].map((offset) => (baseHeading + offset) % 360);
-         let bestUrl = "";
-         let bestHeading = baseHeading;
-         let outdoorEncontrado = false;
- 
-         for (const heading of angulos) {
-           const currentUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
- 
-           if (!bestUrl) bestUrl = currentUrl;
- 
-           if (geminiKey) {
-             log("info", `${cod} — Verificando outdoor no ângulo ${heading}°...`);
-             const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: currentUrl } });
- 
-             if (proxyData?.image) {
-               const encontrou = await verificarOutdoorComGemini(proxyData.image, geminiKey);
-               if (encontrou) {
-                 log("success", `${cod} — IA: outdoor encontrado ✅ (ângulo ${heading}°)`);
-                 bestUrl = currentUrl;
-                 bestHeading = heading;
-                 outdoorEncontrado = true;
-                 break;
-               } else {
-                 log("info", `${cod} — IA: tentando próximo ângulo...`);
-               }
-             }
-           } else {
-             outdoorEncontrado = true; // Sem Gemini, aceita o primeiro
-             break;
-           }
-         }
- 
-         const urlPublica = await salvarFotoSupabase(cod, bestUrl);
-         const statusFinal = outdoorEncontrado ? "SUCESSO" : "SEM_OUTDOOR_VISIVEL";
-         updatePoint(id, { 
-           status: statusFinal, 
-           foto_url: urlPublica, 
-           fotoSalva: true,
-           headingSalvo: bestHeading,
-           pitchSalvo: 5,
-           fovSalvo: 72
-         });
-          log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal} (ângulo ${bestHeading}°)`);
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&fov=80&pitch=0&key=${key}`;
+          const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+          updatePoint(id, { 
+            status: "SUCESSO", 
+            foto_url: urlPublica, 
+            fotoSalva: true,
+            headingSalvo: 0,
+            pitchSalvo: 0,
+            fovSalvo: 80
+          });
+          log("success", `✅ ${cod} — Foto salva (ângulo padrão)`);
        } catch (err: any) {
          updatePoint(id, { status: "ERRO" });
          log("error", `❌ ${cod} — Erro: ${err.message}`);
