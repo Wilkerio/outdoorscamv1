@@ -1,63 +1,69 @@
-import { useRef, useState } from "react";
-import { Upload, FileSpreadsheet } from "lucide-react";
-import { parseXlsx } from "@/lib/outdoorscan/xlsx";
+import * as XLSX from "xlsx";
+import { useRef } from "react";
+import { Upload } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import type { Point } from "@/lib/outdoorscan/types";
 
  export function UploadDropzone() {
-   const { setPoints, points, log } = useSession();
+  const { setPoints, log } = useSession();
    const fileInputRef = useRef<HTMLInputElement>(null);
-   const [fileName, setFileName] = useState<string | null>(null);
  
-   const handleFile = async (file: File | undefined) => {
-     if (!file || !file.name.endsWith(".xlsx")) return;
-     
-     try {
-       const pts = await parseXlsx(file, log);
-       setPoints(pts);
-       setFileName(file.name);
-       toast.success(`${pts.length} ponto(s) carregado(s)`);
-     } catch (e) {
-       toast.error("Falha ao ler a planilha");
-       console.error(e);
-     }
+  const normalizeCoord = (valor: any) => {
+    if (valor === null || valor === undefined || valor === "") return null;
+    const num = parseFloat(String(valor).replace(",", "."));
+    if (isNaN(num)) return null;
+    if (Math.abs(num) > 180) return num / 1_000_000;
+    return num;
    };
  
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    log("info", `Lendo arquivo: ${file.name}...`);
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+
+    const normalizados: Point[] = rows.map((row, i) => {
+      const novo: any = {};
+      Object.keys(row).forEach((k) => {
+        novo[k.trim()] = typeof row[k] === "string" ? row[k].trim() : row[k];
+      });
+
+      return {
+        id: `${Date.now()}-${i}`,
+        cod: String(novo["Cod."] ?? "").trim(),
+        endereco: String(novo["Endereço"] ?? "").trim(),
+        bairro: String(novo["Bairro"] ?? "").trim(),
+        cidade: String(novo["Cidade"] ?? "").trim(),
+        lat: normalizeCoord(novo["Latitude"]) ?? NaN,
+        lng: normalizeCoord(novo["Longitude"]) ?? NaN,
+        rawLat: novo["Latitude"],
+        rawLng: novo["Longitude"],
+        formato: String(novo["Formato"] ?? "").trim(),
+        foto: String(novo["Foto"] ?? "").trim(),
+        empresa: String(novo["Empresa"] ?? "").trim(),
+        status: "AGUARDANDO",
+      };
+    });
+
+    setPoints(normalizados);
+    log("success", `✅ ${normalizados.length} pontos carregados`);
+  };
+
    return (
-     <div
-       onClick={() => fileInputRef.current?.click()}
-       onDragOver={(e) => e.preventDefault()}
-       onDrop={(e) => {
-         e.preventDefault();
-         handleFile(e.dataTransfer.files[0]);
-       }}
-       className="relative cursor-pointer rounded-xl border-2 border-dashed border-[#444] p-10 text-center bg-card hover:bg-accent/40 transition-colors"
-     >
-       <div className="flex flex-col items-center gap-3 pointer-events-none">
-         <div className="size-12 rounded-full bg-primary/15 text-primary flex items-center justify-center">
-           {fileName ? <FileSpreadsheet className="size-6" /> : <Upload className="size-6" />}
-         </div>
-         <p className="font-medium">
-           {fileName ? fileName : "Arraste sua planilha .xlsx aqui ou clique para selecionar"}
-         </p>
-         {fileName && (
-           <div className="text-sm text-muted-foreground">
-             {points.length} ponto(s) prontos — solte outra planilha para substituir
-           </div>
-         )}
-         {!fileName && (
-           <div className="text-xs text-muted-foreground mt-2">
-             Colunas: Cod. | Endereço | Bairro | Cidade | Latitude | Longitude | Formato | Foto | Empresa
-           </div>
-         )}
-       </div>
+    <div className="flex justify-center p-8 bg-card rounded-xl border border-border">
        <input
          ref={fileInputRef}
          type="file"
-         accept=".xlsx"
+        accept=".xlsx,.xls"
          className="hidden"
          onChange={(e) => handleFile(e.target.files?.[0])}
        />
+      <Button onClick={() => fileInputRef.current?.click()} className="gap-2 h-12 px-6">
+        <Upload className="size-4" /> 📂 Selecionar Planilha .xlsx
+      </Button>
      </div>
    );
  }
