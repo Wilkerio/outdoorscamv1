@@ -24,6 +24,9 @@ export interface Point {
   adjustedPhoto?: PhotoAdjustment;
   foto_url?: string;
   fotoSalva?: boolean;
+  headingSalvo?: number;
+  pitchSalvo?: number;
+  fovSalvo?: number;
   error?: string;
 }
 
