@@ -10,17 +10,19 @@ const STATUS_STYLES: Record<Point["status"], string> = {
   AGUARDANDO: "bg-muted text-muted-foreground",
   PROCESSANDO: "bg-primary/20 text-primary animate-pulse",
   SUCESSO: "bg-success/20 text-success",
-  SEM_COBERTURA: "bg-warning/20 text-warning",
-  ERRO: "bg-destructive/20 text-destructive",
-};
-
-const STATUS_LABEL: Record<Point["status"], string> = {
-  AGUARDANDO: "AGUARDANDO",
-  PROCESSANDO: "PROCESSANDO",
-  SUCESSO: "SUCESSO",
-  SEM_COBERTURA: "SEM COBERTURA",
-  ERRO: "ERRO",
-};
+   SEM_COBERTURA: "bg-warning/20 text-warning",
+   ERRO: "bg-destructive/20 text-destructive",
+   SEM_OUTDOOR_VISIVEL: "bg-warning/40 text-warning",
+ };
+ 
+ const STATUS_LABEL: Record<Point["status"], string> = {
+   AGUARDANDO: "AGUARDANDO",
+   PROCESSANDO: "PROCESSANDO",
+   SUCESSO: "SUCESSO",
+   SEM_COBERTURA: "SEM COBERTURA",
+   ERRO: "ERRO",
+   SEM_OUTDOOR_VISIVEL: "SEM OUTDOOR VISÍVEL",
+ };
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
