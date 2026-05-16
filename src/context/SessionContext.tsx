@@ -152,25 +152,26 @@ const Ctx = createContext<SessionState | null>(null);
          const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
          const panoId = meta.pano_id;
  
-         const angulos = [0, 90, 180, 270];
+         const angulos = [0, 45, 90, 135, 180, 225, 270, 315].map((offset) => (baseHeading + offset) % 360);
          let bestUrl = "";
+         let bestHeading = baseHeading;
          let outdoorEncontrado = false;
  
-         for (const offset of angulos) {
-           const heading = (baseHeading + offset) % 360;
+         for (const heading of angulos) {
            const currentUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
-           
+ 
            if (!bestUrl) bestUrl = currentUrl;
  
            if (geminiKey) {
              log("info", `${cod} — Verificando outdoor no ângulo ${heading}°...`);
              const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: currentUrl } });
-             
+ 
              if (proxyData?.image) {
-               const encontrou = await verificarFotoComGemini(proxyData.image, geminiKey);
+               const encontrou = await verificarOutdoorComGemini(proxyData.image, geminiKey);
                if (encontrou) {
                  log("success", `${cod} — IA: outdoor encontrado ✅ (ângulo ${heading}°)`);
                  bestUrl = currentUrl;
+                 bestHeading = heading;
                  outdoorEncontrado = true;
                  break;
                } else {
