@@ -81,22 +81,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
        try {
          updatePoint(id, { status: "PROCESSANDO" });
          log("info", `Processando ${cod}...`);
-          log("info", `${cod} — Bruto: Lat ${rawLat} | Lng ${rawLng}`);
-          log("info", `${cod} — Normalizado: Lat ${lat} | Lng ${lng}`);
-
-          if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-            log("error", `❌ ${cod} — Coordenadas inválidas: ${rawLat}, ${rawLng}`);
-            updatePoint(id, { status: "ERRO" });
-            return;
-          }
-
-          log("info", `${cod} — URL metadata: https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`);
+         log("info", `API Key (início): ${key?.substring(0, 10)}...`);
+         log("info", `${cod} — Bruto: Lat ${rawLat} | Lng ${rawLng}`);
+         log("info", `${cod} — Normalizado: Lat ${lat} | Lng ${lng}`);
  
-         const metaRes = await fetch(
-           `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`,
-         );
-         const meta = await metaRes.json();
-          log("info", `${cod} — Resposta metadata: ${JSON.stringify(meta)}`);
+         if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+           log("error", `❌ ${cod} — Coordenadas inválidas: ${rawLat}, ${rawLng}`);
+           updatePoint(id, { status: "ERRO" });
+           return;
+         }
+ 
+         const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
+         log("info", `Chamando: ${metaUrl}`);
+ 
+         const metaRes = await fetch(metaUrl);
+         const metaText = await metaRes.text();
+         log("info", `Resposta raw: ${metaText}`);
+ 
+         const meta = JSON.parse(metaText);
  
          let fotoUrl;
          let statusFinal: PointStatus;
