@@ -137,127 +137,104 @@ const Ctx = createContext<SessionState | null>(null);
      const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
      return urlData.publicUrl;
    }, []);
- 
-    const corrigirComIA = useCallback(
-      async (p: Point) => {
-        const { lat, lng, cod, id } = p;
-        const key = GMAPS_KEY;
+  const processarPonto = useCallback(
+    async (p: Point) => {
+      if (p.fotoSalva && p.status === "SUCESSO") {
+        log("info", `Pulando ${p.cod} (já processado com sucesso)`);
+        return;
+      }
 
+      const { lat, lng, cod, id } = p;
+      const key = GMAPS_KEY;
+
+      try {
         updatePoint(id, { status: "PROCESSANDO" });
-        log("info", `🤖 ${cod} — IA testando ângulos...`);
+        log("info", `🔍 ${cod} — Buscando melhor ângulo com IA...`);
 
-        try {
-          const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
-          let melhorUrl = "";
-          let melhorHeading = 0;
-          let encontrou = false;
-
-          for (const heading of angulos) {
-            const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
-            
-            // Buscar imagem para análise via proxy
-            const { data: proxyData, error: proxyError } = await supabase.functions.invoke("google-proxy", {
-              body: { url: fotoUrl },
-            });
-
-            if (proxyError || !proxyData?.image) {
-              log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
-              continue;
-            }
-
-            const temOutdoor = await verificarOutdoorDeepSeek(proxyData.image);
-            log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
-
-            if (temOutdoor) {
-              melhorUrl = fotoUrl;
-              melhorHeading = heading;
-              encontrou = true;
-              break;
-            }
-            if (!melhorUrl) {
-              melhorUrl = fotoUrl;
-              melhorHeading = heading;
-            }
-          }
-
-          const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
-          updatePoint(id, { 
-            status: "SUCESSO", 
-            foto_url: urlPublica, 
-            fotoSalva: true,
-            headingSalvo: melhorHeading,
-            pitchSalvo: 0,
-            fovSalvo: 80
-          });
-          
-          log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
-        } catch (err: any) {
+        if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+          log("error", `❌ ${cod} — Coordenadas inválidas`);
           updatePoint(id, { status: "ERRO" });
-          log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
+          return;
         }
-      },
-      [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
-    );
- 
-   const processarPonto = useCallback(
-     async (p: Point) => {
-       if (p.fotoSalva) {
-         log("info", `Pulando ${p.cod} (foto já salva)`);
-         return;
-       }
- 
-       const { lat, lng, cod, id, rawLat, rawLng } = p;
-       const key = GMAPS_KEY;
- 
-       try {
-         updatePoint(id, { status: "PROCESSANDO" });
-         log("info", `Processando ${cod}...`);
- 
-         if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-           log("error", `❌ ${cod} — Coordenadas inválidas`);
-           updatePoint(id, { status: "ERRO" });
-           return;
-         }
- 
-         const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
-         const metaRes = await fetch(metaUrl);
-         const meta = await metaRes.json();
- 
-         if (meta.status !== "OK") {
-           log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
-           const fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
-           const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
-             updatePoint(id, { 
-               status: "SEM_COBERTURA", 
-               foto_url: urlPublica, 
-               fotoSalva: true,
-               headingSalvo: 0,
-               pitchSalvo: 0,
-               fovSalvo: 80
-             });
-           return;
-         }
- 
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&fov=80&pitch=0&key=${key}`;
+
+        // Primeiro verificar se há cobertura básica
+        const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
+        const metaRes = await fetch(metaUrl);
+        const meta = await metaRes.json();
+
+        if (meta.status !== "OK") {
+          log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
+          const fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
           const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
-          updatePoint(id, { 
-            status: "SUCESSO", 
-            foto_url: urlPublica, 
+          updatePoint(id, {
+            status: "SEM_COBERTURA",
+            foto_url: urlPublica,
             fotoSalva: true,
             headingSalvo: 0,
             pitchSalvo: 0,
-            fovSalvo: 80
+            fovSalvo: 80,
           });
-          log("success", `✅ ${cod} — Foto salva (ângulo padrão)`);
-       } catch (err: any) {
-         updatePoint(id, { status: "ERRO" });
-         log("error", `❌ ${cod} — Erro: ${err.message}`);
-       }
-     },
-       [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek],
-   );
- 
-   const runFrom = useCallback(
+          return;
+        }
+
+        // Fluxo com IA: testar 8 ângulos
+        const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
+        let melhorUrl = "";
+        let melhorHeading = 0;
+
+        for (const heading of angulos) {
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
+          
+          const { data, error } = await supabase.functions.invoke("google-proxy", {
+            body: { url: fotoUrl },
+          });
+
+          if (error || !data?.image) {
+            log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
+            continue;
+          }
+
+          const temOutdoor = await verificarOutdoorDeepSeek(data.image);
+          log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
+
+          if (temOutdoor) {
+            melhorUrl = fotoUrl;
+            melhorHeading = heading;
+            break;
+          }
+          if (!melhorUrl) {
+            melhorUrl = fotoUrl;
+            melhorHeading = heading;
+          }
+        }
+
+        const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
+        updatePoint(id, {
+          status: "SUCESSO",
+          foto_url: urlPublica,
+          fotoSalva: true,
+          headingSalvo: melhorHeading,
+          pitchSalvo: 0,
+          fovSalvo: 80,
+        });
+        log("success", `✅ ${cod} — Salvo no ângulo ${melhorHeading}°`);
+      } catch (err: any) {
+        updatePoint(id, { status: "ERRO" });
+        log("error", `❌ ${cod} — Erro: ${err.message}`);
+      }
+    },
+    [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
+  );
+
+  const corrigirComIA = useCallback(
+    async (p: Point) => {
+      const pCopy = { ...p, fotoSalva: false };
+      return processarPonto(pCopy);
+    },
+    [processarPonto]
+  );
+
+  const runFrom = useCallback(
      async (startIdx: number) => {
        setPhase("running");
        phaseRef.current = "running";
@@ -287,8 +264,9 @@ const Ctx = createContext<SessionState | null>(null);
 
   const start = useCallback(() => {
     if (!points.length) return;
+    log("info", "Processamento iniciado ✅");
     void runFrom(0);
-  }, [points.length, runFrom]);
+  }, [points.length, runFrom, log]);
 
   const pause = useCallback(() => {
     setPhase("paused");
