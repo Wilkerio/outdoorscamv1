@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+ import { Save, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewEmbed, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
@@ -16,7 +16,8 @@ export function StreetViewAdjustModal({
   onOpenChange: (v: boolean) => void;
   point: Point;
 }) {
-  const { setAdjustedPhoto } = useSession();
+   const { setAdjustedPhoto, salvarFotoSupabase } = useSession();
+   const [saving, setSaving] = useState(false);
   const [heading, setHeading] = useState(point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.adjustedPhoto?.fov ?? 80);
@@ -29,11 +30,19 @@ export function StreetViewAdjustModal({
     }
   }, [open, point.id]);
 
-  const save = () => {
-    const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "600x400" });
-    setAdjustedPhoto(point.id, { heading, pitch, fov, url });
-    onOpenChange(false);
-  };
+   const save = async () => {
+     try {
+       setSaving(true);
+       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
+       const publicUrl = await salvarFotoSupabase(point.cod, url);
+       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
+       onOpenChange(false);
+     } catch (err: any) {
+       console.error(err);
+     } finally {
+       setSaving(false);
+     }
+   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -64,8 +73,9 @@ export function StreetViewAdjustModal({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={save}>
-            <Save className="size-4" /> Salvar
+           <Button onClick={save} disabled={saving}>
+             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+             Salvar
           </Button>
         </DialogFooter>
       </DialogContent>
