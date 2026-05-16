@@ -77,7 +77,7 @@ const Ctx = createContext<SessionState | null>(null);
             'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            model: 'deepseek-chat', // Assuming deepseek-chat if VL is not available or user meant VL
+            model: 'deepseek-vl2',
             max_tokens: 10,
             messages: [{
               role: 'user',
