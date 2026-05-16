@@ -6,75 +6,58 @@ import { toast } from "sonner";
 
  export function UploadDropzone() {
    const { setPoints, points, log } = useSession();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-
-  const handleFile = async (f: File) => {
-    if (!/\.xlsx$/i.test(f.name)) {
-      toast.error("Envie um arquivo .xlsx");
-      return;
-    }
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   const [fileName, setFileName] = useState<string | null>(null);
+ 
+   const handleFile = async (file: File | undefined) => {
+     if (!file || !file.name.endsWith(".xlsx")) return;
+     
      try {
-       const pts = await parseXlsx(f, log);
+       const pts = await parseXlsx(file, log);
        setPoints(pts);
-      setFileName(f.name);
-      toast.success(`${pts.length} ponto(s) carregado(s)`);
-    } catch (e) {
-      toast.error("Falha ao ler a planilha");
-      console.error(e);
-    }
-  };
-
-  return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) void handleFile(f);
-      }}
-      onClick={() => inputRef.current?.click()}
-      className={`relative cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-        dragOver ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-accent/40"
-      }`}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".xlsx"
-        className="absolute inset-0 opacity-0 cursor-pointer"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) void handleFile(f);
-        }}
-      />
-      <div className="flex flex-col items-center gap-3 pointer-events-none">
-        <div className="size-12 rounded-full bg-primary/15 text-primary flex items-center justify-center">
-          {fileName ? <FileSpreadsheet className="size-6" /> : <Upload className="size-6" />}
-        </div>
-        {fileName ? (
-          <>
-            <div className="font-medium">{fileName}</div>
-            <div className="text-sm text-muted-foreground">
-              {points.length} ponto(s) prontos — solte outra planilha para substituir
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="font-medium">Arraste sua planilha .xlsx aqui</div>
-            <div className="text-sm text-muted-foreground">ou clique para selecionar</div>
-            <div className="text-xs text-muted-foreground mt-2">
-              Colunas: Cod. | Endereço | Bairro | Cidade | Latitude | Longitude | Formato | Foto | Empresa
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
+       setFileName(file.name);
+       toast.success(`${pts.length} ponto(s) carregado(s)`);
+     } catch (e) {
+       toast.error("Falha ao ler a planilha");
+       console.error(e);
+     }
+   };
+ 
+   return (
+     <div
+       onClick={() => fileInputRef.current?.click()}
+       onDragOver={(e) => e.preventDefault()}
+       onDrop={(e) => {
+         e.preventDefault();
+         handleFile(e.dataTransfer.files[0]);
+       }}
+       className="relative cursor-pointer rounded-xl border-2 border-dashed border-[#444] p-10 text-center bg-card hover:bg-accent/40 transition-colors"
+     >
+       <div className="flex flex-col items-center gap-3 pointer-events-none">
+         <div className="size-12 rounded-full bg-primary/15 text-primary flex items-center justify-center">
+           {fileName ? <FileSpreadsheet className="size-6" /> : <Upload className="size-6" />}
+         </div>
+         <p className="font-medium">
+           {fileName ? fileName : "Arraste sua planilha .xlsx aqui ou clique para selecionar"}
+         </p>
+         {fileName && (
+           <div className="text-sm text-muted-foreground">
+             {points.length} ponto(s) prontos — solte outra planilha para substituir
+           </div>
+         )}
+         {!fileName && (
+           <div className="text-xs text-muted-foreground mt-2">
+             Colunas: Cod. | Endereço | Bairro | Cidade | Latitude | Longitude | Formato | Foto | Empresa
+           </div>
+         )}
+       </div>
+       <input
+         ref={fileInputRef}
+         type="file"
+         accept=".xlsx"
+         className="hidden"
+         onChange={(e) => handleFile(e.target.files?.[0])}
+       />
+     </div>
+   );
+ }
