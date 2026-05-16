@@ -96,6 +96,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
            `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`,
          );
          const meta = await metaRes.json();
+          log("info", `${cod} — Resposta metadata: ${JSON.stringify(meta)}`);
  
          let fotoUrl;
          let statusFinal: PointStatus;
