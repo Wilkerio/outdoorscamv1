@@ -28,15 +28,7 @@ export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
-   const previewUrl =
-     point.foto_url ||
-     (point.adjustedPhoto?.url
-       ? streetViewImg(point.lat, point.lng, {
-           heading: point.adjustedPhoto.heading,
-           pitch: point.adjustedPhoto.pitch,
-           fov: point.adjustedPhoto.fov,
-         })
-       : streetViewImg(point.lat, point.lng));
+    const previewUrl = point.foto_url || streetViewImg(point.lat, point.lng);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
