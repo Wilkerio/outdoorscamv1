@@ -73,7 +73,7 @@ export function PointCard({ point }: { point: Point }) {
             disabled={!validCoords}
             onClick={() => window.open(googleMapsLink(point.lat, point.lng), "_blank")}
           >
-            <Map className="size-3.5" /> Ver no Mapa
+            <Map className="size-3.5" /> 🗺️ Ver no Mapa
           </Button>
           <Button
             size="sm"
@@ -82,7 +82,7 @@ export function PointCard({ point }: { point: Point }) {
             disabled={!validCoords}
             onClick={() => setOpen(true)}
           >
-            <Camera className="size-3.5" /> Ajustar Foto
+            <Camera className="size-3.5" /> 📸 Ajustar Foto
           </Button>
          <Button
            size="sm"
