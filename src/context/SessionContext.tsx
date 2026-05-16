@@ -1,7 +1,8 @@
- import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+ import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
  import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
  import { supabase } from "@/integrations/supabase/client";
+ import ExcelJS from "exceljs";
 
 type Phase = "idle" | "running" | "paused" | "done";
 
@@ -13,7 +14,8 @@ type Phase = "idle" | "running" | "paused" | "done";
    log: (level: LogEntry["level"], message: string) => void;
     salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
-  setPoints: (p: Point[]) => void;
+  setPoints: (p: Point[], sheetName?: string, colunasOriginais?: string[]) => void;
+  exportarExcel: () => Promise<void>;
    start: () => void;
    pause: () => void;
    resume: () => void;
@@ -26,6 +28,8 @@ const Ctx = createContext<SessionState | null>(null);
 
  export function SessionProvider({ children }: { children: ReactNode }) {
    const [points, setPointsState] = useState<Point[]>([]);
+  const [sheetName, setSheetName] = useState<string>("Planilha1");
+  const [colunasOriginais, setColunasOriginais] = useState<string[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -40,11 +44,42 @@ const Ctx = createContext<SessionState | null>(null);
     setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }, []);
 
-   const setPoints = useCallback((p: Point[]) => {
+   const setPoints = useCallback((p: Point[], name?: string, cols?: string[]) => {
      setPointsState(p);
+     if (name) setSheetName(name);
+     if (cols) setColunasOriginais(cols);
      setPhase("idle");
      setCurrentIndex(0);
    }, []);
+
+   const exportarExcel = useCallback(async () => {
+     if (!points.length) return;
+     const nome = prompt("Nome do arquivo:") || "OutdoorScan_resultado";
+     const wb = new ExcelJS.Workbook();
+     const ws = wb.addWorksheet(sheetName);
+     
+     // Add header row
+     ws.addRow(colunasOriginais);
+     
+     // Add data rows
+     points.forEach(ponto => {
+       const linha = colunasOriginais.map(col => {
+         if (col.trim() === 'Foto') return ponto.foto_url || '';
+         // Tentar pegar do originalData se existir, senão do ponto
+         return ponto.originalData?.[col] ?? ponto.originalData?.[col.trim()] ?? (ponto as any)[col] ?? (ponto as any)[col.trim()] ?? '';
+       });
+       ws.addRow(linha);
+     });
+
+     const buffer = await wb.xlsx.writeBuffer();
+     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+     const url = URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = `${nome}.xlsx`;
+     a.click();
+     URL.revokeObjectURL(url);
+   }, [points, sheetName, colunasOriginais]);
 
 
     const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
@@ -310,6 +345,7 @@ const Ctx = createContext<SessionState | null>(null);
         setAdjustedPhoto,
         salvarFotoSupabase,
         corrigirComIA,
+        exportarExcel,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
