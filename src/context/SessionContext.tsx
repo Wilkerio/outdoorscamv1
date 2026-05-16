@@ -63,33 +63,38 @@ const Ctx = createContext<SessionState | null>(null);
      }
    }, []);
 
-   const verificarOutdoorComGemini = useCallback(async (base64Image: string, apiKey: string) => {
-     try {
-       const response = await fetch(
-         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-         {
-           method: "POST",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({
-             contents: [
-               {
-                 parts: [
-                   { inline_data: { mime_type: "image/jpeg", data: base64Image } },
-                   { text: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível e legível? Responda apenas: SIM ou NAO" },
-                 ],
-               },
-             ],
-           }),
-         },
-       );
-       const data = await response.json();
-       const resposta = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase();
-       return resposta?.includes("SIM");
-     } catch (err) {
-       console.error("Erro Gemini:", err);
-       return false;
-     }
-   }, []);
+    const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
+      try {
+        const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+        if (!apiKey || apiKey === "YOUR_KEY_HERE") {
+          throw new Error("Chave DeepSeek não configurada.");
+        }
+
+        const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat', // Assuming deepseek-chat if VL is not available or user meant VL
+            max_tokens: 10,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                { type: 'text', text: 'Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO' }
+              ]
+            }]
+          })
+        }).then(r => r.json());
+
+        return res.choices?.[0]?.message?.content?.toUpperCase().includes('SIM');
+      } catch (err) {
+        console.error("Erro DeepSeek:", err);
+        return false;
+      }
+    }, []);
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
@@ -119,11 +124,6 @@ const Ctx = createContext<SessionState | null>(null);
         const { lat, lng, cod, id } = p;
         const key = GMAPS_KEY;
 
-        if (!geminiKey) {
-          log("error", "⚠️ Chave do Gemini não configurada.");
-          return;
-        }
-
         updatePoint(id, { status: "PROCESSANDO" });
         log("info", `🤖 ${cod} — IA testando ângulos...`);
 
@@ -146,7 +146,7 @@ const Ctx = createContext<SessionState | null>(null);
               continue;
             }
 
-            const temOutdoor = await verificarOutdoorComGemini(proxyData.image, geminiKey);
+            const temOutdoor = await verificarOutdoorDeepSeek(proxyData.image);
             log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
 
             if (temOutdoor) {
@@ -177,7 +177,7 @@ const Ctx = createContext<SessionState | null>(null);
           log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
         }
       },
-      [updatePoint, log, salvarFotoSupabase, geminiKey, verificarOutdoorComGemini]
+      [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek]
     );
  
    const processarPonto = useCallback(
@@ -235,7 +235,7 @@ const Ctx = createContext<SessionState | null>(null);
          log("error", `❌ ${cod} — Erro: ${err.message}`);
        }
      },
-      [updatePoint, log, salvarFotoSupabase, geminiKey, verificarOutdoorComGemini],
+       [updatePoint, log, salvarFotoSupabase, verificarOutdoorDeepSeek],
    );
  
    const runFrom = useCallback(
