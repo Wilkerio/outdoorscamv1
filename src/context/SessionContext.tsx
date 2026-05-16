@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+ import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
  import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
  import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +27,14 @@ const Ctx = createContext<SessionState | null>(null);
 
  export function SessionProvider({ children }: { children: ReactNode }) {
    const [points, setPointsState] = useState<Point[]>([]);
-   const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
+   const [geminiKey, setGeminiKey] = useState<string>("");
+
+   useEffect(() => {
+     if (typeof window !== "undefined") {
+       const stored = window.localStorage.getItem("gemini_api_key");
+       if (stored) setGeminiKey(stored);
+     }
+   }, []);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -50,7 +57,9 @@ const Ctx = createContext<SessionState | null>(null);
 
    const updateGeminiKey = useCallback((k: string) => {
      setGeminiKey(k);
-     localStorage.setItem("gemini_api_key", k);
+     if (typeof window !== "undefined") {
+       window.localStorage.setItem("gemini_api_key", k);
+     }
    }, []);
 
    const verificarFotoComGemini = useCallback(async (base64Image: string, apiKey: string) => {
