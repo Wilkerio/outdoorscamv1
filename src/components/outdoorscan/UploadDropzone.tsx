@@ -4,8 +4,8 @@ import { parseXlsx } from "@/lib/outdoorscan/xlsx";
 import { useSession } from "@/context/SessionContext";
 import { toast } from "sonner";
 
-export function UploadDropzone() {
-  const { setPoints, points } = useSession();
+ export function UploadDropzone() {
+   const { setPoints, points, log } = useSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -15,9 +15,9 @@ export function UploadDropzone() {
       toast.error("Envie um arquivo .xlsx");
       return;
     }
-    try {
-      const pts = await parseXlsx(f);
-      setPoints(pts);
+     try {
+       const pts = await parseXlsx(f, log);
+       setPoints(pts);
       setFileName(f.name);
       toast.success(`${pts.length} ponto(s) carregado(s)`);
     } catch (e) {
