@@ -5,16 +5,14 @@ const REQUIRED = ["Cod.", "Endereço", "Bairro", "Cidade", "Latitude", "Longitud
 
  export const normalizeCoord = (valor: unknown, tipo: "lat" | "lng" = "lat"): number | null => {
    if (valor === null || valor === undefined || valor === "") return null;
-   const num = parseFloat(String(valor).replace(",", ".").trim());
-   if (isNaN(num)) return null;
-   const abs = Math.abs(num);
-   const limite = tipo === "lat" ? 90 : 180;
-   if (abs > limite * 10000) return num / 1_000_000;
-   if (abs > limite * 1000) return num / 100_000;
-   if (abs > limite * 100) return num / 10_000;
-   if (abs > limite * 10) return num / 1_000;
-   if (abs > limite) return num / 10;
-   return num;
+  const num = parseFloat(String(valor).replace(",", ".").trim());
+  if (isNaN(num)) return null;
+  const limite = tipo === "lat" ? 90 : 180;
+  let divisor = 1;
+  while (Math.abs(num / divisor) > limite && divisor < 10_000_000) {
+    divisor *= 10;
+  }
+  return num / divisor;
  };
 
  export async function parseXlsx(file: File, logFn?: (lvl: any, msg: string) => void): Promise<Point[]> {
