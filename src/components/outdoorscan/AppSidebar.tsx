@@ -9,7 +9,7 @@ import { useSession } from "@/context/SessionContext";
 export function AppSidebar() {
    const location = useLocation();
    const pathname = location.pathname;
-      const { stats, exportarExcel, points } = useSession();
+   const { stats } = useSession();
 
   const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
 
@@ -21,18 +21,9 @@ export function AppSidebar() {
   return (
     <aside className="w-64 shrink-0 border-r border-border bg-sidebar-bg flex flex-col">
       <div className="px-5 py-5 flex items-center gap-2 border-b border-border">
-        <div className="size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+        <div className="size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
           <Radar className="size-5" />
-            {points.length > 0 && (
-              <Button 
-                variant="default" 
-                className="w-full bg-success hover:bg-success/90 text-white gap-2 h-10"
-                onClick={exportarExcel}
-              >
-                <Download className="size-4" /> 💾 Baixar Planilha
-              </Button>
-            )}
-          </div>
+        </div>
         <div>
           <div className="font-semibold leading-none">OutdoorScan</div>
           <div className="text-xs text-muted-foreground mt-1">Cobertura Street View</div>
