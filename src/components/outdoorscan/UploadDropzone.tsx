@@ -6,8 +6,8 @@ export function UploadDropzone() {
   const { setPoints, log } = useSession();
 
   return (
-    <div style={{ padding: "20px", background: "white", borderRadius: "8px", border: "1px solid #ccc", marginBottom: "20px" }}>
-      <p style={{ fontWeight: "bold", marginBottom: "10px" }}>Selecione sua planilha:</p>
+    <div style={{ padding: "20px", background: "rgba(255,255,255,0.05)", borderRadius: "8px", border: "1px solid #333", marginBottom: "20px" }}>
+      <p style={{ fontWeight: "bold", marginBottom: "10px", color: "#fff" }}>Selecione sua planilha:</p>
       <input
         type="file"
         accept=".xlsx"
