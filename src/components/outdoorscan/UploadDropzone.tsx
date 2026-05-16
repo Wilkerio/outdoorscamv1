@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { useSession } from "@/context/SessionContext";
 import type { Point } from "@/lib/outdoorscan/types";
+import { normalizeCoord } from "@/lib/outdoorscan/xlsx";
 
 export function UploadDropzone() {
   const { setPoints, log } = useSession();
@@ -22,16 +23,27 @@ export function UploadDropzone() {
            const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
            const colunasOriginais = rows.length > 0 ? Object.keys(rows[0]) : [];
            
+           let invalidos = 0;
            const norm: Point[] = rows.map((r, i) => {
              const n: any = {};
              Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
-             
-             return {
+
+              const lat = normalizeCoord(n["Latitude"], "lat");
+              const lng = normalizeCoord(n["Longitude"], "lng");
+              const cod = String(n["Cod."] || n["Código"] || i);
+              const latOk = lat !== null && Math.abs(lat) <= 90;
+              const lngOk = lng !== null && Math.abs(lng) <= 180;
+              if (!latOk || !lngOk) {
+                invalidos++;
+                log("warn", `⚠️ ${cod} — Coordenadas inválidas: ${n["Latitude"]}, ${n["Longitude"]}`);
+              }
+
+              return {
                id: `${Date.now()}-${i}`,
-               cod: String(n["Cod."] || n["Código"] || i),
-               lat: parseFloat(String(n["Latitude"] || 0).replace(",", ".")),
-               lng: parseFloat(String(n["Longitude"] || 0).replace(",", ".")),
-               status: "AGUARDANDO",
+                cod,
+                lat: latOk ? (lat as number) : NaN,
+                lng: lngOk ? (lng as number) : NaN,
+                status: latOk && lngOk ? "AGUARDANDO" : "ERRO",
                endereco: n["Endereço"] || "",
                bairro: n["Bairro"] || "",
                cidade: n["Cidade"] || "",
@@ -43,7 +55,7 @@ export function UploadDropzone() {
            });
            
            setPoints(norm, sheetName, colunasOriginais);
-           log("success", `✅ ${norm.length} pontos carregados`);
+           log("success", `✅ ${norm.length} pontos carregados${invalidos ? ` (${invalidos} com coordenadas inválidas)` : ""}`);
         }}
       />
     </div>
