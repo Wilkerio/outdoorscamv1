@@ -52,34 +52,103 @@ const Ctx = createContext<SessionState | null>(null);
      setCurrentIndex(0);
    }, []);
 
-   const exportarExcel = useCallback(async () => {
-     if (typeof window === "undefined" || !points.length) return;
-     const nome = window.prompt("Nome do arquivo:") || "OutdoorScan_resultado";
-     const wb = new ExcelJS.Workbook();
-     const ws = wb.addWorksheet(sheetName);
-     
-     // Add header row
-     ws.addRow(colunasOriginais);
-     
-     // Add data rows
-     points.forEach(ponto => {
-       const linha = colunasOriginais.map(col => {
-         if (col.trim() === 'Foto') return ponto.foto_url || '';
-         // Tentar pegar do originalData se existir, senão do ponto
-         return ponto.originalData?.[col] ?? ponto.originalData?.[col.trim()] ?? (ponto as any)[col] ?? (ponto as any)[col.trim()] ?? '';
-       });
-       ws.addRow(linha);
-     });
+  const exportarExcel = useCallback(async () => {
+    if (typeof window === "undefined" || !points.length) return;
+    const nome = window.prompt("Nome do arquivo:") || "OutdoorScan_resultado";
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(sheetName || "Book");
 
-     const buffer = await wb.xlsx.writeBuffer();
-     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-     const url = URL.createObjectURL(blob);
-     const a = document.createElement('a');
-     a.href = url;
-     a.download = `${nome}.xlsx`;
-     a.click();
-     URL.revokeObjectURL(url);
-   }, [points, sheetName, colunasOriginais]);
+    // Definir colunas com larguras adequadas
+    ws.columns = [
+      { header: "Cod.", key: "cod", width: 12 },
+      { header: "Endereço", key: "endereco", width: 40 },
+      { header: "Bairro", key: "bairro", width: 18 },
+      { header: "Cidade", key: "cidade", width: 15 },
+      { header: "Latitude", key: "lat", width: 15 },
+      { header: "Longitude", key: "lng", width: 15 },
+      { header: "Formato", key: "formato", width: 12 },
+      { header: "Foto", key: "foto", width: 50 },
+      { header: "Empresa", key: "empresa", width: 20 },
+    ];
+
+    // Estilizar cabeçalho
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1E3A5F" },
+      };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+    headerRow.height = 25;
+
+    // Adicionar dados
+    points.forEach((ponto, idx) => {
+      const row = ws.addRow({
+        cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
+        endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
+        bairro: ponto.originalData?.["Bairro"] ?? ponto.bairro ?? "",
+        cidade:
+          ponto.originalData?.["Cidade"] ??
+          ponto.originalData?.["Cidade "] ??
+          ponto.cidade ??
+          "",
+        lat: ponto.originalData?.["Latitude"] ?? ponto.lat ?? "",
+        lng: ponto.originalData?.["Longitude"] ?? ponto.lng ?? "",
+        formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
+        foto: ponto.foto_url || "",
+        empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
+      });
+
+      // Cor alternada nas linhas
+      const bgColor = idx % 2 === 0 ? "FFF5F8FF" : "FFFFFFFF";
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: bgColor },
+        };
+        cell.alignment = { vertical: "middle", wrapText: false };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFE0E0E0" } },
+          bottom: { style: "thin", color: { argb: "FFE0E0E0" } },
+          left: { style: "thin", color: { argb: "FFE0E0E0" } },
+          right: { style: "thin", color: { argb: "FFE0E0E0" } },
+        };
+      });
+
+      // Coluna Foto como hyperlink azul
+      if (ponto.foto_url) {
+        const fotoCell = row.getCell("foto");
+        fotoCell.value = { text: "Ver Foto", hyperlink: ponto.foto_url };
+        fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
+      }
+
+      row.height = 20;
+    });
+
+    // Congelar linha do cabeçalho
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nome}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [points, sheetName]);
 
 
     const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
