@@ -33,6 +33,7 @@ export function UploadDropzone() {
               const cod = String(n["Cod."] || n["Código"] || i);
               const latOk = lat !== null && Math.abs(lat) <= 90;
               const lngOk = lng !== null && Math.abs(lng) <= 180;
+              log("info", `${cod} — Lat: ${n["Latitude"]} → ${lat} | Lng: ${n["Longitude"]} → ${lng}`);
               if (!latOk || !lngOk) {
                 invalidos++;
                 log("warn", `⚠️ ${cod} — Coordenadas inválidas: ${n["Latitude"]}, ${n["Longitude"]}`);
