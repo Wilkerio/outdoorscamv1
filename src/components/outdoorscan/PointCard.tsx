@@ -26,13 +26,15 @@ export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
-  const previewUrl = point.adjustedPhoto?.url
-    ? streetViewImg(point.lat, point.lng, {
-        heading: point.adjustedPhoto.heading,
-        pitch: point.adjustedPhoto.pitch,
-        fov: point.adjustedPhoto.fov,
-      })
-    : streetViewImg(point.lat, point.lng);
+   const previewUrl =
+     point.foto_url ||
+     (point.adjustedPhoto?.url
+       ? streetViewImg(point.lat, point.lng, {
+           heading: point.adjustedPhoto.heading,
+           pitch: point.adjustedPhoto.pitch,
+           fov: point.adjustedPhoto.fov,
+         })
+       : streetViewImg(point.lat, point.lng));
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
@@ -88,19 +90,20 @@ export function PointCard({ point }: { point: Point }) {
           </Button>
         </div>
 
-        {point.adjustedPhoto?.url && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-primary"
-            onClick={() => {
-              navigator.clipboard.writeText(point.adjustedPhoto!.url);
-              toast.success("Link copiado");
-            }}
-          >
-            <LinkIcon className="size-3.5" /> Link da Foto
-          </Button>
-        )}
+         {(point.foto_url || point.adjustedPhoto?.url) && (
+           <Button
+             size="sm"
+             variant="ghost"
+             className="text-primary"
+             onClick={() => {
+               const url = point.foto_url || point.adjustedPhoto!.url;
+               navigator.clipboard.writeText(url);
+               toast.success("Link copiado");
+             }}
+           >
+             <LinkIcon className="size-3.5" /> Link da Foto
+           </Button>
+         )}
       </div>
 
       <StreetViewAdjustModal open={open} onOpenChange={setOpen} point={point} />

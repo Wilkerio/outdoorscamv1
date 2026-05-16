@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
-import { streetViewMetadata } from "@/lib/outdoorscan/streetview";
+ import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
+ import { supabase } from "@/integrations/supabase/client";
 
 type Phase = "idle" | "running" | "paused" | "done";
 
@@ -8,7 +9,8 @@ interface SessionState {
   points: Point[];
   logs: LogEntry[];
   phase: Phase;
-  currentIndex: number;
+   currentIndex: number;
+   salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
   setPoints: (p: Point[]) => void;
   start: () => void;
   pause: () => void;
@@ -43,46 +45,101 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setCurrentIndex(0);
   }, []);
 
-  const checkPoint = useCallback(async (point: Point): Promise<PointStatus> => {
-    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return "ERRO";
-    try {
-      const res = await fetch(streetViewMetadata(point.lat, point.lng));
-      const data = await res.json();
-      if (data.status === "OK") return "SUCESSO";
-      if (data.status === "ZERO_RESULTS" || data.status === "NOT_FOUND") return "SEM_COBERTURA";
-      return "ERRO";
-    } catch {
-      return "ERRO";
-    }
-  }, []);
-
-  const runFrom = useCallback(
-    async (startIdx: number) => {
-      setPhase("running");
-      phaseRef.current = "running";
-      const snapshot = points;
-      for (let i = startIdx; i < snapshot.length; i++) {
-        // wait while paused
-        while ((phaseRef.current as Phase) === "paused") {
-          await new Promise((r) => setTimeout(r, 200));
-        }
-        if ((phaseRef.current as Phase) === "idle") return;
-        setCurrentIndex(i);
-        const p = snapshot[i];
-        updatePoint(p.id, { status: "PROCESSANDO" });
-        log("info", `Processando ${p.cod} — ${p.endereco}`);
-        const status = await checkPoint(p);
-        updatePoint(p.id, { status });
-        if (status === "SUCESSO") log("success", `✓ ${p.cod} — cobertura encontrada`);
-        else if (status === "SEM_COBERTURA") log("warn", `⚠ ${p.cod} — sem cobertura Street View`);
-        else log("error", `✗ ${p.cod} — erro ao verificar`);
-        await new Promise((r) => setTimeout(r, 250));
-      }
-      setPhase("done");
-      log("info", "Processamento concluído.");
-    },
-    [points, updatePoint, log, checkPoint],
-  );
+   const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
+     const { data, error } = await supabase.functions.invoke("google-proxy", {
+       body: { url },
+     });
+     if (error || data.error) throw new Error(error?.message || data.error);
+ 
+     const byteString = atob(data.image);
+     const ab = new ArrayBuffer(byteString.length);
+     const ia = new Uint8Array(ab);
+     for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+     const blob = new Blob([ab], { type: "image/jpeg" });
+ 
+     const fileName = `${cod}_${Date.now()}.jpg`;
+     const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
+       contentType: "image/jpeg",
+       upsert: true,
+     });
+     if (uploadError) throw uploadError;
+ 
+     const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
+     return urlData.publicUrl;
+   }, []);
+ 
+   const processarPonto = useCallback(
+     async (p: Point) => {
+       if (p.fotoSalva) {
+         log("info", `Pulando ${p.cod} (foto já salva)`);
+         return;
+       }
+ 
+       const { lat, lng, cod, id } = p;
+       const key = GMAPS_KEY;
+ 
+       try {
+         updatePoint(id, { status: "PROCESSANDO" });
+         log("info", `Processando ${cod}...`);
+ 
+         const metaRes = await fetch(
+           `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`,
+         );
+         const meta = await metaRes.json();
+ 
+         let fotoUrl;
+         let statusFinal: PointStatus;
+ 
+         if (meta.status === "OK") {
+           const dLng = lng - meta.location.lng;
+           const dLat = lat - meta.location.lat;
+           const heading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
+ 
+           fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
+           statusFinal = "SUCESSO";
+         } else {
+           fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+           statusFinal = "SEM_COBERTURA";
+         }
+ 
+         const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+         updatePoint(id, { status: statusFinal, foto_url: urlPublica, fotoSalva: true });
+         log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal}`);
+       } catch (err: any) {
+         updatePoint(id, { status: "ERRO" });
+         log("error", `❌ ${cod} — Erro: ${err.message}`);
+       }
+     },
+     [updatePoint, log, salvarFotoSupabase],
+   );
+ 
+   const runFrom = useCallback(
+     async (startIdx: number) => {
+       setPhase("running");
+       phaseRef.current = "running";
+       const snapshot = points;
+ 
+       for (let i = startIdx; i < snapshot.length; i += 5) {
+         const batch = snapshot.slice(i, i + 5);
+ 
+         while ((phaseRef.current as Phase) === "paused") {
+           await new Promise((r) => setTimeout(r, 200));
+         }
+         if ((phaseRef.current as Phase) === "idle") return;
+ 
+         setCurrentIndex(i);
+         await Promise.all(batch.map((p) => processarPonto(p)));
+ 
+         if (i + 5 < snapshot.length) {
+           await new Promise((r) => setTimeout(r, 300));
+         }
+       }
+ 
+       setPhase("done");
+       log("info", "Processamento concluído.");
+     },
+     [points, processarPonto, log],
+   );
 
   const start = useCallback(() => {
     if (!points.length) return;
@@ -108,13 +165,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setCurrentIndex(0);
   }, []);
 
-  const setAdjustedPhoto = useCallback(
-    (id: string, adj: PhotoAdjustment) => {
-      updatePoint(id, { adjustedPhoto: adj });
-      log("success", `Foto ajustada salva para ponto ${id}`);
-    },
-    [updatePoint, log],
-  );
+   const setAdjustedPhoto = useCallback(
+     (id: string, adj: PhotoAdjustment) => {
+       updatePoint(id, { adjustedPhoto: adj, foto_url: adj.url, fotoSalva: true });
+       log("success", `Foto ajustada salva para ponto ${id}`);
+     },
+     [updatePoint, log],
+   );
 
   const total = points.length;
   const sucesso = points.filter((p) => p.status === "SUCESSO").length;
@@ -133,7 +190,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         pause,
         resume,
         reset,
-        setAdjustedPhoto,
+         setAdjustedPhoto,
+         salvarFotoSupabase,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
