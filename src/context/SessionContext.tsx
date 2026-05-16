@@ -151,23 +151,57 @@ const Ctx = createContext<SessionState | null>(null);
   }, [points, sheetName]);
 
 
-    const callAiVision = useCallback(
-      async (task: "verify" | "zoom", base64Image: string): Promise<string> => {
+    const verificarComDeepSeek = useCallback(
+      async (base64Image: string, prompt: string): Promise<string> => {
         try {
-          const { data, error } = await supabase.functions.invoke("ai-vision", {
-            body: { task, image: base64Image },
-          });
-          if (error || !data || data.error) {
-            console.error("ai-vision error:", error || data?.error);
-            return "";
-          }
-          return (data.answer as string) || "";
+          const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "deepseek-chat",
+              max_tokens: 50,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                    { type: "text", text: prompt },
+                  ],
+                },
+              ],
+            }),
+          }).then((r) => r.json());
+          return (res.choices?.[0]?.message?.content ?? "").toString().toUpperCase().trim() || "NAO";
         } catch (err) {
-          console.error("ai-vision exception:", err);
-          return "";
+          console.error("deepseek error:", err);
+          return "NAO";
         }
       },
       []
+    );
+
+    const verificarOutdoor = useCallback(
+      async (base64Image: string) => {
+        const resposta = await verificarComDeepSeek(
+          base64Image,
+          `Analise esta foto com MÁXIMO RIGOR.
+    Existe um outdoor ou painel publicitário GRANDE, NÍTIDO e BEM CENTRALIZADO?
+    Se SIM, diga também: OTIMO (centralizado e grande), BOM (visível mas lateral), RUIM (pequeno ou distante)
+    Formato de resposta: SIM-OTIMO, SIM-BOM, SIM-RUIM ou NAO`
+        );
+        const qualidade = resposta.includes("OTIMO")
+          ? 3
+          : resposta.includes("BOM")
+            ? 2
+            : resposta.includes("RUIM")
+              ? 1
+              : 0;
+        return { temOutdoor: resposta.startsWith("SIM"), qualidade, resposta };
+      },
+      [verificarComDeepSeek]
     );
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
@@ -232,9 +266,9 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // PASSO 1: Testar 16 ângulos (22.5° cada) com verificação rigorosa
         const angulos = [0, 22, 45, 67, 90, 112, 135, 157, 180, 202, 225, 247, 270, 292, 315, 337];
         let melhorHeading: number | null = null;
+        let melhorQualidadeOutdoor = 0;
 
         for (const heading of angulos) {
           const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
@@ -245,12 +279,12 @@ const Ctx = createContext<SessionState | null>(null);
             log("warn", `${cod} — Erro ao carregar ângulo ${heading}°`);
             continue;
           }
-          const resposta = await callAiVision("verify", data.image);
-          const temOutdoor = resposta.includes("SIM");
-          log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
-          if (temOutdoor) {
+          const { temOutdoor, qualidade, resposta } = await verificarOutdoor(data.image);
+          log("info", `${cod} — ${heading}°: ${temOutdoor ? `✅ ${resposta}` : "❌"}`);
+          if (temOutdoor && qualidade > melhorQualidadeOutdoor) {
             melhorHeading = heading;
-            break;
+            melhorQualidadeOutdoor = qualidade;
+            if (qualidade === 3) break;
           }
           await new Promise((r) => setTimeout(r, 200));
         }
@@ -270,14 +304,12 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // PASSO 2: Ajustar zoom no ângulo escolhido
         log("info", `${cod} — 🔎 Ajustando zoom...`);
         const zooms = [
           { fov: 80, pitch: 0 },
           { fov: 65, pitch: 5 },
           { fov: 50, pitch: 8 },
         ];
-        const scoreMap: Record<string, number> = { OTIMO: 3, BOM: 2, RUIM: 1 };
         let melhorZoomUrl: string | null = null;
         let melhorZoom = zooms[0];
         let melhorScore = 0;
@@ -291,10 +323,8 @@ const Ctx = createContext<SessionState | null>(null);
             log("warn", `${cod} — Erro ao carregar FOV ${zoom.fov}°`);
             continue;
           }
-          const avaliacao = await callAiVision("zoom", data.image);
-          const matched = (["OTIMO", "BOM", "RUIM"] as const).find((k) => avaliacao.includes(k));
-          const score = matched ? scoreMap[matched] : 1;
-          log("info", `${cod} — FOV ${zoom.fov}°: ${matched ?? "RUIM"}`);
+          const { qualidade: score, resposta } = await verificarOutdoor(data.image);
+          log("info", `${cod} — FOV ${zoom.fov}°: ${resposta}`);
           if (score > melhorScore) {
             melhorScore = score;
             melhorZoomUrl = fotoUrl;
@@ -322,7 +352,7 @@ const Ctx = createContext<SessionState | null>(null);
         log("error", `❌ ${cod} — Erro: ${err.message}`);
       }
     },
-    [updatePoint, log, salvarFotoSupabase, callAiVision]
+    [updatePoint, log, salvarFotoSupabase, verificarOutdoor]
   );
 
   const corrigirComIA = useCallback(
