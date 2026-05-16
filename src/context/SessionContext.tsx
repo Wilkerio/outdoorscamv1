@@ -10,8 +10,6 @@ type Phase = "idle" | "running" | "paused" | "done";
   logs: LogEntry[];
   phase: Phase;
    currentIndex: number;
-  geminiKey: string;
-  setGeminiKey: (k: string) => void;
    log: (level: LogEntry["level"], message: string) => void;
     salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
@@ -28,14 +26,6 @@ const Ctx = createContext<SessionState | null>(null);
 
  export function SessionProvider({ children }: { children: ReactNode }) {
    const [points, setPointsState] = useState<Point[]>([]);
-   const [geminiKey, setGeminiKey] = useState<string>("");
-
-   useEffect(() => {
-     if (typeof window !== "undefined") {
-       const stored = window.localStorage.getItem("gemini_api_key");
-       if (stored) setGeminiKey(stored);
-     }
-   }, []);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -56,12 +46,6 @@ const Ctx = createContext<SessionState | null>(null);
      setCurrentIndex(0);
    }, []);
 
-   const updateGeminiKey = useCallback((k: string) => {
-     setGeminiKey(k);
-     if (typeof window !== "undefined") {
-       window.localStorage.setItem("gemini_api_key", k);
-     }
-   }, []);
 
     const verificarOutdoorDeepSeek = useCallback(async (base64Image: string) => {
       try {
@@ -326,8 +310,6 @@ const Ctx = createContext<SessionState | null>(null);
         setAdjustedPhoto,
         salvarFotoSupabase,
         corrigirComIA,
-        geminiKey,
-        setGeminiKey: updateGeminiKey,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
