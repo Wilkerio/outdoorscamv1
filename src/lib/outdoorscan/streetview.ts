@@ -1,4 +1,4 @@
-export const GMAPS_KEY = (import.meta.env.VITE_GOOGLE_MAPS_KEY as string | undefined) ?? "";
+ export const GMAPS_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? "";
 
 export function streetViewImg(lat: number, lng: number, opts?: { heading?: number; pitch?: number; fov?: number; size?: string }) {
   const size = opts?.size ?? "400x200";
