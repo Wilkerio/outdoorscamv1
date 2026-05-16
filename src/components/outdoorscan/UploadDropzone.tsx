@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { useSession } from "@/context/SessionContext";
+import type { Point } from "@/lib/outdoorscan/types";
 
 export function UploadDropzone() {
   const { setPoints, log } = useSession();
@@ -19,7 +20,7 @@ export function UploadDropzone() {
           const ws = wb.Sheets[wb.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
           
-          const norm = rows.map((r, i) => {
+          const norm: Point[] = rows.map((r, i) => {
             const n: any = {};
             Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
             
