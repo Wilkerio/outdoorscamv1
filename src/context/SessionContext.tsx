@@ -5,11 +5,13 @@ import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoo
 
 type Phase = "idle" | "running" | "paused" | "done";
 
-interface SessionState {
+ interface SessionState {
   points: Point[];
   logs: LogEntry[];
   phase: Phase;
    currentIndex: number;
+  geminiKey: string;
+  setGeminiKey: (k: string) => void;
    log: (level: LogEntry["level"], message: string) => void;
    salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
   setPoints: (p: Point[]) => void;
@@ -23,8 +25,9 @@ interface SessionState {
 
 const Ctx = createContext<SessionState | null>(null);
 
-export function SessionProvider({ children }: { children: ReactNode }) {
-  const [points, setPointsState] = useState<Point[]>([]);
+ export function SessionProvider({ children }: { children: ReactNode }) {
+   const [points, setPointsState] = useState<Point[]>([]);
+   const [geminiKey, setGeminiKey] = useState<string>(() => localStorage.getItem("gemini_api_key") || "");
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -43,6 +46,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
      setPointsState(p);
      setPhase("idle");
      setCurrentIndex(0);
+   }, []);
+
+   const updateGeminiKey = useCallback((k: string) => {
+     setGeminiKey(k);
+     localStorage.setItem("gemini_api_key", k);
+   }, []);
+
+   const verificarFotoComGemini = useCallback(async (base64Image: string, apiKey: string) => {
+     try {
+       const response = await fetch(
+         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+         {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({
+             contents: [
+               {
+                 parts: [
+                   { inline_data: { mime_type: "image/jpeg", data: base64Image } },
+                   { text: "Esta foto de rua contém um outdoor, painel publicitário, banner ou anúncio visível? Responda apenas: SIM ou NAO" },
+                 ],
+               },
+             ],
+           }),
+         },
+       );
+       const data = await response.json();
+       const resposta = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toUpperCase();
+       return resposta?.includes("SIM");
+     } catch (err) {
+       console.error("Erro Gemini:", err);
+       return false;
+     }
    }, []);
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
@@ -75,56 +111,71 @@ export function SessionProvider({ children }: { children: ReactNode }) {
          return;
        }
  
-        const { lat, lng, cod, id, rawLat, rawLng } = p;
+       const { lat, lng, cod, id, rawLat, rawLng } = p;
        const key = GMAPS_KEY;
  
        try {
          updatePoint(id, { status: "PROCESSANDO" });
          log("info", `Processando ${cod}...`);
-         log("info", `API Key (início): ${key?.substring(0, 10)}...`);
-         log("info", `${cod} — Bruto: Lat ${rawLat} | Lng ${rawLng}`);
-         log("info", `${cod} — Normalizado: Lat ${lat} | Lng ${lng}`);
  
          if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-           log("error", `❌ ${cod} — Coordenadas inválidas: ${rawLat}, ${rawLng}`);
+           log("error", `❌ ${cod} — Coordenadas inválidas`);
            updatePoint(id, { status: "ERRO" });
            return;
          }
  
          const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
-         log("info", `Chamando: ${metaUrl}`);
+         const metaRes = await fetch(metaUrl);
+         const meta = await metaRes.json();
  
-          const metaRes = await fetch(metaUrl);
-          const metaText = await metaRes.text();
-          const meta = JSON.parse(metaText);
-          log("info", `${cod} — Resposta metadata: ${JSON.stringify(meta)}`);
-
-          let fotoUrl;
-          let statusFinal: PointStatus;
-
-          if (meta.status === "OK") {
-            const camLat = meta.location.lat;
-            const camLng = meta.location.lng;
-            const dLat = lat - camLat;
-            const dLng = lng - camLng;
-            const heading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
-            
-            const pitch = 5; // Leve inclinação para cima
-            const fov = 72;  // Zoom mais focado no outdoor
-            const panoId = meta.pano_id;
-
-            log("info", `${cod} — Câmera em: ${camLat},${camLng} | Heading: ${heading}°`);
-            
-            // Usando pano_id para maior precisão
-            fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${key}`;
-            statusFinal = "SUCESSO";
-          } else {
-            log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
-            fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
-            statusFinal = "SEM_COBERTURA";
-          }
+         if (meta.status !== "OK") {
+           log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
+           const fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+           const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
+           return;
+         }
  
-         const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+         const camLat = meta.location.lat;
+         const camLng = meta.location.lng;
+         const dLat = lat - camLat;
+         const dLng = lng - camLng;
+         const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
+         const panoId = meta.pano_id;
+ 
+         const angulos = [0, 90, 180, 270];
+         let bestUrl = "";
+         let outdoorEncontrado = false;
+ 
+         for (const offset of angulos) {
+           const heading = (baseHeading + offset) % 360;
+           const currentUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
+           
+           if (!bestUrl) bestUrl = currentUrl;
+ 
+           if (geminiKey) {
+             log("info", `${cod} — Verificando outdoor no ângulo ${heading}°...`);
+             const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: currentUrl } });
+             
+             if (proxyData?.image) {
+               const encontrou = await verificarFotoComGemini(proxyData.image, geminiKey);
+               if (encontrou) {
+                 log("success", `${cod} — IA: outdoor encontrado ✅ (ângulo ${heading}°)`);
+                 bestUrl = currentUrl;
+                 outdoorEncontrado = true;
+                 break;
+               } else {
+                 log("info", `${cod} — IA: tentando próximo ângulo...`);
+               }
+             }
+           } else {
+             outdoorEncontrado = true; // Sem Gemini, aceita o primeiro
+             break;
+           }
+         }
+ 
+         const urlPublica = await salvarFotoSupabase(cod, bestUrl);
+         const statusFinal = outdoorEncontrado ? "SUCESSO" : "SEM_OUTDOOR_VISIVEL";
          updatePoint(id, { status: statusFinal, foto_url: urlPublica, fotoSalva: true });
          log(statusFinal === "SUCESSO" ? "success" : "warn", `✅ ${cod} — ${statusFinal}`);
        } catch (err: any) {
@@ -132,7 +183,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
          log("error", `❌ ${cod} — Erro: ${err.message}`);
        }
      },
-     [updatePoint, log, salvarFotoSupabase],
+     [updatePoint, log, salvarFotoSupabase, geminiKey, verificarFotoComGemini],
    );
  
    const runFrom = useCallback(
@@ -213,8 +264,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         pause,
         resume,
         reset,
-         setAdjustedPhoto,
-         salvarFotoSupabase,
+        setAdjustedPhoto,
+        salvarFotoSupabase,
+        geminiKey,
+        setGeminiKey: updateGeminiKey,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
