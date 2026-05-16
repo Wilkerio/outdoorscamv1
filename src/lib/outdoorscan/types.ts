@@ -1,4 +1,4 @@
- export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO";
+ export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO" | "SEM_OUTDOOR_VISIVEL";
 
 export interface PhotoAdjustment {
   heading: number;
