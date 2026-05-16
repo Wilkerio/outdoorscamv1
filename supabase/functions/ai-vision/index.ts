@@ -6,7 +6,7 @@ const corsHeaders = {
 
 const PROMPTS: Record<string, string> = {
   verify:
-    `Analise esta foto com MÁXIMO RIGOR. Existe um outdoor ou painel publicitário GRANDE, NÍTIDO e BEM CENTRALIZADO? Se SIM, diga também a qualidade: OTIMO (centralizado e grande), BOM (visível mas lateral), RUIM (pequeno ou distante). Responda APENAS em um destes formatos: SIM-OTIMO, SIM-BOM, SIM-RUIM ou NAO.`,
+    `Analise esta foto de rua com MUITO RIGOR. Existe um outdoor, painel publicitário ou banner CLARAMENTE VISÍVEL e LEGÍVEL nesta foto? NÃO aprove se: - O outdoor estiver muito distante ou pequeno - Estiver parcialmente cortado - Não for possível ler o conteúdo - For apenas uma placa de trânsito ou sinalização de rua. Responda APENAS: SIM ou NAO.`,
   zoom:
     "Avalie o enquadramento do outdoor/painel publicitário nesta foto. Está bem visível e centralizado? Responda APENAS com uma palavra: OTIMO, BOM ou RUIM.",
 };
