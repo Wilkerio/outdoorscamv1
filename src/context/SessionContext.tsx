@@ -16,84 +16,12 @@ type Phase = "idle" | "running" | "paused" | "done";
     salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
   setPoints: (p: Point[]) => void;
-   const corrigirComIA = useCallback(
-     async (p: Point) => {
-       const { lat, lng, cod, id } = p;
-       const key = GMAPS_KEY;
- 
-       updatePoint(id, { status: "PROCESSANDO" });
-       log("info", `🤖 ${cod} — IA buscando melhor ângulo...`);
- 
-       try {
-         const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
-         const metaRes = await fetch(metaUrl);
-         const meta = await metaRes.json();
- 
-         if (meta.status !== "OK") {
-           const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
-           const urlPublica = await salvarFotoSupabase(cod, staticUrl);
-           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
-           log("warn", `🤖 ${cod} — Sem cobertura Street View, fallback estático.`);
-           return;
-         }
- 
-         const camLat = meta.location.lat;
-         const camLng = meta.location.lng;
-         const dLat = lat - camLat;
-         const dLng = lng - camLng;
-         const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
-         const panoId = meta.pano_id;
- 
-         const angulos = [0, 45, 90, 135, 180, 225, 270, 315].map((offset) => (baseHeading + offset) % 360);
-         let melhorUrl = "";
-         let melhorHeading = baseHeading;
-         let outdoorEncontrado = false;
- 
-         for (const heading of angulos) {
-           const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
-           
-           const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: fotoUrl } });
- 
-           if (proxyData?.image) {
-             const iaRes = await fetch("/api/ai/vision", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({
-                 image: proxyData.image,
-                 prompt: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO",
-               }),
-             }).then((r) => r.json());
- 
-             const temOutdoor = iaRes.response?.includes("SIM");
-             log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌ Sem outdoor"}`);
- 
-             if (temOutdoor) {
-               melhorUrl = fotoUrl;
-               melhorHeading = heading;
-               outdoorEncontrado = true;
-               break;
-             }
-             if (!melhorUrl) melhorUrl = fotoUrl;
-           }
-         }
- 
-         const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
-         updatePoint(id, { status: "SUCESSO", foto_url: urlPublica, fotoSalva: true });
-         log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
-       } catch (err: any) {
-         updatePoint(id, { status: "ERRO" });
-         log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
-       }
-     },
-     [updatePoint, log, salvarFotoSupabase]
-   );
- 
-  start: () => void;
-  pause: () => void;
-  resume: () => void;
-  reset: () => void;
-  setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
-  stats: { sucesso: number; erro: number; semCobertura: number; total: number };
+   start: () => void;
+   pause: () => void;
+   resume: () => void;
+   reset: () => void;
+   setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
+   stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
 
 const Ctx = createContext<SessionState | null>(null);
@@ -185,6 +113,78 @@ const Ctx = createContext<SessionState | null>(null);
      const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
      return urlData.publicUrl;
    }, []);
+ 
+   const corrigirComIA = useCallback(
+     async (p: Point) => {
+       const { lat, lng, cod, id } = p;
+       const key = GMAPS_KEY;
+ 
+       updatePoint(id, { status: "PROCESSANDO" });
+       log("info", `🤖 ${cod} — IA buscando melhor ângulo...`);
+ 
+       try {
+         const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
+         const metaRes = await fetch(metaUrl);
+         const meta = await metaRes.json();
+ 
+         if (meta.status !== "OK") {
+           const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+           const urlPublica = await salvarFotoSupabase(cod, staticUrl);
+           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
+           log("warn", `🤖 ${cod} — Sem cobertura Street View, fallback estático.`);
+           return;
+         }
+ 
+         const camLat = meta.location.lat;
+         const camLng = meta.location.lng;
+         const dLat = lat - camLat;
+         const dLng = lng - camLng;
+         const baseHeading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
+         const panoId = meta.pano_id;
+ 
+         const angulos = [0, 45, 90, 135, 180, 225, 270, 315].map((offset) => (baseHeading + offset) % 360);
+         let melhorUrl = "";
+         let melhorHeading = baseHeading;
+         let outdoorEncontrado = false;
+ 
+         for (const heading of angulos) {
+           const currentUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=5&fov=72&key=${key}`;
+           
+           const { data: proxyData } = await supabase.functions.invoke("google-proxy", { body: { url: currentUrl } });
+ 
+           if (proxyData?.image) {
+             const iaRes = await fetch("/api/ai/vision", {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({
+                 image: proxyData.image,
+                 prompt: "Esta foto de rua contém um outdoor, painel publicitário ou anúncio visível? Responda apenas: SIM ou NAO",
+               }),
+             }).then((r) => r.json());
+ 
+             const temOutdoor = iaRes.response?.includes("SIM");
+             log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌ Sem outdoor"}`);
+ 
+             if (temOutdoor) {
+               melhorUrl = fotoUrl;
+               melhorHeading = heading;
+               outdoorEncontrado = true;
+               break;
+             }
+             if (!melhorUrl) melhorUrl = fotoUrl;
+           }
+         }
+ 
+         const urlPublica = await salvarFotoSupabase(cod, melhorUrl);
+         updatePoint(id, { status: "SUCESSO", foto_url: urlPublica, fotoSalva: true });
+         log("success", `✅ ${cod} — IA salvou no ângulo ${melhorHeading}°`);
+       } catch (err: any) {
+         updatePoint(id, { status: "ERRO" });
+         log("error", `❌ ${cod} — Erro na IA: ${err.message}`);
+       }
+     },
+     [updatePoint, log, salvarFotoSupabase]
+   );
  
    const processarPonto = useCallback(
      async (p: Point) => {
