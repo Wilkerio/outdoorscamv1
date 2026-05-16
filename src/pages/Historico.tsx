@@ -1,14 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { History } from "lucide-react";
 
-export const Route = createFileRoute("/historico")({
-  component: Historico,
-  head: () => ({
-    meta: [{ title: "Histórico — OutdoorScan" }],
-  }),
-});
-
-function Historico() {
+export default function Historico() {
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <h1 className="text-2xl font-semibold mb-1">Histórico</h1>

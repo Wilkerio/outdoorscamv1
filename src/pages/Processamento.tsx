@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { Play, Pause, RotateCcw, Trash2 } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
@@ -6,11 +5,7 @@ import { LogPanel } from "@/components/outdoorscan/LogPanel";
 import { useSession } from "@/context/SessionContext";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/")({
-  component: Processamento,
-});
-
-function Processamento() {
+export default function Processamento() {
   const { points, phase, start, pause, resume, reset, currentIndex } = useSession();
   const total = points.length;
   const processed = points.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
