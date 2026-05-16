@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Trash2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Trash2, Download } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
 import { LogPanel } from "@/components/outdoorscan/LogPanel";
@@ -6,9 +6,10 @@ import { useSession } from "@/context/SessionContext";
 import { Button } from "@/components/ui/button";
 
 export default function Processamento() {
-  const { points, phase, start, pause, resume, reset, currentIndex } = useSession();
+  const { points, phase, start, pause, resume, reset, currentIndex, exportarExcel } = useSession();
   const total = points.length;
   const processed = points.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
+  const hasProcessed = points.some((p) => p.fotoSalva);
   const progressPct = total ? Math.round((processed / total) * 100) : 0;
 
   return (
@@ -34,6 +35,13 @@ export default function Processamento() {
               <Play className="size-4" /> Retomar
             </Button>
           )}
+          <Button
+            onClick={exportarExcel}
+            disabled={!hasProcessed}
+            className="bg-success hover:bg-success/90 text-white"
+          >
+            <Download className="size-4" /> 💾 Baixar Planilha
+          </Button>
           <Button variant="ghost" onClick={reset} disabled={!total}>
             <Trash2 className="size-4" /> Limpar
           </Button>
@@ -74,6 +82,17 @@ export default function Processamento() {
               ))}
             </div>
           </div>
+          {hasProcessed && (
+            <div className="flex justify-center pt-2">
+              <Button
+                onClick={exportarExcel}
+                className="bg-success hover:bg-success/90 text-white"
+                size="lg"
+              >
+                <Download className="size-4" /> 💾 Baixar Planilha
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>
