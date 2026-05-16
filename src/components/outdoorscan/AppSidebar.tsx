@@ -92,9 +92,8 @@ export function AppSidebar() {
              </div>
            </PopoverContent>
          </Popover>
-       </div>
-      </div>
-    </aside>
+        </div>
+     </aside>
   );
 }
 
