@@ -94,26 +94,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
          const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
          log("info", `Chamando: ${metaUrl}`);
  
-         const metaRes = await fetch(metaUrl);
-         const metaText = await metaRes.text();
-         log("info", `Resposta raw: ${metaText}`);
- 
-         const meta = JSON.parse(metaText);
- 
-         let fotoUrl;
-         let statusFinal: PointStatus;
- 
-         if (meta.status === "OK") {
-           const dLng = lng - meta.location.lng;
-           const dLat = lat - meta.location.lat;
-           const heading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
- 
-           fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
-           statusFinal = "SUCESSO";
-         } else {
-           fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
-           statusFinal = "SEM_COBERTURA";
-         }
+          const metaRes = await fetch(metaUrl);
+          const metaText = await metaRes.text();
+          const meta = JSON.parse(metaText);
+          log("info", `${cod} — Resposta metadata: ${JSON.stringify(meta)}`);
+
+          let fotoUrl;
+          let statusFinal: PointStatus;
+
+          if (meta.status === "OK") {
+            const camLat = meta.location.lat;
+            const camLng = meta.location.lng;
+            const dLat = lat - camLat;
+            const dLng = lng - camLng;
+            const heading = Math.round(((Math.atan2(dLng, dLat) * 180) / Math.PI + 360) % 360);
+            
+            const pitch = 5; // Leve inclinação para cima
+            const fov = 72;  // Zoom mais focado no outdoor
+            const panoId = meta.pano_id;
+
+            log("info", `${cod} — Câmera em: ${camLat},${camLng} | Heading: ${heading}°`);
+            
+            // Usando pano_id para maior precisão
+            fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&pano=${panoId}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${key}`;
+            statusFinal = "SUCESSO";
+          } else {
+            log("warn", `${cod} — Sem cobertura Street View, usando Static Map fallback`);
+            fotoUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+            statusFinal = "SEM_COBERTURA";
+          }
  
          const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
          updatePoint(id, { status: statusFinal, foto_url: urlPublica, fotoSalva: true });
