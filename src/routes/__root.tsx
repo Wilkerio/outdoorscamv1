@@ -83,6 +83,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "OutdoorScan" },
+      { name: "twitter:description", content: "Verificação de cobertura Street View para pontos de mídia outdoor." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/27fc8bea-8ec3-4e9e-947a-82ca25122b1c/id-preview-9dda85ee--2a4e2bbb-b32d-44c8-9e54-3936fa089f05.lovable.app-1778965036092.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/27fc8bea-8ec3-4e9e-947a-82ca25122b1c/id-preview-9dda85ee--2a4e2bbb-b32d-44c8-9e54-3936fa089f05.lovable.app-1778965036092.png" },
     ],
     links: [
       {
