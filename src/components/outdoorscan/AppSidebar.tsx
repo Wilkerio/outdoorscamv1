@@ -1,5 +1,5 @@
  import { Link, useRouterState } from "@tanstack/react-router";
- import { Radar, ListChecks, History, Settings, Key } from "lucide-react";
+  import { Radar, ListChecks, History, Settings, Key, Download } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
  import { useState } from "react";
  import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { useSession } from "@/context/SessionContext";
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-    const { stats } = useSession();
+      const { stats, exportarExcel, points } = useSession();
 
   const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
 
@@ -22,7 +22,16 @@ export function AppSidebar() {
       <div className="px-5 py-5 flex items-center gap-2 border-b border-border">
         <div className="size-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
           <Radar className="size-5" />
-        </div>
+            {points.length > 0 && (
+              <Button 
+                variant="default" 
+                className="w-full bg-success hover:bg-success/90 text-white gap-2 h-10"
+                onClick={exportarExcel}
+              >
+                <Download className="size-4" /> 💾 Baixar Planilha
+              </Button>
+            )}
+          </div>
         <div>
           <div className="font-semibold leading-none">OutdoorScan</div>
           <div className="text-xs text-muted-foreground mt-1">Cobertura Street View</div>

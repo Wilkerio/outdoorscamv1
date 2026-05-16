@@ -16,32 +16,34 @@ export function UploadDropzone() {
           if (!file) return;
           log("info", `Lendo: ${file.name}`);
           const buf = await file.arrayBuffer();
-          const wb = XLSX.read(buf);
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-          
-          const norm: Point[] = rows.map((r, i) => {
-            const n: any = {};
-            Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
-            
-            // Mantemos o mapeamento mínimo necessário para o resto do app não quebrar
-            return {
-              id: `${Date.now()}-${i}`,
-              cod: String(n["Cod."] || n["Código"] || i),
-              lat: parseFloat(String(n["Latitude"] || 0).replace(",", ".")),
-              lng: parseFloat(String(n["Longitude"] || 0).replace(",", ".")),
-              status: "AGUARDANDO",
-              endereco: n["Endereço"] || "",
-              bairro: n["Bairro"] || "",
-              cidade: n["Cidade"] || "",
-              formato: n["Formato"] || "",
-              empresa: n["Empresa"] || "",
-              foto: n["Foto"] || "",
-            };
-          });
-          
-          setPoints(norm);
-          log("success", `✅ ${norm.length} pontos carregados`);
+           const wb = XLSX.read(buf);
+           const sheetName = wb.SheetNames[0];
+           const ws = wb.Sheets[sheetName];
+           const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+           const colunasOriginais = rows.length > 0 ? Object.keys(rows[0]) : [];
+           
+           const norm: Point[] = rows.map((r, i) => {
+             const n: any = {};
+             Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
+             
+             return {
+               id: `${Date.now()}-${i}`,
+               cod: String(n["Cod."] || n["Código"] || i),
+               lat: parseFloat(String(n["Latitude"] || 0).replace(",", ".")),
+               lng: parseFloat(String(n["Longitude"] || 0).replace(",", ".")),
+               status: "AGUARDANDO",
+               endereco: n["Endereço"] || "",
+               bairro: n["Bairro"] || "",
+               cidade: n["Cidade"] || "",
+               formato: n["Formato"] || "",
+               empresa: n["Empresa"] || "",
+               foto: n["Foto"] || "",
+               originalData: r,
+             };
+           });
+           
+           setPoints(norm, sheetName, colunasOriginais);
+           log("success", `✅ ${norm.length} pontos carregados`);
         }}
       />
     </div>

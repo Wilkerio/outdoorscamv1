@@ -30,7 +30,7 @@ export function PointCard({ point }: { point: Point }) {
    const { corrigirComIA } = useSession();
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
-    const previewUrl = point.foto_url || streetViewImg(point.lat, point.lng);
+   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
@@ -73,7 +73,7 @@ export function PointCard({ point }: { point: Point }) {
             disabled={!validCoords}
             onClick={() => window.open(googleMapsLink(point.lat, point.lng), "_blank")}
           >
-            <Map className="size-3.5" /> Ver no Mapa
+            <Map className="size-3.5" /> 🗺️ Ver no Mapa
           </Button>
           <Button
             size="sm"
@@ -82,7 +82,7 @@ export function PointCard({ point }: { point: Point }) {
             disabled={!validCoords}
             onClick={() => setOpen(true)}
           >
-            <Camera className="size-3.5" /> Ajustar Foto
+            <Camera className="size-3.5" /> 📸 Ajustar Foto
           </Button>
          <Button
            size="sm"
@@ -95,20 +95,21 @@ export function PointCard({ point }: { point: Point }) {
          </Button>
         </div>
 
-         {(point.foto_url || point.adjustedPhoto?.url) && (
-           <Button
-             size="sm"
-             variant="ghost"
-             className="text-primary"
-             onClick={() => {
-               const url = point.foto_url || point.adjustedPhoto!.url;
-               navigator.clipboard.writeText(url);
-               toast.success("Link copiado");
-             }}
-           >
-             <LinkIcon className="size-3.5" /> Link da Foto
-           </Button>
-         )}
+         <div className="flex gap-2">
+           {(point.foto_url || point.adjustedPhoto?.url) && (
+             <Button
+               size="sm"
+               variant="ghost"
+               className="flex-1 text-primary text-[10px] h-8"
+               onClick={() => {
+                 const url = point.foto_url || point.adjustedPhoto!.url;
+                 window.open(url, "_blank");
+               }}
+             >
+               <LinkIcon className="size-3.5 mr-1" /> Link da Foto
+             </Button>
+           )}
+         </div>
       </div>
 
       <StreetViewAdjustModal open={open} onOpenChange={setOpen} point={point} />

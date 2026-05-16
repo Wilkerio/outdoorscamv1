@@ -28,6 +28,7 @@ export interface Point {
   pitchSalvo?: number;
   fovSalvo?: number;
   error?: string;
+  originalData?: any;
 }
 
 export interface LogEntry {
