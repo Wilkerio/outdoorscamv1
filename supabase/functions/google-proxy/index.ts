@@ -44,7 +44,16 @@ Deno.serve(async (req) => {
 
     const response = await fetch(parsed.toString());
     const buffer = await response.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(
+        null,
+        Array.from(bytes.subarray(i, Math.min(i + CHUNK, bytes.length)))
+      );
+    }
+    const base64 = btoa(binary);
     return new Response(
       JSON.stringify({ image: base64, contentType: response.headers.get('content-type') }),
       { headers: { 'Content-Type': 'application/json', ...CORS } }
