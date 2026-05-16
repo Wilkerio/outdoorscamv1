@@ -63,10 +63,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const snapshot = points;
       for (let i = startIdx; i < snapshot.length; i++) {
         // wait while paused
-        while (phaseRef.current === "paused") {
+        while ((phaseRef.current as Phase) === "paused") {
           await new Promise((r) => setTimeout(r, 200));
         }
-        if (phaseRef.current === "idle") return;
+        if ((phaseRef.current as Phase) === "idle") return;
         setCurrentIndex(i);
         const p = snapshot[i];
         updatePoint(p.id, { status: "PROCESSANDO" });
