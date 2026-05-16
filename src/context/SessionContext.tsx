@@ -232,12 +232,12 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // PASSO 1: Testar 16 ângulos (22.5° cada) com verificação rigorosa
-        const angulos = [0, 22, 45, 67, 90, 112, 135, 157, 180, 202, 225, 247, 270, 292, 315, 337];
-        let melhorHeading: number | null = null;
+        // Varrer 36 ângulos (10° cada) e escolher o de melhor qualidade
+        const angulos = Array.from({ length: 36 }, (_, i) => i * 10);
+        const candidatos: { heading: number; fotoUrl: string; qualidade: number }[] = [];
 
         for (const heading of angulos) {
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=80&key=${key}`;
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=5&fov=72&key=${key}`;
           const { data, error } = await supabase.functions.invoke("google-proxy", {
             body: { url: fotoUrl },
           });
@@ -246,16 +246,20 @@ const Ctx = createContext<SessionState | null>(null);
             continue;
           }
           const resposta = await callAiVision("verify", data.image);
-          const temOutdoor = resposta.includes("SIM");
-          log("info", `${cod} — ${heading}°: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
-          if (temOutdoor) {
-            melhorHeading = heading;
-            break;
-          }
-          await new Promise((r) => setTimeout(r, 200));
+          const temOutdoor = resposta.startsWith("SIM");
+          const qualidade = resposta.includes("OTIMO")
+            ? 3
+            : resposta.includes("BOM")
+            ? 2
+            : resposta.includes("RUIM")
+            ? 1
+            : 0;
+          log("info", `${cod} — ${heading}°: ${temOutdoor ? `✅ ${resposta}` : "❌"}`);
+          if (temOutdoor) candidatos.push({ heading, fotoUrl, qualidade });
+          await new Promise((r) => setTimeout(r, 150));
         }
 
-        if (melhorHeading === null) {
+        if (candidatos.length === 0) {
           log("warn", `${cod} — ⚠️ Nenhum outdoor encontrado em 16 ângulos`);
           const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=0&pitch=0&fov=80&key=${key}`;
           const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
@@ -270,53 +274,18 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // PASSO 2: Ajustar zoom no ângulo escolhido
-        log("info", `${cod} — 🔎 Ajustando zoom...`);
-        const zooms = [
-          { fov: 80, pitch: 0 },
-          { fov: 65, pitch: 5 },
-          { fov: 50, pitch: 8 },
-        ];
-        const scoreMap: Record<string, number> = { OTIMO: 3, BOM: 2, RUIM: 1 };
-        let melhorZoomUrl: string | null = null;
-        let melhorZoom = zooms[0];
-        let melhorScore = 0;
-
-        for (const zoom of zooms) {
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=${zoom.pitch}&fov=${zoom.fov}&key=${key}`;
-          const { data, error } = await supabase.functions.invoke("google-proxy", {
-            body: { url: fotoUrl },
-          });
-          if (error || !data?.image) {
-            log("warn", `${cod} — Erro ao carregar FOV ${zoom.fov}°`);
-            continue;
-          }
-          const avaliacao = await callAiVision("zoom", data.image);
-          const matched = (["OTIMO", "BOM", "RUIM"] as const).find((k) => avaliacao.includes(k));
-          const score = matched ? scoreMap[matched] : 1;
-          log("info", `${cod} — FOV ${zoom.fov}°: ${matched ?? "RUIM"}`);
-          if (score > melhorScore) {
-            melhorScore = score;
-            melhorZoomUrl = fotoUrl;
-            melhorZoom = zoom;
-          }
-        }
-
-        const urlFinal =
-          melhorZoomUrl ??
-          `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${melhorHeading}&pitch=0&fov=80&key=${key}`;
-
-        // PASSO 3: Salvar a melhor foto
-        const urlPublica = await salvarFotoSupabase(cod, urlFinal);
+        const melhor = candidatos.sort((a, b) => b.qualidade - a.qualidade)[0];
+        log("info", `${cod} — 🏆 Melhor ângulo: ${melhor.heading}° (qualidade ${melhor.qualidade})`);
+        const urlPublica = await salvarFotoSupabase(cod, melhor.fotoUrl);
         updatePoint(id, {
           status: "SUCESSO",
           foto_url: urlPublica,
           fotoSalva: true,
-          headingSalvo: melhorHeading,
-          pitchSalvo: melhorZoom.pitch,
-          fovSalvo: melhorZoom.fov,
+          headingSalvo: melhor.heading,
+          pitchSalvo: 5,
+          fovSalvo: 72,
         });
-        log("success", `✅ ${cod} — Foto final salva (heading ${melhorHeading}°, FOV ${melhorZoom.fov}°)`);
+        log("success", `✅ ${cod} — Salvo no ângulo ${melhor.heading}°`);
       } catch (err: any) {
         updatePoint(id, { status: "ERRO" });
         log("error", `❌ ${cod} — Erro: ${err.message}`);
