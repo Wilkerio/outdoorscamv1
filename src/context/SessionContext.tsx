@@ -165,13 +165,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setCurrentIndex(0);
   }, []);
 
-  const setAdjustedPhoto = useCallback(
-    (id: string, adj: PhotoAdjustment) => {
-      updatePoint(id, { adjustedPhoto: adj });
-      log("success", `Foto ajustada salva para ponto ${id}`);
-    },
-    [updatePoint, log],
-  );
+   const setAdjustedPhoto = useCallback(
+     (id: string, adj: PhotoAdjustment) => {
+       updatePoint(id, { adjustedPhoto: adj, foto_url: adj.url, fotoSalva: true });
+       log("success", `Foto ajustada salva para ponto ${id}`);
+     },
+     [updatePoint, log],
+   );
 
   const total = points.length;
   const sucesso = points.filter((p) => p.status === "SUCESSO").length;
