@@ -264,10 +264,6 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        const angulos = [0, 45, 90, 135, 180, 225, 270, 315];
-        let melhorUrl: string | null = null;
-        let melhorHeading: number | null = null;
-
         log("info", `🔍 ${cod} — Iniciando busca completa...`);
 
         // Rodadas de busca — cada rodada aumenta o zoom e adiciona mais ângulos
