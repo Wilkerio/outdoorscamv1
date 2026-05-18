@@ -125,12 +125,10 @@ const Ctx = createContext<SessionState | null>(null);
         };
       });
 
-      // Coluna Foto como hyperlink azul
-      if (ponto.foto_url) {
-        const fotoCell = row.getCell("foto");
-        fotoCell.value = { text: "Ver Foto", hyperlink: ponto.foto_url };
-        fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
-      }
+      // Coluna Foto com URL direta
+      const fotoCell = row.getCell("foto");
+      fotoCell.value = ponto.foto_url || "";
+      fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
 
       row.height = 20;
     });
