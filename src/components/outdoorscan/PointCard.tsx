@@ -84,23 +84,32 @@ export function PointCard({ point }: { point: Point }) {
           >
             <Camera className="size-3.5" /> 📸 Ajustar Foto
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 min-w-0 border-primary/50 text-primary hover:bg-primary/10"
+            disabled={!validCoords || point.status === "PROCESSANDO"}
+            onClick={() => corrigirComIA(point)}
+          >
+            <Bot className="size-3.5" /> 🤖 IA
+          </Button>
         </div>
 
-         <div className="flex gap-2">
-           {(point.foto_url || point.adjustedPhoto?.url) && (
-             <Button
-               size="sm"
-               variant="ghost"
-               className="flex-1 text-primary text-[10px] h-8"
-               onClick={() => {
-                 const url = point.foto_url || point.adjustedPhoto!.url;
-                 window.open(url, "_blank");
-               }}
-             >
-               <LinkIcon className="size-3.5 mr-1" /> Link da Foto
-             </Button>
-           )}
-         </div>
+        <div className="flex gap-2">
+          {(point.foto_url || point.adjustedPhoto?.url) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="flex-1 text-primary text-[10px] h-8"
+              onClick={() => {
+                const url = point.foto_url || point.adjustedPhoto!.url;
+                window.open(url, "_blank");
+              }}
+            >
+              <LinkIcon className="size-3.5 mr-1" /> Link da Foto
+            </Button>
+          )}
+        </div>
       </div>
 
       <StreetViewAdjustModal open={open} onOpenChange={setOpen} point={point} />
