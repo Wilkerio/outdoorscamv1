@@ -338,7 +338,7 @@ const Ctx = createContext<SessionState | null>(null);
   const corrigirComIA = useCallback(
     async (p: Point) => {
       const pCopy = { ...p, fotoSalva: false };
-      return processarPonto(pCopy);
+      return processarPonto(pCopy, true);
     },
     [processarPonto]
   );
