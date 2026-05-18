@@ -165,46 +165,26 @@ const Ctx = createContext<SessionState | null>(null);
                 role: "user",
                 content: [
                   { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
-                  { type: "text", text: "Existe um outdoor ou painel publicitário visível nesta foto de rua?\nResponda APENAS: SIM ou NAO" },
+                  { type: "text", text: "Existe um outdoor ou painel publicitário nesta foto? Responda: SIM ou NAO" },
                 ],
               },
             ],
           }),
-        }).then((r) => r.json());
+        });
 
-        let resposta = (res.choices?.[0]?.message?.content ?? "").toString().toUpperCase().trim() || "NAO";
-        
-        // Se o modelo vl2 falhar ou não estiver disponível, tentar vl como fallback
-        if (res.error && res.error.message.includes("model")) {
-           const resFallback = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: "deepseek-vl",
-              max_tokens: 50,
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    { type: "image_url", image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
-                    { type: "text", text: "Existe um outdoor ou painel publicitário visível nesta foto de rua?\nResponda APENAS: SIM ou NAO" },
-                  ],
-                },
-              ],
-            }),
-          }).then((r) => r.json());
-          resposta = (resFallback.choices?.[0]?.message?.content ?? "").toString().toUpperCase().trim() || "NAO";
-        }
+        const json = await res.json();
 
+        // Mostrar resposta completa no log para diagnóstico
+        log("info", `DeepSeek status: ${res.status}`);
+        log("info", `DeepSeek resposta: ${JSON.stringify(json).substring(0, 200)}`);
+
+        const resposta = (json.choices?.[0]?.message?.content ?? "").toString().trim().toUpperCase() || "NAO";
         return { temOutdoor: resposta.includes("SIM"), qualidade: 1, resposta };
-      } catch (err) {
-        console.error("DeepSeek error:", err);
-        return { temOutdoor: false, qualidade: 0, resposta: "NAO" };
+      } catch (err: any) {
+        log("error", `❌ DeepSeek erro: ${err.message}`);
+        return { temOutdoor: false, qualidade: 0, resposta: "ERRO" };
       }
-    }, []);
+    }, [log]);
 
    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
