@@ -84,15 +84,6 @@ export function PointCard({ point }: { point: Point }) {
           >
             <Camera className="size-3.5" /> 📸 Ajustar Foto
           </Button>
-         <Button
-           size="sm"
-           variant="outline"
-           className="flex-1 min-w-0 border-primary/50 text-primary hover:bg-primary/10"
-           disabled={!validCoords || point.status === "PROCESSANDO"}
-           onClick={() => corrigirComIA(point)}
-         >
-            <Bot className="size-3.5" /> 🤖 IA
-         </Button>
         </div>
 
          <div className="flex gap-2">
