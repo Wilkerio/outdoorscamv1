@@ -268,8 +268,9 @@ const Ctx = createContext<SessionState | null>(null);
         let melhorUrl: string | null = null;
         let melhorHeading: number | null = null;
 
+        // PASSO 1: Achar ângulo com outdoor
         for (const heading of angulos) {
-          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=5&fov=72&key=${key}`;
+          const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=0&fov=90&key=${key}`;
           const { data, error } = await supabase.functions.invoke("google-proxy", {
             body: { url: fotoUrl },
           });
@@ -280,41 +281,39 @@ const Ctx = createContext<SessionState | null>(null);
           const { temOutdoor, resposta } = await verificarOutdoor(data.image);
           log("info", `${cod} — ${heading}°: ${temOutdoor ? `✅ ${resposta}` : "❌"}`);
           if (temOutdoor) {
-            melhorUrl = fotoUrl;
             melhorHeading = heading;
             break;
           }
-          if (!melhorUrl) melhorUrl = fotoUrl;
           await new Promise((r) => setTimeout(r, 200));
         }
 
+        // PASSO 2: Se achou, tirar foto com zoom mais fechado e pitch levemente para cima
+        const headingFinal = melhorHeading ?? 0;
+        const pitchFinal = melhorHeading !== null ? 8 : 0;
+        const fovFinal = melhorHeading !== null ? 60 : 90;
+        const statusFinal = melhorHeading !== null ? "SUCESSO" : "SEM_COBERTURA";
+
+        const fotoFinalUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${headingFinal}&pitch=${pitchFinal}&fov=${fovFinal}&key=${key}`;
+
         if (melhorHeading === null) {
           log("warn", `${cod} — ⚠️ Nenhum outdoor encontrado`);
-          const fallbackUrl =
-            melhorUrl ??
-            `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=0&pitch=5&fov=72&key=${key}`;
-          const urlPublica = await salvarFotoSupabase(cod, fallbackUrl);
-          updatePoint(id, {
-            status: "SEM_COBERTURA",
-            foto_url: urlPublica,
-            fotoSalva: true,
-            headingSalvo: 0,
-            pitchSalvo: 5,
-            fovSalvo: 72,
-          });
-          return;
+        } else {
+          log("info", `${cod} — 📸 Capturando foto final com fov=${fovFinal} pitch=${pitchFinal}...`);
         }
 
-        const urlPublica = await salvarFotoSupabase(cod, melhorUrl!);
+        const urlPublica = await salvarFotoSupabase(cod, fotoFinalUrl);
         updatePoint(id, {
-          status: "SUCESSO",
+          status: statusFinal,
           foto_url: urlPublica,
           fotoSalva: true,
-          headingSalvo: melhorHeading,
-          pitchSalvo: 5,
-          fovSalvo: 72,
+          headingSalvo: headingFinal,
+          pitchSalvo: pitchFinal,
+          fovSalvo: fovFinal,
         });
-        log("success", `✅ ${cod} — Salvo no ângulo ${melhorHeading}°`);
+
+        if (statusFinal === "SUCESSO") {
+          log("success", `✅ ${cod} — Salvo!`);
+        }
       } catch (err: any) {
         updatePoint(id, { status: "ERRO" });
         log("error", `❌ ${cod} — Erro: ${err.message}`);
