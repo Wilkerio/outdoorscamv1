@@ -271,8 +271,8 @@ const Ctx = createContext<SessionState | null>(null);
             });
             if (error || !data?.image) continue;
 
-            const { temOutdoor, resposta } = await verificarOutdoor(data.image);
-            log("info", `${cod} — ${heading}° fov=${rodada.fov}: ${temOutdoor ? `✅ ${resposta}` : "❌"}`);
+            const { temOutdoor } = await verificarOutdoor(lat, lng, heading, rodada.fov, rodada.pitch, key);
+            log("info", `${cod} — ${heading}° fov=${rodada.fov}: ${temOutdoor ? "✅ Outdoor!" : "❌"}`);
 
             if (temOutdoor) {
               melhorHeading = heading;
