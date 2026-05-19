@@ -72,18 +72,21 @@ export function StreetViewAdjustModal({
             allowFullScreen
           />
         </div>
+        <p className="text-xs text-muted-foreground text-center mt-1">
+          Use o slider para ajustar o zoom. O scroll do mouse dentro da visualização não é capturado pelo sistema.
+        </p>
 
         <div className="grid grid-cols-1 gap-4 py-2">
           <SliderRow label="↔️ Direção" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
           <SliderRow label="↕️ Inclinação" value={pitch} min={-45} max={45} onChange={setPitch} suffix="°" />
-          <SliderRow label="🔍 Zoom (menor = mais zoom)" value={fov} min={20} max={100} onChange={setFov} suffix="°" />
+          <SliderRow label="🔍 Zoom (menor = mais zoom)" value={fov} min={10} max={100} onChange={setFov} suffix="°" />
           
           <div className="flex gap-2 mt-1">
             <Button 
               variant="outline" 
               size="sm" 
               className="h-8 text-xs"
-              onClick={() => setFov(f => Math.max(20, f - 10))}
+              onClick={() => setFov(f => Math.max(10, f - 10))}
             >
               🔍 + Zoom
             </Button>
