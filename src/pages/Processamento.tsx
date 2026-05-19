@@ -9,7 +9,7 @@ export default function Processamento() {
   const { points, phase, start, pause, resume, reset, currentIndex, exportarExcel } = useSession();
   const total = points.length;
   const processed = points.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
-  const hasProcessed = points.some((p) => p.fotoSalva);
+  const hasProcessed = points.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
   const progressPct = total ? Math.round((processed / total) * 100) : 0;
 
   return (
@@ -37,7 +37,7 @@ export default function Processamento() {
           )}
           <Button
             onClick={exportarExcel}
-            disabled={!hasProcessed}
+            disabled={!total}
             className="bg-success hover:bg-success/90 text-white"
           >
             <Download className="size-4" /> 💾 Baixar Planilha
@@ -82,7 +82,7 @@ export default function Processamento() {
               ))}
             </div>
           </div>
-          {hasProcessed && (
+          {total > 0 && (
             <div className="flex justify-center pt-2">
               <Button
                 onClick={exportarExcel}
