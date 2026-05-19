@@ -1,17 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Save, Loader2 } from "lucide-react";
+ import { Save, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewImg, GMAPS_KEY } from "@/lib/outdoorscan/streetview";
+import { streetViewEmbed, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
-
-// Add global type for Google Maps
-declare global {
-  interface Window {
-    google: any;
-  }
-}
 
 export function StreetViewAdjustModal({
   open,
@@ -24,75 +18,24 @@ export function StreetViewAdjustModal({
 }) {
    const { setAdjustedPhoto, salvarFotoSupabase } = useSession();
    const [saving, setSaving] = useState(false);
-   const panoramaRef = useRef<any>(null);
-   const containerRef = useRef<HTMLDivElement>(null);
-
-    const carregarGoogleMaps = () => {
-      return new Promise<void>((resolve) => {
-        if (window.google?.maps) {
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap`;
-        script.async = true;
-        (window as any).initMap = resolve;
-        document.head.appendChild(script);
-      });
-    };
+   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
+   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
+   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
 
     useEffect(() => {
-      if (!open) return;
-      
-      carregarGoogleMaps().then(() => {
-        if (!containerRef.current) return;
-        
-        const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
-        const pitch = point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0;
-        const fov = point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80;
-        const initialZoom = Math.max(0, Math.log2(90 / fov));
-
-        const panorama = new window.google.maps.StreetViewPanorama(
-          containerRef.current,
-          {
-            position: { lat: Number(point.lat), lng: Number(point.lng) },
-            pov: { heading: heading, pitch: pitch },
-            zoom: initialZoom,
-            addressControl: true,
-            fullscreenControl: true,
-            motionTracking: false,
-            motionTrackingControl: false,
-          }
-        );
-        panoramaRef.current = panorama;
-      });
-    }, [open, point.lat, point.lng, point.id]);
+      if (open) {
+        setHeading(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
+        setPitch(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
+        setFov(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+      }
+    }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
 
    const save = async () => {
      try {
        setSaving(true);
-       const pov = panoramaRef.current?.getPov();
-       const zoom = panoramaRef.current?.getZoom() || 1;
-       
-       const headingAtual = Math.round(pov?.heading || 0);
-       const pitchAtual = Math.round(pov?.pitch || 0);
-       // Converter zoom de volta para FOV aproximado: 90 / 2^zoom
-       const fovAtual = Math.round(90 / Math.pow(2, zoom));
-
-       const url = streetViewImg(point.lat, point.lng, { 
-         heading: headingAtual, 
-         pitch: pitchAtual, 
-         fov: fovAtual, 
-         size: "640x480" 
-       });
-
+       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
        const publicUrl = await salvarFotoSupabase(point.cod, url);
-       setAdjustedPhoto(point.id, { 
-         heading: headingAtual, 
-         pitch: pitchAtual, 
-         fov: fovAtual, 
-         url: publicUrl 
-       });
+       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
        onOpenChange(false);
      } catch (err: any) {
        console.error(err);
@@ -108,18 +51,23 @@ export function StreetViewAdjustModal({
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
           </DialogTitle>
-         </DialogHeader>
- 
-        <p className="text-[12px] text-muted-foreground mb-4">
-          Navegue no Street View abaixo e clique em Salvar para capturar o ângulo exato.
-        </p>
+        </DialogHeader>
 
-        <div
-          id="street-view-container"
-          ref={containerRef}
-          className="w-full rounded-lg overflow-hidden border border-border"
-          style={{ height: "420px", background: "#1a1a2e" }}
-        />
+        <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted">
+          <iframe
+            key={`${heading}-${pitch}-${fov}`}
+            title="Street View"
+            src={streetViewEmbed(point.lat, point.lng, heading, pitch, fov)}
+            className="w-full h-full"
+            allowFullScreen
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 py-2">
+          <SliderRow label="Heading" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
+          <SliderRow label="Pitch" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
+          <SliderRow label="FOV" value={fov} min={20} max={120} onChange={setFov} suffix="°" />
+        </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -132,5 +80,34 @@ export function StreetViewAdjustModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SliderRow({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+  suffix,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (n: number) => void;
+  suffix?: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm mb-2">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tabular-nums font-medium">
+          {value}
+          {suffix}
+        </span>
+      </div>
+      <Slider value={[value]} min={min} max={max} step={1} onValueChange={(v) => onChange(v[0])} />
+    </div>
   );
 }

@@ -12,7 +12,8 @@ type Phase = "idle" | "running" | "paused" | "done";
   phase: Phase;
    currentIndex: number;
    log: (level: LogEntry["level"], message: string) => void;
-     salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
+    salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
+    corrigirComIA: (ponto: Point) => Promise<void>;
   setPoints: (p: Point[], sheetName?: string, colunasOriginais?: string[]) => void;
   exportarExcel: () => Promise<void>;
    start: () => void;
@@ -148,6 +149,66 @@ const Ctx = createContext<SessionState | null>(null);
   }, [points, sheetName]);
 
 
+    const verificarOutdoor = useCallback(
+      async (base64Image: string) => {
+        try {
+          const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "deepseek-vl-1.3b-chat",
+              max_tokens: 100,
+              messages: [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "image_url",
+                      image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+                    },
+                    {
+                      type: "text",
+                      text: `Você é um especialista em identificar outdoors e painéis publicitários em fotos de rua.
+
+              Um OUTDOOR é uma estrutura física instalada na rua com as seguintes características:
+              - Placa grande retangular suspensa em postes ou estruturas metálicas
+              - Geralmente está acima do nível dos olhos ou no alto de estruturas
+              - Contém imagens publicitárias, logotipos, textos ou propagandas
+              - Pode ter iluminação própria
+              - Tamanho grande, visível à distância
+              - Exemplos: painéis de estrada, placas em postes altos, banners em estruturas metálicas
+
+              NÃO é outdoor:
+              - Placas de trânsito (pare, velocidade, direção)
+              - Fachadas de lojas pequenas
+              - Placas de rua com nomes
+              - Sinalizações de obras
+
+              Existe um OUTDOOR claramente visível nesta foto?
+              Responda APENAS: SIM ou NAO`,
+                    },
+                  ],
+                },
+              ],
+            }),
+          });
+
+          const json = await res.json();
+          log("info", `DeepSeek VL: ${JSON.stringify(json).substring(0, 100)}`);
+          const resposta = (json.choices?.[0]?.message?.content ?? "").toString().trim().toUpperCase() || "NAO";
+          log("info", `${resposta.includes("SIM") ? "✅" : "❌"} DeepSeek: ${resposta}`);
+          return { temOutdoor: resposta.includes("SIM"), qualidade: 1 };
+        } catch (err: any) {
+          log("error", `❌ DeepSeek erro: ${err.message}`);
+          return { temOutdoor: false, qualidade: 0 };
+        }
+      },
+      [log]
+    );
+
     const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
        body: { url },
@@ -171,8 +232,8 @@ const Ctx = createContext<SessionState | null>(null);
      return urlData.publicUrl;
    }, []);
   const processarPonto = useCallback(
-    async (p: Point) => {
-      if (p.fotoSalva && p.status === "SUCESSO") {
+    async (p: Point, forceProcess?: boolean) => {
+      if (!forceProcess && p.fotoSalva && p.status === "SUCESSO") {
         log("info", `Pulando ${p.cod} (já processado com sucesso)`);
         return;
       }
@@ -181,7 +242,7 @@ const Ctx = createContext<SessionState | null>(null);
       const key = GMAPS_KEY;
 
       updatePoint(id, { status: "PROCESSANDO" });
-      log("info", `📍 ${cod} — Calculando melhor ângulo...`);
+      log("info", `🔍 ${cod} — Iniciando busca completa...`);
 
       try {
         if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
@@ -190,30 +251,96 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // Simplificação: usar heading 0 (Norte) por padrão ou um cálculo fixo
-        const heading = 0;
-        const pitch = 10;
-        const fov = 90;
+        // Primeiro verificar se há cobertura básica
+        const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
+        const metaRes = await fetch(metaUrl);
+        const meta = await metaRes.json();
 
-        const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${key}`;
+        if (meta.status !== "OK") {
+          log("warn", `${cod} — ⚠️ Sem cobertura Street View`);
+          const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+          const urlPublica = await salvarFotoSupabase(cod, staticUrl);
+          updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
+          return;
+        }
 
-        const urlPublica = await salvarFotoSupabase(cod, fotoUrl);
+        // Rodadas de busca — cada rodada aumenta o zoom e adiciona mais ângulos
+        const rodadas = [
+          { angulos: [0, 45, 90, 135, 180, 225, 270, 315], fov: 90, pitch: 0, label: "Rodada 1 — 8 ângulos amplos" },
+          { angulos: [22, 67, 112, 157, 202, 247, 292, 337], fov: 72, pitch: 5, label: "Rodada 2 — 8 ângulos intermediários zoom médio" },
+          { angulos: [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330], fov: 55, pitch: 8, label: "Rodada 3 — 12 ângulos zoom maior" },
+          { angulos: [0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340], fov: 40, pitch: 10, label: "Rodada 4 — 18 ângulos zoom máximo" },
+        ];
 
+        let melhorHeading: number | null = null;
+        let melhorFov = 90;
+        let melhorPitch = 0;
+
+        for (const rodada of rodadas) {
+          log("info", `${cod} — ${rodada.label}...`);
+          let foundInRound = false;
+
+          for (const heading of rodada.angulos) {
+            const fotoUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${heading}&pitch=${rodada.pitch}&fov=${rodada.fov}&key=${key}`;
+            const { data, error } = await supabase.functions.invoke("google-proxy", {
+              body: { url: fotoUrl },
+            });
+            if (error || !data?.image) continue;
+
+            const { temOutdoor } = await verificarOutdoor(data.image);
+
+            if (temOutdoor) {
+              melhorHeading = heading;
+              melhorFov = rodada.fov;
+              melhorPitch = rodada.pitch;
+              foundInRound = true;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 150));
+          }
+
+          if (foundInRound) {
+            log("success", `${cod} — 🏆 Outdoor encontrado na ${rodada.label}!`);
+            break;
+          }
+        }
+
+        const finalHeading = melhorHeading ?? 0;
+        const finalPitch = melhorHeading !== null ? melhorPitch : 0;
+        const finalFov = melhorHeading !== null ? melhorFov : 90;
+        const statusFinal = melhorHeading !== null ? "SUCESSO" : "SEM_COBERTURA";
+
+        const fotoFinalUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${finalHeading}&pitch=${finalPitch}&fov=${finalFov}&key=${key}`;
+
+        if (melhorHeading === null) {
+          log("warn", `${cod} — ⚠️ Sem outdoor — salvo visão padrão`);
+        } else {
+          log("success", `✅ ${cod} — Salvo no ângulo ${finalHeading}° fov=${finalFov}`);
+        }
+
+        const urlPublica = await salvarFotoSupabase(cod, fotoFinalUrl);
         updatePoint(id, {
-          status: "SUCESSO",
+          status: statusFinal,
           foto_url: urlPublica,
           fotoSalva: true,
-          headingSalvo: heading,
-          pitchSalvo: pitch,
-          fovSalvo: fov,
+          headingSalvo: finalHeading,
+          pitchSalvo: finalPitch,
+          fovSalvo: finalFov,
         });
-        log("success", `✅ ${cod} — Salvo no ângulo ${heading}°`);
       } catch (err: any) {
         log("error", `❌ ${cod} — Erro: ${err.message}`);
         updatePoint(id, { status: "ERRO" });
       }
     },
-    [updatePoint, log, salvarFotoSupabase]
+    [updatePoint, log, salvarFotoSupabase, verificarOutdoor]
+  );
+
+  const corrigirComIA = useCallback(
+    async (p: Point) => {
+      const pCopy = { ...p, fotoSalva: false };
+      return processarPonto(pCopy, true);
+    },
+    [processarPonto]
   );
 
   const runFrom = useCallback(
@@ -278,7 +405,6 @@ const Ctx = createContext<SessionState | null>(null);
           headingSalvo: adj.heading,
           pitchSalvo: adj.pitch,
           fovSalvo: adj.fov,
-          ajustadaManualmente: true,
         });
         log("success", `Foto ajustada salva para ponto ${id}`);
       },
@@ -304,8 +430,9 @@ const Ctx = createContext<SessionState | null>(null);
         resume,
         reset,
         setAdjustedPhoto,
-         salvarFotoSupabase,
-         exportarExcel,
+        salvarFotoSupabase,
+        corrigirComIA,
+        exportarExcel,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
