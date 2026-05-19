@@ -51,9 +51,14 @@ export function StreetViewAdjustModal({
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
           </DialogTitle>
-        </DialogHeader>
-
-        <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted">
+         </DialogHeader>
+ 
+         <p className="text-[12px] text-muted-foreground mb-2">
+           ⚠️ Use os sliders abaixo para ajustar o ângulo. A foto será salva com os valores dos sliders.
+         </p>
+ 
+         <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted relative">
+           <div className="absolute inset-0 z-10 bg-transparent pointer-events-none" />
           <iframe
             key={`${heading}-${pitch}-${fov}`}
             title="Street View"
@@ -64,9 +69,9 @@ export function StreetViewAdjustModal({
         </div>
 
         <div className="grid grid-cols-1 gap-4 py-2">
-          <SliderRow label="Heading" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
-          <SliderRow label="Pitch" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
-          <SliderRow label="FOV" value={fov} min={20} max={120} onChange={setFov} suffix="°" />
+           <SliderRow label="↔️ Direção (Heading)" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
+           <SliderRow label="↕️ Inclinação (Pitch)" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
+           <SliderRow label="🔍 Zoom (FOV)" value={fov} min={30} max={120} onChange={setFov} suffix="°" />
         </div>
 
         <DialogFooter>
