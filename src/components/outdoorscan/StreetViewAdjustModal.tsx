@@ -58,7 +58,9 @@ export function StreetViewAdjustModal({
 
         <div className="bg-[#1a1a2e] p-2 rounded mb-2 border border-yellow-500/20">
           <p className="text-[#facc15] text-xs m-0">
-            ⚠️ Use o slider de Zoom abaixo — o scroll do mouse no iframe não é capturado pelo sistema.
+            ⚠️ Interações dentro da visualização (scroll, clique e arrasto) 
+            não são capturadas pelo sistema. Use os sliders abaixo para 
+            ajustar direção, inclinação e zoom antes de salvar.
           </p>
         </div>
 
@@ -72,9 +74,6 @@ export function StreetViewAdjustModal({
             allowFullScreen
           />
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          Use o slider para ajustar o zoom. O scroll do mouse dentro da visualização não é capturado pelo sistema.
-        </p>
 
         <div className="grid grid-cols-1 gap-4 py-2">
           <SliderRow label="↔️ Direção" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
