@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, RefreshCw } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
 
 function loadGoogleMapsApi(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -54,6 +55,11 @@ export function StreetViewAdjustModal({
   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+
+  // Filtros de imagem
+  const [brilho, setBrilho] = useState(100);
+  const [contraste, setContraste] = useState(100);
+  const [saturacao, setSaturacao] = useState(100);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<any>(null);
@@ -115,21 +121,70 @@ export function StreetViewAdjustModal({
       const realPitch = pov?.pitch ?? pitch;
       const realFov = zoomToFov(zoom);
 
-      log("info", `${point.cod} — Salvando: heading=${realHeading}° pitch=${realPitch}° fov=${realFov}°`);
+      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
+
       const url = streetViewImg(point.lat, point.lng, {
         heading: realHeading,
         pitch: realPitch,
         fov: realFov,
         size: "640x480"
       });
-      const publicUrl = await salvarFotoSupabase(point.cod, url);
+
+      // Baixar imagem via proxy
+      const { data, error: proxyError } = await supabase.functions.invoke("google-proxy", {
+        body: { url },
+      });
+
+      if (proxyError || !data?.image) {
+        throw new Error(proxyError?.message || "Erro ao baixar imagem");
+      }
+
+      // Aplicar filtros via Canvas
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = `data:image/jpeg;base64,${data.image}`;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Não foi possível criar contexto do canvas");
+
+      // Aplicar os mesmos filtros do CSS no Canvas
+      ctx.filter = `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`;
+      ctx.drawImage(img, 0, 0, 640, 480);
+
+      // Converter para blob
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9)
+      );
+
+      if (!blob) throw new Error("Erro ao gerar blob da imagem");
+
+      // Upload para Supabase
+      const fileName = `${point.cod}_${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
+      const publicUrl = urlData.publicUrl;
+
       setAdjustedPhoto(point.id, {
         heading: realHeading,
         pitch: realPitch,
         fov: realFov,
         url: publicUrl
       });
-      log("success", `✅ ${point.cod} — Foto salva no ângulo exato!`);
+
+      log("success", `✅ ${point.cod} — Foto salva com filtros aplicados!`);
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
@@ -148,42 +203,101 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div ref={containerRef} className="w-full rounded-lg overflow-hidden border border-border bg-muted" style={{ height: '380px' }} />
+        <div 
+          ref={containerRef} 
+          className="w-full rounded-lg overflow-hidden border border-border bg-muted" 
+          style={{ 
+            height: '380px',
+            filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`
+          }} 
+        />
 
-        <div className="grid grid-cols-1 gap-4 py-2">
-          <SliderRow
-            label="↔️ Direção"
-            value={heading}
-            min={0}
-            max={360}
-            onChange={(v) => {
-              setHeading(v);
-              panoramaRef.current?.setPov({ heading: v, pitch });
-            }}
-            suffix="°"
-          />
-          <SliderRow
-            label="↕️ Inclinação"
-            value={pitch}
-            min={-45}
-            max={45}
-            onChange={(v) => {
-              setPitch(v);
-              panoramaRef.current?.setPov({ heading, pitch: v });
-            }}
-            suffix="°"
-          />
-          <SliderRow
-            label="🔍 Zoom (menor = mais zoom)"
-            value={fov}
-            min={10}
-            max={100}
-            onChange={(v) => {
-              setFov(v);
-              panoramaRef.current?.setZoom(fovToZoom(v));
-            }}
-            suffix="°"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+          <div className="space-y-4">
+            <h4 className="font-semibold text-sm flex items-center gap-2">
+              🧭 Ângulo e Zoom
+            </h4>
+            <SliderRow
+              label="↔️ Direção"
+              value={heading}
+              min={0}
+              max={360}
+              onChange={(v) => {
+                setHeading(v);
+                panoramaRef.current?.setPov({ heading: v, pitch });
+              }}
+              suffix="°"
+            />
+            <SliderRow
+              label="↕️ Inclinação"
+              value={pitch}
+              min={-45}
+              max={45}
+              onChange={(v) => {
+                setPitch(v);
+                panoramaRef.current?.setPov({ heading, pitch: v });
+              }}
+              suffix="°"
+            />
+            <SliderRow
+              label="🔍 Zoom (menor = mais zoom)"
+              value={fov}
+              min={10}
+              max={100}
+              onChange={(v) => {
+                setFov(v);
+                panoramaRef.current?.setZoom(fovToZoom(v));
+              }}
+              suffix="°"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                🎨 Edição de Imagem
+              </h4>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-7 text-[10px] px-2"
+                onClick={() => {
+                  setBrilho(100);
+                  setContraste(100);
+                  setSaturacao(100);
+                }}
+              >
+                <RefreshCw className="size-3 mr-1" />
+                Resetar
+              </Button>
+            </div>
+            
+            <SliderRow
+              label="☀️ Brilho"
+              value={brilho}
+              min={50}
+              max={150}
+              onChange={setBrilho}
+              suffix="%"
+            />
+            <SliderRow
+              label="🌓 Contraste"
+              value={contraste}
+              min={50}
+              max={150}
+              onChange={setContraste}
+              suffix="%"
+            />
+            <SliderRow
+              label="🌈 Saturação"
+              value={saturacao}
+              min={0}
+              max={200}
+              onChange={setSaturacao}
+              suffix="%"
+            />
+          </div>
+        </div>
 
           <div className="flex gap-2 mt-1">
             <Button
