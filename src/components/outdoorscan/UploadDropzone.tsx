@@ -53,9 +53,45 @@ export function UploadDropzone() {
                foto: n["Foto"] || "",
                originalData: r,
              };
-           });
-           
-           setPoints(norm, sheetName, colunasOriginais);
+            });
+            
+            // Enriquecer pontos sem coordenadas ou sem bairro
+            const GMAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+            const precisamEnriquecimento = norm.filter(
+              (p) => isNaN(p.lat) || isNaN(p.lng) || !p.bairro
+            );
+
+            if (precisamEnriquecimento.length > 0) {
+              log(\"info\", `🌐 Buscando coordenadas/bairro para ${precisamEnriquecimento.length} ponto(s)...`);
+              await Promise.all(
+                precisamEnriquecimento.map(async (p) => {
+                  const resultado = await geocodeEndereco(
+                    p.endereco,
+                    p.bairro,
+                    p.cidade,
+                    GMAPS_KEY
+                  );
+                  if (!resultado) {
+                    log(\"warn\", `⚠️ ${p.cod} — Geocoding sem resultado`);
+                    return;
+                  }
+                  const idx = norm.findIndex((n) => n.id === p.id);
+                  if (idx === -1) return;
+                  if (isNaN(norm[idx].lat) || isNaN(norm[idx].lng)) {
+                    norm[idx].lat = resultado.lat;
+                    norm[idx].lng = resultado.lng;
+                    norm[idx].status = \"AGUARDANDO\";
+                    log(\"info\", `✅ ${p.cod} — Coordenadas resolvidas: ${resultado.lat}, ${resultado.lng}`);
+                  }
+                  if (!norm[idx].bairro && resultado.bairroResolvido) {
+                    norm[idx].bairro = resultado.bairroResolvido;
+                    log(\"info\", `✅ ${p.cod} — Bairro resolvido: ${resultado.bairroResolvido}`);
+                  }
+                })
+              );
+            }
+            
+            setPoints(norm, sheetName, colunasOriginais);
            log("success", `✅ ${norm.length} pontos carregados${invalidos ? ` (${invalidos} com coordenadas inválidas)` : ""}`);
         }}
       />
