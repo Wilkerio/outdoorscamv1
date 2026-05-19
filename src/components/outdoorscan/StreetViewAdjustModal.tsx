@@ -105,7 +105,7 @@ function SliderRow({
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-2">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground">{label}:</span>
         <span className="tabular-nums font-medium">
           {value}
           {suffix}
