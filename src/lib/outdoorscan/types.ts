@@ -27,6 +27,7 @@ export interface Point {
   headingSalvo?: number;
   pitchSalvo?: number;
   fovSalvo?: number;
+  ajustadaManualmente?: boolean;
   error?: string;
   originalData?: any;
 }
