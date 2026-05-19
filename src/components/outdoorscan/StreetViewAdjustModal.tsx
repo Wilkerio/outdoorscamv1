@@ -68,17 +68,17 @@ export function StreetViewAdjustModal({
       const pitch = Math.round(pov?.pitch || 0);
       const fov = Math.round(90 / Math.pow(2, zoom));
 
-      log("INFO", `${point.cod} — Salvando: heading=${heading}° pitch=${pitch}° fov=${fov}°`);
+      log("info", `${point.cod} — Salvando: heading=${heading}° pitch=${pitch}° fov=${fov}°`);
 
       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
       const publicUrl = await salvarFotoSupabase(point.cod, url);
       
       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
-      log("SUCCESS", `✅ ${point.cod} — Foto salva no ângulo exato!`);
+      log("success", `✅ ${point.cod} — Foto salva no ângulo exato!`);
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
-      log("ERROR", `❌ Erro ao salvar foto: ${err.message}`);
+      log("error", `❌ Erro ao salvar foto: ${err.message}`);
     } finally {
       setSaving(false);
     }
