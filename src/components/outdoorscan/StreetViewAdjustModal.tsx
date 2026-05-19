@@ -56,7 +56,13 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted" style={{ height: '400px' }}>
+        <div className="bg-[#1a1a2e] p-2 rounded mb-2 border border-yellow-500/20">
+          <p className="text-[#facc15] text-xs m-0">
+            ⚠️ Use o slider de Zoom abaixo — o scroll do mouse no iframe não é capturado pelo sistema.
+          </p>
+        </div>
+
+        <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted" style={{ height: '380px' }}>
           <iframe
             key={`${heading}-${pitch}-${fov}`}
             title="Street View"
@@ -70,7 +76,26 @@ export function StreetViewAdjustModal({
         <div className="grid grid-cols-1 gap-4 py-2">
           <SliderRow label="↔️ Direção" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
           <SliderRow label="↕️ Inclinação" value={pitch} min={-45} max={45} onChange={setPitch} suffix="°" />
-          <SliderRow label="🔍 Zoom" value={fov} min={30} max={100} onChange={setFov} suffix="°" />
+          <SliderRow label="🔍 Zoom (menor = mais zoom)" value={fov} min={20} max={100} onChange={setFov} suffix="°" />
+          
+          <div className="flex gap-2 mt-1">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs"
+              onClick={() => setFov(f => Math.max(20, f - 10))}
+            >
+              🔍 + Zoom
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs"
+              onClick={() => setFov(f => Math.min(100, f + 10))}
+            >
+              🔍 - Zoom
+            </Button>
+          </div>
         </div>
 
         <DialogFooter>
