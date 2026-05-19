@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
- import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewEmbed, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { streetViewImg, GMAPS_KEY } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
 
 export function StreetViewAdjustModal({
@@ -18,24 +17,73 @@ export function StreetViewAdjustModal({
 }) {
    const { setAdjustedPhoto, salvarFotoSupabase } = useSession();
    const [saving, setSaving] = useState(false);
-   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+   const panoramaRef = useRef<any>(null);
+   const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-      if (open) {
-        setHeading(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-        setPitch(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-        setFov(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+      if (!open) return;
+
+      const initPanorama = () => {
+        if (!containerRef.current || !window.google) return;
+        
+        const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
+        const pitch = point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0;
+        const fov = point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80;
+        // Converter FOV para zoom da API JS (aproximado)
+        // zoom 1 = 90 deg, zoom 2 = 45 deg, etc. A API JS usa zoom 1 como padrão (~90-80 deg)
+        const initialZoom = Math.max(0, Math.log2(90 / fov));
+
+        const panorama = new window.google.maps.StreetViewPanorama(
+          containerRef.current,
+          {
+            position: { lat: point.lat, lng: point.lng },
+            pov: { heading: heading, pitch: pitch },
+            zoom: initialZoom,
+            addressControl: false,
+            fullscreenControl: false,
+            motionTracking: false,
+            motionTrackingControl: false,
+          }
+        );
+        panoramaRef.current = panorama;
+      };
+
+      if (!window.google) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}`;
+        script.async = true;
+        script.onload = initPanorama;
+        document.head.appendChild(script);
+      } else {
+        initPanorama();
       }
-    }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
+    }, [open, point.lat, point.lng, point.id]);
 
    const save = async () => {
      try {
        setSaving(true);
-       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
+       const pov = panoramaRef.current?.getPov();
+       const zoom = panoramaRef.current?.getZoom() || 1;
+       
+       const headingAtual = Math.round(pov?.heading || 0);
+       const pitchAtual = Math.round(pov?.pitch || 0);
+       // Converter zoom de volta para FOV aproximado: 90 / 2^zoom
+       const fovAtual = Math.round(90 / Math.pow(2, zoom));
+
+       const url = streetViewImg(point.lat, point.lng, { 
+         heading: headingAtual, 
+         pitch: pitchAtual, 
+         fov: fovAtual, 
+         size: "640x480" 
+       });
+
        const publicUrl = await salvarFotoSupabase(point.cod, url);
-       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
+       setAdjustedPhoto(point.id, { 
+         heading: headingAtual, 
+         pitch: pitchAtual, 
+         fov: fovAtual, 
+         url: publicUrl 
+       });
        onOpenChange(false);
      } catch (err: any) {
        console.error(err);
@@ -53,25 +101,14 @@ export function StreetViewAdjustModal({
           </DialogTitle>
          </DialogHeader>
  
-         <p className="text-[12px] text-muted-foreground mb-2">
-           ⚠️ Use os sliders abaixo para ajustar o ângulo. A foto será salva com os valores dos sliders.
-         </p>
- 
-          <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted">
-           <iframe
-             key={`${heading}-${pitch}-${fov}`}
-             title="Street View"
-             src={streetViewEmbed(point.lat, point.lng, heading, pitch, fov)}
-             className="w-full h-full pointer-events-none"
-             allowFullScreen
-           />
-        </div>
+        <p className="text-[12px] text-muted-foreground mb-4">
+          Navegue no Street View abaixo e clique em Salvar para capturar o ângulo exato.
+        </p>
 
-         <div className="grid grid-cols-1 gap-4 py-2">
-            <SliderRow label="↔️ Direção (Heading)" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
-            <SliderRow label="↕️ Inclinação (Pitch)" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
-            <SliderRow label="🔍 Zoom (FOV)" value={fov} min={30} max={120} onChange={setFov} suffix="°" />
-         </div>
+        <div 
+          ref={containerRef}
+          className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted"
+        />
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -84,34 +121,5 @@ export function StreetViewAdjustModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SliderRow({
-  label,
-  value,
-  min,
-  max,
-  onChange,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (n: number) => void;
-  suffix?: string;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between text-sm mb-2">
-        <span className="text-muted-foreground">{label}:</span>
-        <span className="tabular-nums font-medium">
-          {value}
-          {suffix}
-        </span>
-      </div>
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={(v) => onChange(v[0])} />
-    </div>
   );
 }
