@@ -31,6 +31,28 @@ async function geocodeEndereco(
   }
 }
 
+async function reverseGeocodeLatLng(
+  lat: number,
+  lng: number,
+  apiKey: string
+): Promise<string> {
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.status !== "OK" || !data.results?.[0]) return "";
+    const bairro =
+      data.results[0].address_components?.find((c: any) =>
+        c.types.includes("sublocality") ||
+        c.types.includes("sublocality_level_1") ||
+        c.types.includes("neighborhood")
+      )?.long_name ?? "";
+    return bairro;
+  } catch {
+    return "";
+  }
+}
+
 export function UploadDropzone() {
   const { setPoints, log } = useSession();
 
@@ -111,9 +133,18 @@ export function UploadDropzone() {
                   norm[idx].status = "AGUARDANDO";
                   log("info", `✅ ${p.cod} — Coordenadas resolvidas: ${resultado.lat}, ${resultado.lng}`);
                 }
-                if (!norm[idx].bairro && resultado.bairroResolvido) {
-                  norm[idx].bairro = resultado.bairroResolvido;
-                  log("info", `✅ ${p.cod} — Bairro resolvido: ${resultado.bairroResolvido}`);
+                if (!norm[idx].bairro) {
+                  let bairroFinal = resultado.bairroResolvido;
+
+                  // Se o geocoding por endereço não resolveu o bairro mas há coordenadas válidas, tenta reverse geocoding
+                  if (!bairroFinal && !isNaN(norm[idx].lat) && !isNaN(norm[idx].lng)) {
+                    bairroFinal = await reverseGeocodeLatLng(norm[idx].lat, norm[idx].lng, GMAPS_KEY);
+                  }
+
+                  if (bairroFinal) {
+                    norm[idx].bairro = bairroFinal;
+                    log("info", `✅ ${p.cod} — Bairro resolvido: ${bairroFinal}`);
+                  }
                 }
               })
             );
