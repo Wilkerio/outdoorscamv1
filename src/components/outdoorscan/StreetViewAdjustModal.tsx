@@ -1,11 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
- import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewEmbed, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export function StreetViewAdjustModal({
   open,
@@ -16,33 +21,68 @@ export function StreetViewAdjustModal({
   onOpenChange: (v: boolean) => void;
   point: Point;
 }) {
-   const { setAdjustedPhoto, salvarFotoSupabase } = useSession();
-   const [saving, setSaving] = useState(false);
-   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+  const { setAdjustedPhoto, salvarFotoSupabase, adicionarLog } = useSession();
+  const [saving, setSaving] = useState(false);
+  const panoramaRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-      if (open) {
-        setHeading(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-        setPitch(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-        setFov(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
-      }
-    }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
+  useEffect(() => {
+    if (!open) return;
 
-   const save = async () => {
-     try {
-       setSaving(true);
-       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
-       const publicUrl = await salvarFotoSupabase(point.cod, url);
-       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
-       onOpenChange(false);
-     } catch (err: any) {
-       console.error(err);
-     } finally {
-       setSaving(false);
-     }
-   };
+    const iniciar = () => {
+      if (!window.google?.maps || !containerRef.current) return;
+      
+      panoramaRef.current = new window.google.maps.StreetViewPanorama(
+        containerRef.current,
+        {
+          position: { lat: point.lat, lng: point.lng },
+          pov: { 
+            heading: point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0, 
+            pitch: point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0 
+          },
+          zoom: point.fovSalvo ? Math.round(Math.log2(90 / point.fovSalvo)) : 1,
+          addressControl: false,
+          showRoadLabels: false,
+        }
+      );
+    };
+
+    if (window.google?.maps) {
+      iniciar();
+    } else {
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}`;
+      s.onload = iniciar;
+      document.head.appendChild(s);
+    }
+  }, [open, point.lat, point.lng, point.headingSalvo, point.pitchSalvo, point.fovSalvo, point.adjustedPhoto]);
+
+  const save = async () => {
+    if (!panoramaRef.current) return;
+    
+    try {
+      setSaving(true);
+      const pov = panoramaRef.current.getPov();
+      const zoom = panoramaRef.current.getZoom() || 1;
+      const heading = Math.round(pov?.heading || 0);
+      const pitch = Math.round(pov?.pitch || 0);
+      const fov = Math.round(90 / Math.pow(2, zoom));
+
+      adicionarLog(`${point.cod} — Salvando: heading=${heading}° pitch=${pitch}° fov=${fov}°`);
+
+      const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
+      const publicUrl = await salvarFotoSupabase(point.cod, url);
+      
+      setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
+      adicionarLog(`✅ ${point.cod} — Foto salva no ângulo exato!`);
+      onOpenChange(false);
+    } catch (err: any) {
+      console.error(err);
+      adicionarLog(`❌ Erro ao salvar foto: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,21 +93,11 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted">
-          <iframe
-            key={`${heading}-${pitch}-${fov}`}
-            title="Street View"
-            src={streetViewEmbed(point.lat, point.lng, heading, pitch, fov)}
-            className="w-full h-full"
-            allowFullScreen
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 py-2">
-          <SliderRow label="Heading" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
-          <SliderRow label="Pitch" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
-          <SliderRow label="FOV" value={fov} min={20} max={120} onChange={setFov} suffix="°" />
-        </div>
+        <div 
+          ref={containerRef}
+          className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted"
+          style={{ height: '420px' }}
+        />
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -80,34 +110,5 @@ export function StreetViewAdjustModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SliderRow({
-  label,
-  value,
-  min,
-  max,
-  onChange,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  onChange: (n: number) => void;
-  suffix?: string;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between text-sm mb-2">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums font-medium">
-          {value}
-          {suffix}
-        </span>
-      </div>
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={(v) => onChange(v[0])} />
-    </div>
   );
 }
