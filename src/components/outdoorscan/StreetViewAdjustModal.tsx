@@ -57,22 +57,21 @@ export function StreetViewAdjustModal({
            ⚠️ Use os sliders abaixo para ajustar o ângulo. A foto será salva com os valores dos sliders.
          </p>
  
-         <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted relative">
-           <div className="absolute inset-0 z-10 bg-transparent pointer-events-none" />
-          <iframe
-            key={`${heading}-${pitch}-${fov}`}
-            title="Street View"
-            src={streetViewEmbed(point.lat, point.lng, heading, pitch, fov)}
-            className="w-full h-full"
-            allowFullScreen
-          />
+          <div className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted">
+           <iframe
+             key={`${heading}-${pitch}-${fov}`}
+             title="Street View"
+             src={streetViewEmbed(point.lat, point.lng, heading, pitch, fov)}
+             className="w-full h-full pointer-events-none"
+             allowFullScreen
+           />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 py-2">
-           <SliderRow label="↔️ Direção (Heading)" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
-           <SliderRow label="↕️ Inclinação (Pitch)" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
-           <SliderRow label="🔍 Zoom (FOV)" value={fov} min={30} max={120} onChange={setFov} suffix="°" />
-        </div>
+         <div className="grid grid-cols-1 gap-4 py-2">
+            <SliderRow label="↔️ Direção (Heading)" value={heading} min={0} max={360} onChange={setHeading} suffix="°" />
+            <SliderRow label="↕️ Inclinação (Pitch)" value={pitch} min={-90} max={90} onChange={setPitch} suffix="°" />
+            <SliderRow label="🔍 Zoom (FOV)" value={fov} min={30} max={120} onChange={setFov} suffix="°" />
+         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -106,7 +105,7 @@ function SliderRow({
   return (
     <div>
       <div className="flex items-center justify-between text-sm mb-2">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground">{label}:</span>
         <span className="tabular-nums font-medium">
           {value}
           {suffix}
