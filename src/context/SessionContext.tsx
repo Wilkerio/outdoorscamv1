@@ -95,7 +95,7 @@ const Ctx = createContext<SessionState | null>(null);
       const row = ws.addRow({
         cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
         endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
-        bairro: ponto.originalData?.["Bairro"] ?? ponto.bairro ?? "",
+        bairro: (ponto.originalData?.["Bairro"] || ponto.bairro) ?? "",
         cidade:
           ponto.originalData?.["Cidade"] ??
           ponto.originalData?.["Cidade "] ??
