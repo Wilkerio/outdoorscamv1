@@ -1,5 +1,5 @@
 import { useState } from "react";
- import { Map, Camera, Link as LinkIcon, Bot } from "lucide-react";
+  import { Map, Camera, Link as LinkIcon } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,9 @@ const STATUS_STYLES: Record<Point["status"], string> = {
    SEM_OUTDOOR_VISIVEL: "SEM OUTDOOR VISÍVEL",
  };
 
-export function PointCard({ point }: { point: Point }) {
-  const [open, setOpen] = useState(false);
-    const {  } = useSession();
-  const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
+ export function PointCard({ point }: { point: Point }) {
+   const [open, setOpen] = useState(false);
+   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
    const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
 
