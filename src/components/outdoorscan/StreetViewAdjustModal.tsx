@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2 } from "lucide-react";
@@ -27,43 +27,45 @@ export function StreetViewAdjustModal({
    const panoramaRef = useRef<any>(null);
    const containerRef = useRef<HTMLDivElement>(null);
 
+    const carregarGoogleMaps = () => {
+      return new Promise<void>((resolve) => {
+        if (window.google?.maps) {
+          resolve();
+          return;
+        }
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap`;
+        script.async = true;
+        (window as any).initMap = resolve;
+        document.head.appendChild(script);
+      });
+    };
+
     useEffect(() => {
       if (!open) return;
-
-      const initPanorama = () => {
-        if (!containerRef.current || !window.google) return;
+      
+      carregarGoogleMaps().then(() => {
+        if (!containerRef.current) return;
         
         const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
         const pitch = point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0;
         const fov = point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80;
-        // Converter FOV para zoom da API JS (aproximado)
-        // zoom 1 = 90 deg, zoom 2 = 45 deg, etc. A API JS usa zoom 1 como padrão (~90-80 deg)
         const initialZoom = Math.max(0, Math.log2(90 / fov));
 
         const panorama = new window.google.maps.StreetViewPanorama(
           containerRef.current,
           {
-            position: { lat: point.lat, lng: point.lng },
+            position: { lat: Number(point.lat), lng: Number(point.lng) },
             pov: { heading: heading, pitch: pitch },
             zoom: initialZoom,
-            addressControl: false,
-            fullscreenControl: false,
+            addressControl: true,
+            fullscreenControl: true,
             motionTracking: false,
             motionTrackingControl: false,
           }
         );
         panoramaRef.current = panorama;
-      };
-
-      if (!window.google) {
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}`;
-        script.async = true;
-        script.onload = initPanorama;
-        document.head.appendChild(script);
-      } else {
-        initPanorama();
-      }
+      });
     }, [open, point.lat, point.lng, point.id]);
 
    const save = async () => {
@@ -112,9 +114,11 @@ export function StreetViewAdjustModal({
           Navegue no Street View abaixo e clique em Salvar para capturar o ângulo exato.
         </p>
 
-        <div 
+        <div
+          id="street-view-container"
           ref={containerRef}
-          className="aspect-video w-full rounded-lg overflow-hidden border border-border bg-muted"
+          className="w-full rounded-lg overflow-hidden border border-border"
+          style={{ height: "420px", background: "#1a1a2e" }}
         />
 
         <DialogFooter>
