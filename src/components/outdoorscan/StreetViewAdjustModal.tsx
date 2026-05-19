@@ -67,25 +67,42 @@ export function StreetViewAdjustModal({
   }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
 
   useEffect(() => {
-    if (!open || !containerRef.current) return;
+    if (!open) return;
 
-    loadGoogleMapsApi(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
-      .then(() => {
-        if (!containerRef.current || !open) return;
-        const pano = new (window as any).google.maps.StreetViewPanorama(
-          containerRef.current,
-          {
-            position: { lat: point.lat, lng: point.lng },
-            pov: { heading, pitch },
-            zoom: fovToZoom(fov),
-            addressControl: false,
-            showRoadLabels: false,
-            fullscreenControl: false,
-          }
-        );
-        panoramaRef.current = pano;
-      })
-      .catch(console.error);
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled || !containerRef.current) return;
+      const { offsetWidth, offsetHeight } = containerRef.current;
+      if (offsetWidth === 0 || offsetHeight === 0) {
+        requestAnimationFrame(init);
+        return;
+      }
+      loadGoogleMapsApi(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
+        .then(() => {
+          if (cancelled || !containerRef.current) return;
+          const pano = new (window as any).google.maps.StreetViewPanorama(
+            containerRef.current,
+            {
+              position: { lat: point.lat, lng: point.lng },
+              pov: { heading, pitch },
+              zoom: fovToZoom(fov),
+              addressControl: false,
+              showRoadLabels: false,
+              fullscreenControl: false,
+            }
+          );
+          panoramaRef.current = pano;
+        })
+        .catch(console.error);
+    };
+
+    requestAnimationFrame(init);
+
+    return () => {
+      cancelled = true;
+      panoramaRef.current = null;
+    };
   }, [open]);
 
   const save = async () => {
