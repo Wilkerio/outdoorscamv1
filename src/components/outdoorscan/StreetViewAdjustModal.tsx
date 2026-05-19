@@ -326,9 +326,8 @@ export function StreetViewAdjustModal({
                 });
               }}
             >
-              🔍 - Zoom
-            </Button>
-          </div>
+            🔍 - Zoom
+          </Button>
         </div>
 
         <DialogFooter>
