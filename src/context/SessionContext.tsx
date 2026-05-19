@@ -148,66 +148,6 @@ const Ctx = createContext<SessionState | null>(null);
   }, [points, sheetName]);
 
 
-    const verificarOutdoor = useCallback(
-      async (base64Image: string) => {
-        try {
-          const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_DEEPSEEK_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model: "deepseek-vl-1.3b-chat",
-              max_tokens: 100,
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    {
-                      type: "image_url",
-                      image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-                    },
-                    {
-                      type: "text",
-                      text: `Você é um especialista em identificar outdoors e painéis publicitários em fotos de rua.
-
-              Um OUTDOOR é uma estrutura física instalada na rua com as seguintes características:
-              - Placa grande retangular suspensa em postes ou estruturas metálicas
-              - Geralmente está acima do nível dos olhos ou no alto de estruturas
-              - Contém imagens publicitárias, logotipos, textos ou propagandas
-              - Pode ter iluminação própria
-              - Tamanho grande, visível à distância
-              - Exemplos: painéis de estrada, placas em postes altos, banners em estruturas metálicas
-
-              NÃO é outdoor:
-              - Placas de trânsito (pare, velocidade, direção)
-              - Fachadas de lojas pequenas
-              - Placas de rua com nomes
-              - Sinalizações de obras
-
-              Existe um OUTDOOR claramente visível nesta foto?
-              Responda APENAS: SIM ou NAO`,
-                    },
-                  ],
-                },
-              ],
-            }),
-          });
-
-          const json = await res.json();
-          log("info", `DeepSeek VL: ${JSON.stringify(json).substring(0, 100)}`);
-          const resposta = (json.choices?.[0]?.message?.content ?? "").toString().trim().toUpperCase() || "NAO";
-          log("info", `${resposta.includes("SIM") ? "✅" : "❌"} DeepSeek: ${resposta}`);
-          return { temOutdoor: resposta.includes("SIM"), qualidade: 1 };
-        } catch (err: any) {
-          log("error", `❌ DeepSeek erro: ${err.message}`);
-          return { temOutdoor: false, qualidade: 0 };
-        }
-      },
-      [log]
-    );
-
     const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
        body: { url },
@@ -338,6 +278,7 @@ const Ctx = createContext<SessionState | null>(null);
           headingSalvo: adj.heading,
           pitchSalvo: adj.pitch,
           fovSalvo: adj.fov,
+          ajustadaManualmente: true,
         });
         log("success", `Foto ajustada salva para ponto ${id}`);
       },
