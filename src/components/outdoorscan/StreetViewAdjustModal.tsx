@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, GMAPS_KEY } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
+
+// Add global type for Google Maps
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export function StreetViewAdjustModal({
   open,
