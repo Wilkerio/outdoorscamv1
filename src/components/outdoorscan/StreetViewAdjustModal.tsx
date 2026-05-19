@@ -21,7 +21,7 @@ export function StreetViewAdjustModal({
   onOpenChange: (v: boolean) => void;
   point: Point;
 }) {
-  const { setAdjustedPhoto, salvarFotoSupabase, adicionarLog } = useSession();
+  const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
   const panoramaRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,17 +68,17 @@ export function StreetViewAdjustModal({
       const pitch = Math.round(pov?.pitch || 0);
       const fov = Math.round(90 / Math.pow(2, zoom));
 
-      adicionarLog(`${point.cod} — Salvando: heading=${heading}° pitch=${pitch}° fov=${fov}°`);
+      log("INFO", `${point.cod} — Salvando: heading=${heading}° pitch=${pitch}° fov=${fov}°`);
 
       const url = streetViewImg(point.lat, point.lng, { heading, pitch, fov, size: "640x480" });
       const publicUrl = await salvarFotoSupabase(point.cod, url);
       
       setAdjustedPhoto(point.id, { heading, pitch, fov, url: publicUrl });
-      adicionarLog(`✅ ${point.cod} — Foto salva no ângulo exato!`);
+      log("SUCCESS", `✅ ${point.cod} — Foto salva no ângulo exato!`);
       onOpenChange(false);
     } catch (err: any) {
       console.error(err);
-      adicionarLog(`❌ Erro ao salvar foto: ${err.message}`);
+      log("ERROR", `❌ Erro ao salvar foto: ${err.message}`);
     } finally {
       setSaving(false);
     }
