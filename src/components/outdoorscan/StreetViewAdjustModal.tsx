@@ -123,11 +123,27 @@ export function StreetViewAdjustModal({
 
       log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
 
+      const { offsetWidth, offsetHeight } = containerRef.current!;
+      const MAX_DIM = 640;
+      let targetW = offsetWidth;
+      let targetH = offsetHeight;
+      
+      if (targetW > MAX_DIM || targetH > MAX_DIM) {
+        const ratio = targetW / targetH;
+        if (targetW > targetH) {
+          targetW = MAX_DIM;
+          targetH = Math.round(MAX_DIM / ratio);
+        } else {
+          targetH = MAX_DIM;
+          targetW = Math.round(MAX_DIM * ratio);
+        }
+      }
+
       const url = streetViewImg(point.lat, point.lng, {
         heading: realHeading,
         pitch: realPitch,
         fov: realFov,
-        size: "640x480"
+        size: `${targetW}x${targetH}`
       });
 
       // Baixar imagem via proxy
@@ -149,14 +165,14 @@ export function StreetViewAdjustModal({
       });
 
       const canvas = document.createElement("canvas");
-      canvas.width = 640;
-      canvas.height = 480;
+      canvas.width = targetW;
+      canvas.height = targetH;
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Não foi possível criar contexto do canvas");
 
       // Aplicar os mesmos filtros do CSS no Canvas
       ctx.filter = `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`;
-      ctx.drawImage(img, 0, 0, 640, 480);
+      ctx.drawImage(img, 0, 0, targetW, targetH);
 
       // Converter para blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -205,9 +221,8 @@ export function StreetViewAdjustModal({
 
         <div 
           ref={containerRef} 
-          className="w-full rounded-lg overflow-hidden border border-border bg-muted" 
+          className="w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted" 
           style={{ 
-            height: '380px',
             filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`
           }} 
         />
