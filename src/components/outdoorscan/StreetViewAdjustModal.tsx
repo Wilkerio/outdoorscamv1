@@ -212,20 +212,50 @@ export function StreetViewAdjustModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div 
-          ref={containerRef} 
-          className="w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted" 
-          style={{ 
-            filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`
-          }} 
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Foto Atual (Planilha)</span>
+            <div className="w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted flex items-center justify-center">
+              {point.foto ? (
+                <img 
+                  src={point.foto} 
+                  alt="Foto original" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) {
+                      const msg = document.createElement('div');
+                      msg.className = "text-xs text-muted-foreground p-4 text-center";
+                      msg.innerText = "Link da foto original inválido ou inacessível";
+                      parent.appendChild(msg);
+                    }
+                  }}
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">Sem foto na planilha</span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Nova Foto (Street View)</span>
+            <div 
+              ref={containerRef} 
+              className="w-full aspect-video rounded-lg overflow-hidden border border-primary/30 bg-muted" 
+              style={{ 
+                filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`
+              }} 
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
           <div className="space-y-4">
@@ -345,13 +375,30 @@ export function StreetViewAdjustModal({
           </Button>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1" />
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={save} disabled={saving}>
+          {point.foto && (
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setAdjustedPhoto(point.id, {
+                  heading: point.headingSalvo ?? 0,
+                  pitch: point.pitchSalvo ?? 0,
+                  fov: point.fovSalvo ?? 80,
+                  url: point.foto
+                });
+                onOpenChange(false);
+              }}
+            >
+              Manter Foto Original
+            </Button>
+          )}
+          <Button onClick={save} disabled={saving} className="bg-primary">
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Salvar
+            Usar Nova Foto
           </Button>
         </DialogFooter>
       </DialogContent>
