@@ -123,6 +123,12 @@ export function StreetViewAdjustModal({
       const realPitch = pov?.pitch ?? pitch;
       const realFov = zoomToFov(zoom);
 
+      // Pegar posição/panoId reais do panorama (Google "snapa" para a foto mais próxima)
+      const realPos = pano?.getPosition?.();
+      const realLat = realPos?.lat?.() ?? point.lat;
+      const realLng = realPos?.lng?.() ?? point.lng;
+      const realPanoId: string | undefined = pano?.getPano?.() || undefined;
+
       log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
@@ -141,12 +147,21 @@ export function StreetViewAdjustModal({
         }
       }
 
-      const url = streetViewImg(point.lat, point.lng, {
-        heading: realHeading,
-        pitch: realPitch,
-        fov: realFov,
-        size: `${targetW}x${targetH}`
+      // Construir URL usando panoId quando disponível, garantindo que a imagem
+      // salva seja exatamente a que o usuário está vendo no panorama.
+      const params = new URLSearchParams({
+        size: `${targetW}x${targetH}`,
+        fov: String(Math.round(realFov)),
+        heading: String(Math.round(realHeading)),
+        pitch: String(Math.round(realPitch)),
+        key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
       });
+      if (realPanoId) {
+        params.set("pano", realPanoId);
+      } else {
+        params.set("location", `${realLat},${realLng}`);
+      }
+      const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
 
       // Baixar imagem via proxy
       const { data, error: proxyError } = await supabase.functions.invoke("google-proxy", {
