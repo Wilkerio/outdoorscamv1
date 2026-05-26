@@ -45,10 +45,16 @@ export function StreetViewAdjustModal({
   open,
   onOpenChange,
   point,
+  onPrev,
+  onNext,
+  position,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   point: Point;
+  onPrev?: () => void;
+  onNext?: () => void;
+  position?: { current: number; total: number };
 }) {
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
@@ -234,6 +240,11 @@ export function StreetViewAdjustModal({
         <DialogHeader>
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
+            {position && (
+              <span className="ml-2 text-xs text-muted-foreground font-normal">
+                ({position.current}/{position.total})
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -434,6 +445,16 @@ export function StreetViewAdjustModal({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          {onPrev && (
+            <Button variant="outline" size="sm" onClick={onPrev} className="gap-1">
+              <ChevronLeft className="size-4" /> Anterior
+            </Button>
+          )}
+          {onNext && (
+            <Button variant="outline" size="sm" onClick={onNext} className="gap-1">
+              Próximo <ChevronRight className="size-4" />
+            </Button>
+          )}
           <div className="flex-1" />
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar

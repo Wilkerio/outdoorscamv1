@@ -27,7 +27,16 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
-   const { corrigirComIA } = useSession();
+   const { corrigirComIA, points } = useSession();
+  const [modalPointId, setModalPointId] = useState<string>(point.id);
+  const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
+  const modalIndex = points.findIndex((p) => p.id === modalPointId);
+  const goPrev = () => {
+    if (modalIndex > 0) setModalPointId(points[modalIndex - 1].id);
+  };
+  const goNext = () => {
+    if (modalIndex >= 0 && modalIndex < points.length - 1) setModalPointId(points[modalIndex + 1].id);
+  };
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
@@ -163,7 +172,17 @@ export function PointCard({ point }: { point: Point }) {
         </div>
       </div>
 
-      <StreetViewAdjustModal open={open} onOpenChange={setOpen} point={point} />
+      <StreetViewAdjustModal
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (v) setModalPointId(point.id);
+        }}
+        point={modalPoint}
+        onPrev={modalIndex > 0 ? goPrev : undefined}
+        onNext={modalIndex >= 0 && modalIndex < points.length - 1 ? goNext : undefined}
+        position={modalIndex >= 0 ? { current: modalIndex + 1, total: points.length } : undefined}
+      />
     </div>
   );
 }
