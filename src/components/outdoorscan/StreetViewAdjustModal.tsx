@@ -445,6 +445,16 @@ export function StreetViewAdjustModal({
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          {onPrev && (
+            <Button variant="outline" size="sm" onClick={onPrev} className="gap-1">
+              <ChevronLeft className="size-4" /> Anterior
+            </Button>
+          )}
+          {onNext && (
+            <Button variant="outline" size="sm" onClick={onNext} className="gap-1">
+              Próximo <ChevronRight className="size-4" />
+            </Button>
+          )}
           <div className="flex-1" />
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
