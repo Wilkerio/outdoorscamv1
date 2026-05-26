@@ -60,7 +60,8 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(100);
   const [contraste, setContraste] = useState(100);
   const [saturacao, setSaturacao] = useState(100);
-  const [showOriginal, setShowOriginal] = useState(point.foto ? true : false);
+  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && point.foto !== "link da imagem nao localizado");
+  const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<any>(null);
@@ -223,7 +224,8 @@ export function StreetViewAdjustModal({
         <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
           {/* Foto Original */}
           <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
-            {point.foto ? (
+            {hasOriginalPhoto ? (
+
               <img 
                 src={point.foto} 
                 alt="Foto original" 
@@ -262,7 +264,8 @@ export function StreetViewAdjustModal({
           </div>
 
           {/* Setas de Navegação */}
-          {point.foto && (
+          {hasOriginalPhoto && (
+
             <>
               <button 
                 onClick={() => setShowOriginal(true)}
@@ -280,7 +283,8 @@ export function StreetViewAdjustModal({
           )}
 
           {/* Indicadores (Dots) */}
-          {point.foto && (
+          {hasOriginalPhoto && (
+
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               <button 
                 onClick={() => setShowOriginal(true)}
@@ -417,7 +421,7 @@ export function StreetViewAdjustModal({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          {point.foto && (
+          {hasOriginalPhoto && (
             <Button 
               variant="outline" 
               onClick={() => {
