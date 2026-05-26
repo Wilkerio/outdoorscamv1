@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Save, Loader2, RefreshCw } from "lucide-react";
+import { Save, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
@@ -60,6 +60,7 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(100);
   const [contraste, setContraste] = useState(100);
   const [saturacao, setSaturacao] = useState(100);
+  const [showOriginal, setShowOriginal] = useState(point.foto ? true : false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<any>(null);
