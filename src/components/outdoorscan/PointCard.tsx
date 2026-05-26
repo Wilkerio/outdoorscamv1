@@ -31,14 +31,16 @@ export function PointCard({ point }: { point: Point }) {
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
-  const [showOriginal, setShowOriginal] = useState(point.foto ? true : false);
+  // Se não tiver link na planilha (point.foto), forçamos showOriginal como false (Street View)
+  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && point.foto !== "link da imagem nao localizado");
+  const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
           <img 
-            src={showOriginal && point.foto ? point.foto : previewUrl} 
+            src={showOriginal && hasOriginalPhoto ? point.foto : previewUrl} 
             alt={point.endereco} 
             className="w-full h-full object-cover transition-opacity duration-300" 
             loading="lazy" 
@@ -55,7 +57,8 @@ export function PointCard({ point }: { point: Point }) {
           >
             {STATUS_LABEL[point.status]}
           </span>
-          {point.foto && (
+          {hasOriginalPhoto && (
+
             <button
               onClick={() => setShowOriginal(!showOriginal)}
               className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md transition-colors ${
@@ -117,7 +120,7 @@ export function PointCard({ point }: { point: Point }) {
         </div>
 
         <div className="flex gap-2 border-t border-border/50 pt-1 mt-1">
-          {point.foto && (
+          {hasOriginalPhoto && (
             <Button
               size="sm"
               variant="ghost"
