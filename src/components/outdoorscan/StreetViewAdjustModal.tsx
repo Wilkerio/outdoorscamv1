@@ -249,24 +249,6 @@ export function StreetViewAdjustModal({
         </DialogHeader>
 
         <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
-          {onPrev && (
-            <button
-              onClick={onPrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-              title="Ponto anterior"
-            >
-              <ChevronLeft className="size-6" />
-            </button>
-          )}
-          {onNext && (
-            <button
-              onClick={onNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
-              title="Próximo ponto"
-            >
-              <ChevronRight className="size-6" />
-            </button>
-          )}
           {/* Foto Original */}
           <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
             {hasOriginalPhoto ? (
