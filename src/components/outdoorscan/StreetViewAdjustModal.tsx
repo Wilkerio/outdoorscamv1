@@ -385,18 +385,20 @@ export function StreetViewAdjustModal({
               variant="outline" 
               onClick={() => {
                 setAdjustedPhoto(point.id, {
-                  heading: point.headingSalvo ?? 0,
-                  pitch: point.pitchSalvo ?? 0,
-                  fov: point.fovSalvo ?? 80,
+                  heading: point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0,
+                  pitch: point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0,
+                  fov: point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80,
                   url: point.foto
                 });
+                log("success", `✅ ${point.cod} — Foto original da planilha mantida.`);
                 onOpenChange(false);
               }}
+              className="gap-2"
             >
               Manter Foto Original
             </Button>
           )}
-          <Button onClick={save} disabled={saving} className="bg-primary">
+          <Button onClick={save} disabled={saving} className="bg-primary gap-2">
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Usar Nova Foto
           </Button>
