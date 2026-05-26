@@ -116,18 +116,28 @@ export function PointCard({ point }: { point: Point }) {
           </Button>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 border-t border-border/50 pt-1 mt-1">
+          {point.foto && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="flex-1 text-muted-foreground text-[10px] h-8"
+              onClick={() => window.open(point.foto, "_blank")}
+            >
+              <LinkIcon className="size-3.5 mr-1" /> Link Original
+            </Button>
+          )}
           {(point.foto_url || point.adjustedPhoto?.url) && (
             <Button
               size="sm"
               variant="ghost"
-              className="flex-1 text-primary text-[10px] h-8"
+              className="flex-1 text-primary text-[10px] h-8 font-semibold"
               onClick={() => {
                 const url = point.foto_url || point.adjustedPhoto!.url;
                 window.open(url, "_blank");
               }}
             >
-              <LinkIcon className="size-3.5 mr-1" /> Link da Foto
+              <LinkIcon className="size-3.5 mr-1" /> Link Nova Foto
             </Button>
           )}
         </div>
