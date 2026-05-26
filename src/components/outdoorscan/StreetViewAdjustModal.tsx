@@ -219,42 +219,78 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Foto Atual (Planilha)</span>
-            <div className="w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted flex items-center justify-center">
-              {point.foto ? (
-                <img 
-                  src={point.foto} 
-                  alt="Foto original" 
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    const parent = (e.target as HTMLImageElement).parentElement;
-                    if (parent) {
-                      const msg = document.createElement('div');
-                      msg.className = "text-xs text-muted-foreground p-4 text-center";
-                      msg.innerText = "Link da foto original inválido ou inacessível";
-                      parent.appendChild(msg);
-                    }
-                  }}
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground">Sem foto na planilha</span>
-              )}
+        <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
+          {/* Foto Original */}
+          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
+            {point.foto ? (
+              <img 
+                src={point.foto} 
+                alt="Foto original" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  const parent = (e.target as HTMLImageElement).parentElement;
+                  if (parent) {
+                    const msg = document.createElement('div');
+                    msg.className = "text-sm text-muted-foreground p-8 text-center flex items-center justify-center h-full";
+                    msg.innerText = "Link da foto original inválido ou inacessível";
+                    parent.appendChild(msg);
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">Sem foto na planilha</div>
+            )}
+            <div className="absolute top-4 left-4 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
+              FOTO ORIGINAL
             </div>
           </div>
 
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-primary uppercase tracking-wider">Nova Foto (Street View)</span>
+          {/* Nova Foto (Street View) */}
+          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-full' : 'translate-x-0'}`}>
             <div 
               ref={containerRef} 
-              className="w-full aspect-video rounded-lg overflow-hidden border border-primary/30 bg-muted" 
+              className="w-full h-full" 
               style={{ 
                 filter: `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`
               }} 
             />
+            <div className="absolute top-4 right-4 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
+              NOVA FOTO (STREET VIEW)
+            </div>
           </div>
+
+          {/* Setas de Navegação */}
+          {point.foto && (
+            <>
+              <button 
+                onClick={() => setShowOriginal(true)}
+                className={`absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${showOriginal ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+              >
+                <ChevronLeft className="size-8" />
+              </button>
+              <button 
+                onClick={() => setShowOriginal(false)}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${!showOriginal ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+              >
+                <ChevronRight className="size-8" />
+              </button>
+            </>
+          )}
+
+          {/* Indicadores (Dots) */}
+          {point.foto && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              <button 
+                onClick={() => setShowOriginal(true)}
+                className={`size-2 rounded-full transition-all ${showOriginal ? 'bg-white w-4' : 'bg-white/50'}`} 
+              />
+              <button 
+                onClick={() => setShowOriginal(false)}
+                className={`size-2 rounded-full transition-all ${!showOriginal ? 'bg-white w-4' : 'bg-white/50'}`} 
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
