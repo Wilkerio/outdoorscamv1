@@ -60,7 +60,8 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(100);
   const [contraste, setContraste] = useState(100);
   const [saturacao, setSaturacao] = useState(100);
-  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado");
+  const [originalBroken, setOriginalBroken] = useState(false);
+  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -245,14 +246,15 @@ export function StreetViewAdjustModal({
                 src={point.foto} 
                 alt="Foto original" 
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  const parent = (e.target as HTMLImageElement).parentElement;
-                  if (parent) {
-                    const msg = document.createElement('div');
-                    msg.className = "text-sm text-muted-foreground p-8 text-center flex items-center justify-center h-full";
-                    msg.innerText = "Link da foto original inválido ou inacessível";
-                    parent.appendChild(msg);
+                onError={() => {
+                  setOriginalBroken(true);
+                  setShowOriginal(false);
+                }}
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  if (img.naturalWidth > 0 && img.naturalWidth <= 400 && img.naturalHeight <= 400) {
+                    setOriginalBroken(true);
+                    setShowOriginal(false);
                   }
                 }}
               />
