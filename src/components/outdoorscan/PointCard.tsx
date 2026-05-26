@@ -32,7 +32,7 @@ export function PointCard({ point }: { point: Point }) {
 
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
   // Se não tiver link na planilha (point.foto), forçamos showOriginal como false (Street View)
-  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && point.foto !== "link da imagem nao localizado");
+  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado");
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
   return (
