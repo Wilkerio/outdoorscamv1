@@ -30,23 +30,44 @@ export function PointCard({ point }: { point: Point }) {
    const { corrigirComIA } = useSession();
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
-   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
+  const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
+  const [showOriginal, setShowOriginal] = useState(false);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
-          <img src={previewUrl} alt={point.endereco} className="w-full h-full object-cover" loading="lazy" />
+          <img 
+            src={showOriginal && point.foto ? point.foto : previewUrl} 
+            alt={point.endereco} 
+            className="w-full h-full object-cover transition-opacity duration-300" 
+            loading="lazy" 
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
             Coordenadas inválidas
           </div>
         )}
-        <span
-          className={`absolute top-2 right-2 text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md ${STATUS_STYLES[point.status]}`}
-        >
-          {STATUS_LABEL[point.status]}
-        </span>
+        
+        <div className="absolute top-2 left-2 flex gap-1">
+          <span
+            className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md ${STATUS_STYLES[point.status]}`}
+          >
+            {STATUS_LABEL[point.status]}
+          </span>
+          {point.foto && (
+            <button
+              onClick={() => setShowOriginal(!showOriginal)}
+              className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md transition-colors ${
+                showOriginal 
+                  ? "bg-primary text-primary-foreground" 
+                  : "bg-black/50 text-white hover:bg-black/70"
+              }`}
+            >
+              {showOriginal ? "VER STREET VIEW" : "VER ORIGINAL"}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-3 flex flex-col gap-2 flex-1">
