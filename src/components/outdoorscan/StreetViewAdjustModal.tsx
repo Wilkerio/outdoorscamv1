@@ -45,10 +45,16 @@ export function StreetViewAdjustModal({
   open,
   onOpenChange,
   point,
+  onPrev,
+  onNext,
+  position,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   point: Point;
+  onPrev?: () => void;
+  onNext?: () => void;
+  position?: { current: number; total: number };
 }) {
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
