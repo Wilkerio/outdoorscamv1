@@ -32,7 +32,8 @@ export function PointCard({ point }: { point: Point }) {
 
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
   // Se não tiver link na planilha (point.foto), forçamos showOriginal como false (Street View)
-  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado");
+  const [originalBroken, setOriginalBroken] = useState(false);
+  const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
   return (
@@ -44,6 +45,22 @@ export function PointCard({ point }: { point: Point }) {
             alt={point.endereco} 
             className="w-full h-full object-cover transition-opacity duration-300" 
             loading="lazy" 
+            onError={(e) => {
+              const img = e.currentTarget;
+              // Detecta imagens quebradas (imgbb "image not found" tem dimensões pequenas)
+              if (showOriginal && (img.naturalWidth === 0 || img.naturalWidth <= 400)) {
+                setOriginalBroken(true);
+                setShowOriginal(false);
+              }
+            }}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              // imgbb placeholder "image not found" é ~400x300
+              if (showOriginal && img.naturalWidth > 0 && img.naturalWidth <= 400 && img.naturalHeight <= 400) {
+                setOriginalBroken(true);
+                setShowOriginal(false);
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
