@@ -31,7 +31,7 @@ export function PointCard({ point }: { point: Point }) {
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(point.foto ? true : false);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
