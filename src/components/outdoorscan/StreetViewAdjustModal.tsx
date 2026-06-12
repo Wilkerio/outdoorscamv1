@@ -424,7 +424,7 @@ export function StreetViewAdjustModal({
           )}
         </div>
 
-        {availableYears.length > 0 && (
+        {!showOriginal && availableYears.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap py-2 px-1">
             <span className="text-xs text-muted-foreground font-medium">📅 Ano:</span>
             {availableYears.map((y) => (
@@ -442,47 +442,8 @@ export function StreetViewAdjustModal({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
-          <div className="space-y-4">
-            <h4 className="font-semibold text-sm flex items-center gap-2">
-              🧭 Ângulo e Zoom
-            </h4>
-            <SliderRow
-              label="↔️ Direção"
-              value={heading}
-              min={0}
-              max={360}
-              onChange={(v) => {
-                setHeading(v);
-                panoramaRef.current?.setPov({ heading: v, pitch });
-              }}
-              suffix="°"
-            />
-            <SliderRow
-              label="↕️ Inclinação"
-              value={pitch}
-              min={-45}
-              max={45}
-              onChange={(v) => {
-                setPitch(v);
-                panoramaRef.current?.setPov({ heading, pitch: v });
-              }}
-              suffix="°"
-            />
-            <SliderRow
-              label="🔍 Zoom (menor = mais zoom)"
-              value={fov}
-              min={10}
-              max={100}
-              onChange={(v) => {
-                setFov(v);
-                panoramaRef.current?.setZoom(fovToZoom(v));
-              }}
-              suffix="°"
-            />
-          </div>
-
-          <div className="space-y-4">
+        {!showOriginal && (
+          <div className="space-y-4 py-2">
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-sm flex items-center gap-2">
                 🎨 Edição de Imagem
@@ -527,38 +488,7 @@ export function StreetViewAdjustModal({
               suffix="%"
             />
           </div>
-        </div>
-
-          <div className="flex gap-2 mt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => {
-                setFov(f => {
-                  const newF = Math.max(10, f - 10);
-                  panoramaRef.current?.setZoom(fovToZoom(newF));
-                  return newF;
-                });
-              }}
-            >
-              🔍 + Zoom
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => {
-                setFov(f => {
-                  const newF = Math.min(100, f + 10);
-                  panoramaRef.current?.setZoom(fovToZoom(newF));
-                  return newF;
-                });
-              }}
-            >
-            🔍 - Zoom
-          </Button>
-        </div>
+        )}
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
           {onPrev && (
