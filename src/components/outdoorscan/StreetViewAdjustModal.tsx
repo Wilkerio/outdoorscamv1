@@ -124,7 +124,7 @@ export function StreetViewAdjustModal({
               if (status === "OK" && timeArr.length) {
                 // Cada entry pode ter formato variado. Vasculhamos por Date e por panoId.
                 const extract = (t: any): { year: number; panoId: string; date: string } | null => {
-                  let d: Date | null = null;
+                  let d: Date | undefined;
                   let pid: string | undefined;
                   const visit = (v: any) => {
                     if (!v) return;
@@ -141,10 +141,11 @@ export function StreetViewAdjustModal({
                   };
                   visit(t);
                   if (!d) return null;
+                  const dt: Date = d;
                   return {
-                    year: d.getFullYear(),
+                    year: dt.getFullYear(),
                     panoId: pid || "",
-                    date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+                    date: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`,
                   };
                 };
                 const years = timeArr
