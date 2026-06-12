@@ -122,14 +122,35 @@ export function StreetViewAdjustModal({
               console.log("[StreetView] status:", status, "time:", data?.time, "data:", data);
               const timeArr = data?.time ?? data?.tiles?.time ?? [];
               if (status === "OK" && timeArr.length) {
+                // Cada entry pode ter formato variado. Vasculhamos por Date e por panoId.
+                const extract = (t: any): { year: number; panoId: string; date: string } | null => {
+                  let d: Date | undefined;
+                  let pid: string | undefined;
+                  const visit = (v: any) => {
+                    if (!v) return;
+                    if (v instanceof Date) { if (!d) d = v; return; }
+                    if (typeof v === "string") {
+                      if (!pid && /^[A-Za-z0-9_-]{20,}$/.test(v)) pid = v;
+                      const parsed = new Date(v);
+                      if (!d && !isNaN(parsed.getTime()) && parsed.getFullYear() > 2000) d = parsed;
+                      return;
+                    }
+                    if (typeof v === "object") {
+                      for (const k of Object.keys(v)) visit(v[k]);
+                    }
+                  };
+                  visit(t);
+                  if (!d) return null;
+                  const dt: Date = d;
+                  return {
+                    year: dt.getFullYear(),
+                    panoId: pid || "",
+                    date: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`,
+                  };
+                };
                 const years = timeArr
-                  .map((t: any) => {
-                    const raw = t.dateTime ?? t.pano_date ?? t.date ?? t[1];
-                    const d: Date = raw instanceof Date ? raw : new Date(raw);
-                    const pid = t.pano || t.panoId || (Array.isArray(t) ? t[0]?.[0]?.panoId : undefined);
-                    return { year: d.getFullYear(), panoId: pid, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
-                  })
-                  .filter((y: any) => y.panoId && !isNaN(y.year))
+                  .map(extract)
+                  .filter((y: any): y is { year: number; panoId: string; date: string } => !!y && !isNaN(y.year))
                   .sort((a: any, b: any) => b.year - a.year);
                 const seen = new Set<number>();
                 const unique = years.filter((y: any) => {
