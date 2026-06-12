@@ -116,16 +116,17 @@ export function StreetViewAdjustModal({
           const loadHistory = (panoId: string) => {
             svService.getPanorama({ pano: panoId }, (data: any, status: any) => {
               if (cancelled) return;
+              console.log("[StreetView] time data:", data?.time);
               if (status === "OK" && data?.time?.length) {
                 const years = data.time
                   .map((t: any) => {
-                    const d: Date = t.pano_date ? new Date(t.pano_date) : (t.dateTime ? new Date(t.dateTime) : new Date(t.timestamp || Date.now()));
-                    const panoId = t.pano || t.panoId;
-                    return { year: d.getFullYear(), panoId, date: d.toISOString().slice(0, 7) };
+                    const raw = t.dateTime ?? t.pano_date ?? t.date;
+                    const d: Date = raw instanceof Date ? raw : new Date(raw);
+                    const pid = t.pano || t.panoId;
+                    return { year: d.getFullYear(), panoId: pid, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
                   })
                   .filter((y: any) => y.panoId && !isNaN(y.year))
                   .sort((a: any, b: any) => b.year - a.year);
-                // dedupe por ano (mantém mais recente)
                 const seen = new Set<number>();
                 const unique = years.filter((y: any) => {
                   if (seen.has(y.year)) return false;
@@ -135,13 +136,11 @@ export function StreetViewAdjustModal({
                 setAvailableYears(unique);
                 const current = pano.getPano?.();
                 const found = unique.find((y: any) => y.panoId === current);
-                if (found) setSelectedYear(found.year);
-                else if (unique[0]) setSelectedYear(unique[0].year);
+                setSelectedYear(found ? found.year : (unique[0]?.year ?? null));
               }
             });
           };
 
-          // Aguardar o panorama carregar para pegar o panoId inicial
           const listener = (window as any).google.maps.event.addListenerOnce(pano, "pano_changed", () => {
             const pid = pano.getPano?.();
             if (pid) loadHistory(pid);
@@ -162,9 +161,17 @@ export function StreetViewAdjustModal({
 
   const handleYearChange = (year: number) => {
     const entry = availableYears.find((y) => y.year === year);
-    if (!entry || !panoramaRef.current) return;
+    const pano = panoramaRef.current;
+    if (!entry || !pano) return;
     setSelectedYear(year);
-    panoramaRef.current.setPano(entry.panoId);
+    const currentPov = pano.getPov?.() ?? { heading, pitch };
+    const currentZoom = pano.getZoom?.() ?? fovToZoom(fov);
+    pano.setPano(entry.panoId);
+    // Restaurar POV/zoom após troca de pano
+    setTimeout(() => {
+      pano.setPov(currentPov);
+      pano.setZoom(currentZoom);
+    }, 100);
     log("info", `${point.cod} — Street View ${entry.date}`);
   };
 
