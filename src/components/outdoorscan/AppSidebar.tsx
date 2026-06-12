@@ -1,5 +1,5 @@
   import { Link, useLocation } from "react-router-dom";
-  import { Radar, ListChecks, History, Settings, Key, Download } from "lucide-react";
+  import { Radar, ListChecks } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
  import { useState } from "react";
  import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ export function AppSidebar() {
 
   const items = [
     { to: "/", label: "Processamento", icon: ListChecks },
-    { to: "/historico", label: "Histórico", icon: History },
   ];
 
   return (
