@@ -1,7 +1,6 @@
 import { Play, Pause, RotateCcw, Trash2, Download } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
-import { LogPanel } from "@/components/outdoorscan/LogPanel";
 import { useSession } from "@/context/SessionContext";
 import { Button } from "@/components/ui/button";
 
@@ -71,7 +70,6 @@ export default function Processamento() {
 
       {total > 0 && (
         <>
-          <LogPanel />
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
               Pontos ({total})
