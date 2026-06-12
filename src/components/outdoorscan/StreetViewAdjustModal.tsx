@@ -72,6 +72,8 @@ export function StreetViewAdjustModal({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const panoramaRef = useRef<any>(null);
+  const [availableYears, setAvailableYears] = useState<{ year: number; panoId: string; date: string }[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -108,6 +110,42 @@ export function StreetViewAdjustModal({
             }
           );
           panoramaRef.current = pano;
+
+          // Buscar panoramas históricos disponíveis no local
+          const svService = new (window as any).google.maps.StreetViewService();
+          const loadHistory = (panoId: string) => {
+            svService.getPanorama({ pano: panoId }, (data: any, status: any) => {
+              if (cancelled) return;
+              if (status === "OK" && data?.time?.length) {
+                const years = data.time
+                  .map((t: any) => {
+                    const d: Date = t.pano_date ? new Date(t.pano_date) : (t.dateTime ? new Date(t.dateTime) : new Date(t.timestamp || Date.now()));
+                    const panoId = t.pano || t.panoId;
+                    return { year: d.getFullYear(), panoId, date: d.toISOString().slice(0, 7) };
+                  })
+                  .filter((y: any) => y.panoId && !isNaN(y.year))
+                  .sort((a: any, b: any) => b.year - a.year);
+                // dedupe por ano (mantém mais recente)
+                const seen = new Set<number>();
+                const unique = years.filter((y: any) => {
+                  if (seen.has(y.year)) return false;
+                  seen.add(y.year);
+                  return true;
+                });
+                setAvailableYears(unique);
+                const current = pano.getPano?.();
+                const found = unique.find((y: any) => y.panoId === current);
+                if (found) setSelectedYear(found.year);
+                else if (unique[0]) setSelectedYear(unique[0].year);
+              }
+            });
+          };
+
+          // Aguardar o panorama carregar para pegar o panoId inicial
+          const listener = (window as any).google.maps.event.addListenerOnce(pano, "pano_changed", () => {
+            const pid = pano.getPano?.();
+            if (pid) loadHistory(pid);
+          });
         })
         .catch(console.error);
     };
@@ -117,8 +155,18 @@ export function StreetViewAdjustModal({
     return () => {
       cancelled = true;
       panoramaRef.current = null;
+      setAvailableYears([]);
+      setSelectedYear(null);
     };
   }, [open]);
+
+  const handleYearChange = (year: number) => {
+    const entry = availableYears.find((y) => y.year === year);
+    if (!entry || !panoramaRef.current) return;
+    setSelectedYear(year);
+    panoramaRef.current.setPano(entry.panoId);
+    log("info", `${point.cod} — Street View ${entry.date}`);
+  };
 
   const save = async () => {
     try {
@@ -325,6 +373,24 @@ export function StreetViewAdjustModal({
             </div>
           )}
         </div>
+
+        {availableYears.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap py-2 px-1">
+            <span className="text-xs text-muted-foreground font-medium">📅 Ano:</span>
+            {availableYears.map((y) => (
+              <Button
+                key={y.panoId}
+                variant={selectedYear === y.year ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-3"
+                onClick={() => handleYearChange(y.year)}
+                title={y.date}
+              >
+                {y.year}
+              </Button>
+            ))}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
           <div className="space-y-4">
