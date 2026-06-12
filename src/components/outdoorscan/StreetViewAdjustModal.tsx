@@ -107,6 +107,9 @@ export function StreetViewAdjustModal({
               addressControl: false,
               showRoadLabels: false,
               fullscreenControl: false,
+              imageDateControl: true,
+              motionTracking: false,
+              motionTrackingControl: false,
             }
           );
           panoramaRef.current = pano;
