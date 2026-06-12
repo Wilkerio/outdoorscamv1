@@ -1,5 +1,5 @@
 import { useState } from "react";
- import { Map, Camera, Link as LinkIcon, Bot } from "lucide-react";
+ import { Map, Camera, Link as LinkIcon } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { Button } from "@/components/ui/button";
