@@ -116,13 +116,14 @@ export function StreetViewAdjustModal({
           const loadHistory = (panoId: string) => {
             svService.getPanorama({ pano: panoId }, (data: any, status: any) => {
               if (cancelled) return;
-              console.log("[StreetView] time data:", data?.time);
-              if (status === "OK" && data?.time?.length) {
-                const years = data.time
+              console.log("[StreetView] status:", status, "time:", data?.time, "data:", data);
+              const timeArr = data?.time ?? data?.tiles?.time ?? [];
+              if (status === "OK" && timeArr.length) {
+                const years = timeArr
                   .map((t: any) => {
-                    const raw = t.dateTime ?? t.pano_date ?? t.date;
+                    const raw = t.dateTime ?? t.pano_date ?? t.date ?? t[1];
                     const d: Date = raw instanceof Date ? raw : new Date(raw);
-                    const pid = t.pano || t.panoId;
+                    const pid = t.pano || t.panoId || (Array.isArray(t) ? t[0]?.[0]?.panoId : undefined);
                     return { year: d.getFullYear(), panoId: pid, date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
                   })
                   .filter((y: any) => y.panoId && !isNaN(y.year))
@@ -133,15 +134,33 @@ export function StreetViewAdjustModal({
                   seen.add(y.year);
                   return true;
                 });
+                console.log("[StreetView] anos encontrados:", unique);
                 setAvailableYears(unique);
                 const current = pano.getPano?.();
                 const found = unique.find((y: any) => y.panoId === current);
                 setSelectedYear(found ? found.year : (unique[0]?.year ?? null));
+              } else {
+                console.warn("[StreetView] Nenhum histórico de anos disponível neste ponto.");
               }
             });
           };
 
-          const listener = (window as any).google.maps.event.addListenerOnce(pano, "pano_changed", () => {
+          // Buscar histórico imediatamente pela localização (não esperar pano_changed)
+          svService.getPanorama(
+            { location: { lat: point.lat, lng: point.lng }, radius: 50 },
+            (data: any, status: any) => {
+              if (cancelled) return;
+              const pid = data?.location?.pano;
+              if (status === "OK" && pid) {
+                loadHistory(pid);
+              } else {
+                console.warn("[StreetView] getPanorama por location falhou:", status);
+              }
+            }
+          );
+
+          // Também atualizar quando o usuário navegar para outro pano
+          (window as any).google.maps.event.addListener(pano, "pano_changed", () => {
             const pid = pano.getPano?.();
             if (pid) loadHistory(pid);
           });
