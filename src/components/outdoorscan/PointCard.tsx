@@ -78,13 +78,14 @@ export function PointCard({ point }: { point: Point }) {
         )}
         
         <div className="absolute top-2 left-2 flex gap-1">
-          <span
-            className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md ${STATUS_STYLES[point.status]}`}
-          >
-            {STATUS_LABEL[point.status]}
-          </span>
+          {point.status !== "AGUARDANDO" && (
+            <span
+              className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md ${STATUS_STYLES[point.status]}`}
+            >
+              {STATUS_LABEL[point.status]}
+            </span>
+          )}
           {hasOriginalPhoto && (
-
             <button
               onClick={() => setShowOriginal(!showOriginal)}
               className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md transition-colors ${
@@ -115,33 +116,39 @@ export function PointCard({ point }: { point: Point }) {
           {point.empresa && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{point.empresa}</span>}
         </div>
 
-        <div className="mt-auto flex flex-wrap gap-2 pt-2">
+        <div className="mt-auto grid grid-cols-3 gap-1.5 pt-2">
           <Button
             size="sm"
             variant="secondary"
-            className="flex-1 min-w-0"
+            className="w-full px-2"
             disabled={!validCoords}
             onClick={() => window.open(googleMapsLink(point.lat, point.lng), "_blank")}
+            title="Ver no Mapa"
           >
-            <Map className="size-3.5" /> 🗺️ Ver no Mapa
+            <Map className="size-3.5" />
+            <span className="text-xs">Mapa</span>
           </Button>
           <Button
             size="sm"
             variant="secondary"
-            className="flex-1 min-w-0"
+            className="w-full px-2"
             disabled={!validCoords}
             onClick={() => setOpen(true)}
+            title="Ajustar Foto"
           >
-            <Camera className="size-3.5" /> 📸 Ajustar Foto
+            <Camera className="size-3.5" />
+            <span className="text-xs">Ajustar</span>
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 min-w-0 border-primary/50 text-primary hover:bg-primary/10"
+            className="w-full px-2 border-primary/50 text-primary hover:bg-primary/10"
             disabled={!validCoords || point.status === "PROCESSANDO"}
             onClick={() => corrigirComIA(point)}
+            title="Corrigir com IA"
           >
-            <Bot className="size-3.5" /> 🤖 IA
+            <Bot className="size-3.5" />
+            <span className="text-xs">IA</span>
           </Button>
         </div>
 
