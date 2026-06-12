@@ -104,7 +104,7 @@ const Ctx = createContext<SessionState | null>(null);
         lat: Number.isFinite(ponto.lat) ? ponto.lat : (ponto.originalData?.["Latitude"] ?? ""),
         lng: Number.isFinite(ponto.lng) ? ponto.lng : (ponto.originalData?.["Longitude"] ?? ""),
         formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
-        foto: ponto.foto_url || "",
+        foto: ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "",
         empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
       });
 
@@ -127,7 +127,7 @@ const Ctx = createContext<SessionState | null>(null);
 
       // Coluna Foto com URL direta
       const fotoCell = row.getCell("foto");
-      fotoCell.value = ponto.foto_url || "";
+      fotoCell.value = ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "";
       fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
 
       row.height = 20;
