@@ -116,7 +116,7 @@ export function PointCard({ point }: { point: Point }) {
           {point.empresa && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{point.empresa}</span>}
         </div>
 
-        <div className="mt-auto grid grid-cols-3 gap-1.5 pt-2">
+        <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2">
           <Button
             size="sm"
             variant="secondary"
@@ -138,17 +138,6 @@ export function PointCard({ point }: { point: Point }) {
           >
             <Camera className="size-3.5" />
             <span className="text-xs">Ajustar</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full px-2 border-primary/50 text-primary hover:bg-primary/10"
-            disabled={!validCoords || point.status === "PROCESSANDO"}
-            onClick={() => corrigirComIA(point)}
-            title="Corrigir com IA"
-          >
-            <Bot className="size-3.5" />
-            <span className="text-xs">IA</span>
           </Button>
         </div>
 
