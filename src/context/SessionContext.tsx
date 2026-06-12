@@ -101,8 +101,8 @@ const Ctx = createContext<SessionState | null>(null);
           ponto.originalData?.["Cidade "] ??
           ponto.cidade ??
           "",
-        lat: ponto.originalData?.["Latitude"] ?? ponto.lat ?? "",
-        lng: ponto.originalData?.["Longitude"] ?? ponto.lng ?? "",
+        lat: Number.isFinite(ponto.lat) ? ponto.lat : (ponto.originalData?.["Latitude"] ?? ""),
+        lng: Number.isFinite(ponto.lng) ? ponto.lng : (ponto.originalData?.["Longitude"] ?? ""),
         formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
         foto: ponto.foto_url || "",
         empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
