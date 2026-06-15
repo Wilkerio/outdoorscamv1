@@ -334,7 +334,7 @@ export function StreetViewAdjustModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[95vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
@@ -346,7 +346,7 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border bg-muted group">
+        <div className="relative w-full aspect-video max-h-[55vh] rounded-lg overflow-hidden border border-border bg-muted group">
           {/* Foto Original */}
           <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
             {hasOriginalPhoto ? (
@@ -425,14 +425,14 @@ export function StreetViewAdjustModal({
         </div>
 
         {!showOriginal && availableYears.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap py-2 px-1">
-            <span className="text-xs text-muted-foreground font-medium">📅 Ano:</span>
+          <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 -mx-1">
+            <span className="text-xs text-muted-foreground font-medium shrink-0">📅 Ano:</span>
             {availableYears.map((y) => (
               <Button
                 key={y.panoId}
                 variant={selectedYear === y.year ? "default" : "outline"}
                 size="sm"
-                className="h-7 text-xs px-3"
+                className="h-7 text-xs px-3 shrink-0"
                 onClick={() => handleYearChange(y.year)}
                 title={y.date}
               >
@@ -490,7 +490,7 @@ export function StreetViewAdjustModal({
           </div>
         )}
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 flex-wrap">
           {onPrev && (
             <Button variant="outline" size="sm" onClick={onPrev} className="gap-1">
               <ChevronLeft className="size-4" /> Anterior
