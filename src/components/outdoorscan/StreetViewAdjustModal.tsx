@@ -346,7 +346,7 @@ export function StreetViewAdjustModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="relative w-full aspect-video max-h-[55vh] rounded-lg overflow-hidden border border-border bg-muted group">
+        <div className="relative w-full aspect-video max-h-[40vh] sm:max-h-[55vh] rounded-lg overflow-hidden border border-border bg-muted group">
           {/* Foto Original */}
           <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
             {hasOriginalPhoto ? (
