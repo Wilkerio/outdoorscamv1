@@ -424,7 +424,7 @@ export function StreetViewAdjustModal({
           )}
         </div>
 
-        {!showOriginal && availableYears.length > 0 && (
+        {availableYears.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 -mx-1">
             <span className="text-xs text-muted-foreground font-medium shrink-0">📅 Ano:</span>
             {availableYears.map((y) => (
