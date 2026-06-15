@@ -150,8 +150,30 @@ export function UploadDropzone() {
             );
           }
           
-          setPoints(norm, sheetName, colunasOriginais);
-          log("success", `✅ ${norm.length} pontos carregados${invalidos ? ` (${invalidos} com coordenadas inválidas)` : ""}`);
+          // Remover duplicatas por coordenada (lat/lng arredondados a 6 casas ~ 0.1m)
+          const vistos = new Set<string>();
+          const semDuplicatas: Point[] = [];
+          let duplicados = 0;
+          for (const p of norm) {
+            if (isNaN(p.lat) || isNaN(p.lng)) {
+              semDuplicatas.push(p);
+              continue;
+            }
+            const chave = `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+            if (vistos.has(chave)) {
+              duplicados++;
+              log("warn", `🗑️ ${p.cod} — Duplicata removida (${chave})`);
+              continue;
+            }
+            vistos.add(chave);
+            semDuplicatas.push(p);
+          }
+
+          setPoints(semDuplicatas, sheetName, colunasOriginais);
+          log(
+            "success",
+            `✅ ${semDuplicatas.length} pontos carregados${invalidos ? ` (${invalidos} com coordenadas inválidas)` : ""}${duplicados ? ` — ${duplicados} duplicata(s) removida(s)` : ""}`
+          );
         }}
       />
     </div>
