@@ -1,11 +1,11 @@
-import { Play, Pause, RotateCcw, Trash2, Download } from "lucide-react";
+import { Play, Pause, RotateCcw, Trash2, Download, Save } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
 import { useSession } from "@/context/SessionContext";
 import { Button } from "@/components/ui/button";
 
 export default function Processamento() {
-  const { points, phase, start, pause, resume, reset, currentIndex, exportarExcel } = useSession();
+  const { points, phase, start, pause, resume, reset, currentIndex, exportarExcel, salvarProgresso, ultimoSalvamento } = useSession();
   const total = points.length;
   const processed = points.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
   const hasProcessed = points.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
@@ -35,6 +35,14 @@ export default function Processamento() {
             </Button>
           )}
           <Button
+            onClick={salvarProgresso}
+            disabled={!total}
+            variant="secondary"
+            title={ultimoSalvamento ? `Último salvamento: ${new Date(ultimoSalvamento).toLocaleString()}` : "Salvar progresso no navegador"}
+          >
+            <Save className="size-4" /> Salvar Progresso
+          </Button>
+          <Button
             onClick={exportarExcel}
             disabled={!total}
             className="bg-success hover:bg-success/90 text-white"
@@ -48,6 +56,12 @@ export default function Processamento() {
       </header>
 
       <UploadDropzone />
+
+      {ultimoSalvamento && total > 0 && (
+        <div className="text-xs text-muted-foreground">
+          💾 Progresso salvo · {new Date(ultimoSalvamento).toLocaleString()}
+        </div>
+      )}
 
       {total > 0 && (
         <div className="rounded-xl border border-border bg-card p-4">

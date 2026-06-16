@@ -1,10 +1,12 @@
- import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react";
+  import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
  import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
  import { supabase } from "@/integrations/supabase/client";
  import ExcelJS from "exceljs";
 
 type Phase = "idle" | "running" | "paused" | "done";
+
+const STORAGE_KEY = "outdoorscan:session:v1";
 
  interface SessionState {
   points: Point[];
@@ -21,6 +23,8 @@ type Phase = "idle" | "running" | "paused" | "done";
    resume: () => void;
    reset: () => void;
    setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
+   salvarProgresso: () => void;
+   ultimoSalvamento: number | null;
    stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
 
@@ -33,8 +37,79 @@ const Ctx = createContext<SessionState | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [ultimoSalvamento, setUltimoSalvamento] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const phaseRef = useRef<Phase>("idle");
   phaseRef.current = phase;
+
+  // Restaurar progresso ao montar
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved.points)) {
+          // Pontos que estavam "PROCESSANDO" voltam a "AGUARDANDO"
+          const restored = saved.points.map((p: Point) =>
+            p.status === "PROCESSANDO" ? { ...p, status: "AGUARDANDO" as PointStatus } : p,
+          );
+          setPointsState(restored);
+          if (saved.sheetName) setSheetName(saved.sheetName);
+          if (Array.isArray(saved.colunasOriginais)) setColunasOriginais(saved.colunasOriginais);
+          if (typeof saved.currentIndex === "number") setCurrentIndex(saved.currentIndex);
+          if (saved.ultimoSalvamento) setUltimoSalvamento(saved.ultimoSalvamento);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao restaurar progresso:", e);
+    }
+    setHydrated(true);
+  }, []);
+
+  // Auto-salvar sempre que pontos/sheet/colunas mudam (após hidratação)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (points.length === 0) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      const payload = {
+        points,
+        sheetName,
+        colunasOriginais,
+        currentIndex,
+        ultimoSalvamento,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.error("Erro ao salvar progresso:", e);
+    }
+  }, [points, sheetName, colunasOriginais, currentIndex, ultimoSalvamento, hydrated]);
+
+  const salvarProgresso = useCallback(() => {
+    try {
+      const ts = Date.now();
+      const payload = {
+        points,
+        sheetName,
+        colunasOriginais,
+        currentIndex,
+        ultimoSalvamento: ts,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      setUltimoSalvamento(ts);
+      setLogs((l) => [
+        ...l,
+        { id: `${ts}-save`, ts, level: "success", message: "💾 Progresso salvo no navegador." },
+      ]);
+    } catch (e: any) {
+      setLogs((l) => [
+        ...l,
+        { id: `${Date.now()}-saveerr`, ts: Date.now(), level: "error", message: `Erro ao salvar: ${e.message}` },
+      ]);
+    }
+  }, [points, sheetName, colunasOriginais, currentIndex]);
 
   const log = useCallback((level: LogEntry["level"], message: string) => {
     setLogs((l) => [...l, { id: `${Date.now()}-${Math.random()}`, ts: Date.now(), level, message }]);
@@ -398,6 +473,10 @@ const Ctx = createContext<SessionState | null>(null);
     setPointsState([]);
     setLogs([]);
     setCurrentIndex(0);
+    setUltimoSalvamento(null);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {}
   }, []);
 
     const setAdjustedPhoto = useCallback(
@@ -437,6 +516,8 @@ const Ctx = createContext<SessionState | null>(null);
         salvarFotoSupabase,
         corrigirComIA,
         exportarExcel,
+        salvarProgresso,
+        ultimoSalvamento,
         stats: { sucesso, erro, semCobertura, total },
       }}
     >
