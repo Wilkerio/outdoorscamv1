@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
  import { Map, Camera, Link as LinkIcon } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
@@ -44,6 +44,14 @@ export function PointCard({ point }: { point: Point }) {
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
+
+  // Quando o usuário escolhe "Usar Nova Foto" no modal, alternar automaticamente
+  // para mostrar a nova foto no card.
+  useEffect(() => {
+    if (point.adjustedPhoto?.url) {
+      setShowOriginal(false);
+    }
+  }, [point.adjustedPhoto?.url]);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
