@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Trash2, Download, Save } from "lucide-react";
+import { Pause, RotateCcw, Trash2, Download, Save, Play } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
 import { useSession } from "@/context/SessionContext";
