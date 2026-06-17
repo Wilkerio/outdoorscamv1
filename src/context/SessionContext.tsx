@@ -23,9 +23,10 @@ const STORAGE_KEY = "outdoorscan:session:v1";
    resume: () => void;
    reset: () => void;
    setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
-   salvarProgresso: () => void;
-   ultimoSalvamento: number | null;
-   stats: { sucesso: number; erro: number; semCobertura: number; total: number };
+    salvarProgresso: () => void;
+    toggleExcluido: (id: string) => void;
+    ultimoSalvamento: number | null;
+    stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
 
 const Ctx = createContext<SessionState | null>(null);
@@ -115,8 +116,12 @@ const Ctx = createContext<SessionState | null>(null);
     setLogs((l) => [...l, { id: `${Date.now()}-${Math.random()}`, ts: Date.now(), level, message }]);
   }, []);
 
-  const updatePoint = useCallback((id: string, patch: Partial<Point>) => {
+    const updatePoint = useCallback((id: string, patch: Partial<Point>) => {
     setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }, []);
+
+  const toggleExcluido = useCallback((id: string) => {
+    setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, excluido: !p.excluido } : p)));
   }, []);
 
    const setPoints = useCallback((p: Point[], name?: string, cols?: string[]) => {
@@ -130,6 +135,11 @@ const Ctx = createContext<SessionState | null>(null);
   const exportarExcel = useCallback(async () => {
     if (typeof window === "undefined" || !points.length) return;
     const nome = window.prompt("Nome do arquivo:") || "OutdoorScan_resultado";
+    const pontosAtivos = points.filter((p) => !p.excluido);
+    if (!pontosAtivos.length) {
+      log("warn", "Nenhum ponto ativo para exportar.");
+      return;
+    }
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(sheetName || "Book");
 
@@ -165,8 +175,8 @@ const Ctx = createContext<SessionState | null>(null);
     });
     headerRow.height = 25;
 
-    // Adicionar dados
-    points.forEach((ponto, idx) => {
+      // Adicionar dados
+    pontosAtivos.forEach((ponto, idx) => {
       const row = ws.addRow({
         cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
         endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
@@ -517,6 +527,7 @@ const Ctx = createContext<SessionState | null>(null);
         corrigirComIA,
         exportarExcel,
         salvarProgresso,
+        toggleExcluido,
         ultimoSalvamento,
         stats: { sucesso, erro, semCobertura, total },
       }}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
- import { Map, Camera, Link as LinkIcon } from "lucide-react";
+import { Map, Camera, Link as LinkIcon, Trash2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
-   const { points } = useSession();
+   const { points, toggleExcluido } = useSession();
   const [modalPointId, setModalPointId] = useState<string>(point.id);
   const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
@@ -54,7 +54,12 @@ export function PointCard({ point }: { point: Point }) {
   }, [point.adjustedPhoto?.url]);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
+    <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido ? 'opacity-40 grayscale' : ''}`}>
+      {point.excluido && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+          <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">EXCLUÍDO</span>
+        </div>
+      )}
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
           <img 
@@ -106,6 +111,20 @@ export function PointCard({ point }: { point: Point }) {
             </button>
           )}
         </div>
+        <button
+          onClick={() => {
+            toggleExcluido(point.id);
+            toast.success(point.excluido ? "Ponto restaurado." : "Ponto excluído da exportação.");
+          }}
+          className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors ${
+            point.excluido
+              ? "bg-success/80 text-white hover:bg-success"
+              : "bg-black/50 text-white hover:bg-destructive"
+          }`}
+          title={point.excluido ? "Restaurar ponto" : "Excluir ponto da exportação"}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
       </div>
 
       <div className="p-3 flex flex-col gap-2 flex-1">
