@@ -25,7 +25,7 @@ export default function Processamento() {
         </div>
         <div className="flex gap-2">
           {phase === "idle" || phase === "done" ? (
-            <Button onClick={start} disabled={!total}>
+      <Button onClick={start} disabled={!totalAtivos}>
               <Play className="size-4" /> Iniciar
             </Button>
           ) : phase === "running" ? (
@@ -47,7 +47,7 @@ export default function Processamento() {
           </Button>
           <Button
             onClick={exportarExcel}
-            disabled={!total}
+            disabled={!totalAtivos}
             className="bg-success hover:bg-success/90 text-white"
           >
             <Download className="size-4" /> 💾 Baixar Planilha
@@ -71,7 +71,7 @@ export default function Processamento() {
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>
               {phase === "running" && <RotateCcw className="size-3 inline animate-spin mr-1" />}
-              {processed}/{total} processados
+              {processed}/{totalAtivos} processados{excluidosCount > 0 ? ` · ${excluidosCount} excluído${excluidosCount > 1 ? 's' : ''}` : ''}
               {phase === "running" && total > 0 && ` · atual #${currentIndex + 1}`}
             </span>
             <span className="tabular-nums font-medium">{progressPct}%</span>
@@ -89,7 +89,7 @@ export default function Processamento() {
         <>
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-              Pontos ({total})
+            Pontos ({totalAtivos} ativos{excluidosCount > 0 ? `, ${excluidosCount} excluído${excluidosCount > 1 ? 's' : ''}` : ''})
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {points.map((p) => (
