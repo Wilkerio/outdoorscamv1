@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 export default function Processamento() {
   const { points, phase, start, pause, resume, reset, currentIndex, exportarExcel, salvarProgresso, ultimoSalvamento } = useSession();
   const total = points.length;
-  const processed = points.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
-  const hasProcessed = points.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
-  const progressPct = total ? Math.round((processed / total) * 100) : 0;
+  const ativos = points.filter((p) => !p.excluido);
+  const totalAtivos = ativos.length;
+  const processed = ativos.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
+  const hasProcessed = ativos.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
+  const progressPct = totalAtivos ? Math.round((processed / totalAtivos) * 100) : 0;
+  const excluidosCount = total - totalAtivos;
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
