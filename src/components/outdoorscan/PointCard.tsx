@@ -54,7 +54,12 @@ export function PointCard({ point }: { point: Point }) {
   }, [point.adjustedPhoto?.url]);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col group">
+    <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido ? 'opacity-40 grayscale' : ''}`}>
+      {point.excluido && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
+          <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">EXCLUÍDO</span>
+        </div>
+      )}
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
           <img 
