@@ -116,8 +116,12 @@ const Ctx = createContext<SessionState | null>(null);
     setLogs((l) => [...l, { id: `${Date.now()}-${Math.random()}`, ts: Date.now(), level, message }]);
   }, []);
 
-  const updatePoint = useCallback((id: string, patch: Partial<Point>) => {
+    const updatePoint = useCallback((id: string, patch: Partial<Point>) => {
     setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }, []);
+
+  const toggleExcluido = useCallback((id: string) => {
+    setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, excluido: !p.excluido } : p)));
   }, []);
 
    const setPoints = useCallback((p: Point[], name?: string, cols?: string[]) => {
