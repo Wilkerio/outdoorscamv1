@@ -1,4 +1,4 @@
- export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO" | "SEM_OUTDOOR_VISIVEL";
+export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO" | "SEM_OUTDOOR_VISIVEL";
 
 export interface PhotoAdjustment {
   heading: number;
@@ -24,6 +24,7 @@ export interface Point {
   adjustedPhoto?: PhotoAdjustment;
   foto_url?: string;
   fotoSalva?: boolean;
+  excluido?: boolean;
   headingSalvo?: number;
   pitchSalvo?: number;
   fovSalvo?: number;
