@@ -527,6 +527,7 @@ const Ctx = createContext<SessionState | null>(null);
         corrigirComIA,
         exportarExcel,
         salvarProgresso,
+        toggleExcluido,
         ultimoSalvamento,
         stats: { sucesso, erro, semCobertura, total },
       }}
