@@ -111,6 +111,20 @@ export function PointCard({ point }: { point: Point }) {
             </button>
           )}
         </div>
+        <button
+          onClick={() => {
+            toggleExcluido(point.id);
+            toast.success(point.excluido ? "Ponto restaurado." : "Ponto excluído da exportação.");
+          }}
+          className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors ${
+            point.excluido
+              ? "bg-success/80 text-white hover:bg-success"
+              : "bg-black/50 text-white hover:bg-destructive"
+          }`}
+          title={point.excluido ? "Restaurar ponto" : "Excluir ponto da exportação"}
+        >
+          <Trash2 className="size-3.5" />
+        </button>
       </div>
 
       <div className="p-3 flex flex-col gap-2 flex-1">
