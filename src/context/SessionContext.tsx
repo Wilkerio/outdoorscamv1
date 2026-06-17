@@ -175,8 +175,8 @@ const Ctx = createContext<SessionState | null>(null);
     });
     headerRow.height = 25;
 
-    // Adicionar dados
-    points.forEach((ponto, idx) => {
+      // Adicionar dados
+    pontosAtivos.forEach((ponto, idx) => {
       const row = ws.addRow({
         cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
         endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
