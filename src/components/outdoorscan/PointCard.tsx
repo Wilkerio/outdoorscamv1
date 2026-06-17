@@ -27,7 +27,7 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
-   const { points } = useSession();
+   const { points, toggleExcluido } = useSession();
   const [modalPointId, setModalPointId] = useState<string>(point.id);
   const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
