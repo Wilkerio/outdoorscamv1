@@ -23,9 +23,10 @@ const STORAGE_KEY = "outdoorscan:session:v1";
    resume: () => void;
    reset: () => void;
    setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
-   salvarProgresso: () => void;
-   ultimoSalvamento: number | null;
-   stats: { sucesso: number; erro: number; semCobertura: number; total: number };
+    salvarProgresso: () => void;
+    toggleExcluido: (id: string) => void;
+    ultimoSalvamento: number | null;
+    stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
 
 const Ctx = createContext<SessionState | null>(null);
@@ -130,6 +131,11 @@ const Ctx = createContext<SessionState | null>(null);
   const exportarExcel = useCallback(async () => {
     if (typeof window === "undefined" || !points.length) return;
     const nome = window.prompt("Nome do arquivo:") || "OutdoorScan_resultado";
+    const pontosAtivos = points.filter((p) => !p.excluido);
+    if (!pontosAtivos.length) {
+      log("warn", "Nenhum ponto ativo para exportar.");
+      return;
+    }
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(sheetName || "Book");
 
