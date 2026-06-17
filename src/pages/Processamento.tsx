@@ -24,15 +24,11 @@ export default function Processamento() {
           </p>
         </div>
         <div className="flex gap-2">
-          {phase === "idle" || phase === "done" ? (
-      <Button onClick={start} disabled={!totalAtivos}>
-              <Play className="size-4" /> Iniciar
-            </Button>
-          ) : phase === "running" ? (
+          {phase === "running" ? (
             <Button onClick={pause} variant="secondary">
               <Pause className="size-4" /> Pausar
             </Button>
-          ) : (
+          ) : phase === "paused" && (
             <Button onClick={resume}>
               <Play className="size-4" /> Retomar
             </Button>
