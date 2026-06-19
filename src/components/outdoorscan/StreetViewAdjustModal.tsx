@@ -66,6 +66,7 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(107);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
+  const [qualidade, setQualidade] = useState<number>(5120); // 6K padrão
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
@@ -266,7 +267,7 @@ export function StreetViewAdjustModal({
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
       // Saída em resolução máxima (até 5K) para qualidade premium
-      const MAX_OUT = 5120;
+      const MAX_OUT = qualidade;
       const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
       const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
@@ -704,6 +705,38 @@ export function StreetViewAdjustModal({
 
         {!showOriginal && (
           <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                🖼️ Qualidade da Imagem
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "2K", value: 2048, px: "2048px" },
+                  { label: "4K", value: 3840, px: "3840px" },
+                  { label: "6K", value: 5120, px: "5120px" },
+                  { label: "8K", value: 7680, px: "7680px" },
+                  { label: "10K", value: 10240, px: "10240px" },
+                ].map((q) => (
+                  <button
+                    key={q.value}
+                    type="button"
+                    onClick={() => setQualidade(q.value)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                      qualidade === q.value
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/30 border-border hover:bg-muted/60"
+                    }`}
+                  >
+                    <span className="font-bold">{q.label}</span>
+                    <span className="ml-1 opacity-70">({q.px})</span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Quanto maior a resolução, mais nítida a foto salva (e mais tempo de processamento).
+              </p>
+            </div>
+
             <div className="flex items-center justify-between">
               <h4 className="font-semibold text-sm flex items-center gap-2">
                 🎨 Edição de Imagem
