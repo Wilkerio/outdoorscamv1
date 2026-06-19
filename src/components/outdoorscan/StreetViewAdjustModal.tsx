@@ -256,6 +256,8 @@ export function StreetViewAdjustModal({
         });
       });
       const tileSize = Number(meta?.tiles?.tileSize?.width ?? 512);
+      const originHeadingDeg = Number(meta?.tiles?.originHeading ?? 0) || 0;
+      const originPitchDeg = Number(meta?.tiles?.originPitch ?? 0) || 0;
 
       // 2) Definir saída 4K e baixar somente os tiles necessários, em zoom 5
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
@@ -288,13 +290,18 @@ export function StreetViewAdjustModal({
           xs.add(mod(tx + 1, cols));
         };
 
-        const startH = realHeading - realFov / 2 - hMargin;
-        const endH = realHeading + realFov / 2 + hMargin;
+        // Os tiles têm x=0 alinhado ao originHeading do panorama, então
+        // convertemos o heading do mundo para o sistema de coordenadas
+        // do panorama antes de escolher quais tiles baixar.
+        const headingInPano = realHeading - originHeadingDeg;
+        const startH = headingInPano - realFov / 2 - hMargin;
+        const endH = headingInPano + realFov / 2 + hMargin;
         for (let h = startH; h <= endH; h += tileStepDeg / 2) addX(h);
         addX(endH);
 
-        const minPitch = Math.max(-89.9, realPitch - verticalFovDeg / 2 - vMargin);
-        const maxPitch = Math.min(89.9, realPitch + verticalFovDeg / 2 + vMargin);
+        const pitchInPano = realPitch - originPitchDeg;
+        const minPitch = Math.max(-89.9, pitchInPano - verticalFovDeg / 2 - vMargin);
+        const maxPitch = Math.min(89.9, pitchInPano + verticalFovDeg / 2 + vMargin);
         const yFromPitch = (pitchDeg: number) => panoH / 2 - (pitchDeg / 180) * panoH;
         const yStart = Math.max(0, Math.floor(yFromPitch(maxPitch) / tileSize) - 1);
         const yEnd = Math.min(rows - 1, Math.floor(yFromPitch(minPitch) / tileSize) + 1);
@@ -411,14 +418,16 @@ export function StreetViewAdjustModal({
           const worldHeading = Math.atan2(dx3, dz3);
           const worldPitch = Math.asin(-dy3);
 
-          // Nos tiles nativos do Street View, x=0 corresponde ao norte
-          // (heading 0°) e y=H/2 corresponde ao horizonte (pitch 0°).
-          // originHeading/originPitch são metadados do veículo, não offsets
-          // de coordenada do panorama.
-          let u = worldHeading / TWO_PI;
+          // Nos tiles do Street View, x=0 corresponde à direção
+          // originHeading e y=H/2 ao horizonte deslocado por originPitch.
+          // Por isso convertemos o ângulo do mundo para o sistema de
+          // coordenadas do panorama antes de amostrar.
+          const headingInPano = worldHeading - (originHeadingDeg * Math.PI) / 180;
+          const pitchInPano = worldPitch - (originPitchDeg * Math.PI) / 180;
+          let u = headingInPano / TWO_PI;
           u = u - Math.floor(u);
           let panoX = u * sampler.panoW;
-          let panoY = sampler.panoH / 2 - (worldPitch / Math.PI) * sampler.panoH;
+          let panoY = sampler.panoH / 2 - (pitchInPano / Math.PI) * sampler.panoH;
           if (panoY < 0) panoY = 0;
           else if (panoY > sampler.panoH - 1) panoY = sampler.panoH - 1.0001;
 
