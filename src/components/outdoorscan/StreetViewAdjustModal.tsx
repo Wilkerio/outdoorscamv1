@@ -468,26 +468,28 @@ export function StreetViewAdjustModal({
         const src = imgData.data;
         const w = outW, h = outH;
 
-        // --- LUT tonal: leve lift de sombras/mid-tones + proteção de highlights ---
+        // --- LUT tonal: clareamento mais visível em sombras/mid-tones + proteção de highlights ---
         const lut = new Uint8ClampedArray(256);
-        const brightLift = 8;      // brilho suave (0-255)
-        const contrastAmt = 0.10;  // ~10% de contraste extra (S-curve)
-        const shadowGamma = 0.94;  // <1 clareia sombras
+        const brightLift = 22;     // brilho profissional sem estourar céu/áreas claras
+        const contrastAmt = 0.14;  // contraste extra com S-curve suave
+        const shadowGamma = 0.86;  // <1 clareia sombras e tons médios
         for (let i = 0; i < 256; i++) {
           let v = i / 255;
           // gamma para clarear sombras sem queimar luzes
           v = Math.pow(v, shadowGamma);
-          // brilho aditivo decaindo nos highlights (rolloff)
-          v = v + (brightLift / 255) * (1 - v);
+          // brilho aditivo concentrado em sombras/médios e reduzido nos highlights
+          v = v + (brightLift / 255) * Math.pow(1 - v, 1.45);
           // s-curve suave (contraste)
           v = v + contrastAmt * (v - 0.5) * (1 - Math.abs(2 * v - 1));
+          // rolloff final para preservar altas luzes naturais
+          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58;
           // clamp suave
           if (v < 0) v = 0; else if (v > 1) v = 1;
           lut[i] = Math.round(v * 255);
         }
 
         // --- Saturação leve em espaço HSL aproximado (boost cromático) ---
-        const satBoost = 1.08;
+        const satBoost = 1.12;
         const toned = new Uint8ClampedArray(src.length);
         for (let i = 0; i < src.length; i += 4) {
           let r = lut[src[i]];
@@ -534,8 +536,8 @@ export function StreetViewAdjustModal({
           }
         }
 
-        const amount = 0.35;     // nitidez sutil para preservar naturalidade
-        const threshold = 4;     // ignora ruído sutil
+        const amount = 0.46;     // nitidez mais definida, ainda natural
+        const threshold = 3;     // preserva detalhes finos sem puxar ruído demais
         const out = new Uint8ClampedArray(toned.length);
         for (let i = 0; i < toned.length; i += 4) {
           for (let c = 0; c < 3; c++) {
