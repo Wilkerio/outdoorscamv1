@@ -237,82 +237,146 @@ export function StreetViewAdjustModal({
       log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
-      // Captura única em alta qualidade (640x640 — máximo da API gratuita)
-      // + upscale progressivo para 4K + sharpening.
-      // (Mosaico de tiles foi removido porque causava distorção/duplicação:
-      //  tiles em projeção pinhole não podem ser justapostos sem reprojeção.)
+      // ============================================================
+      // Qualidade máxima real: baixar os tiles NATIVOS do panorama do
+      // Google (panorama equirectangular completo em alta resolução)
+      // e reprojetar para a vista de perspectiva com o heading/pitch/fov
+      // selecionados. Bem superior à Static API (limitada a 1280px).
+      // ============================================================
       const aspect = offsetWidth / offsetHeight;
-      // 640 é o tamanho máximo solicitado, mas com scale=2 a API devolve
-      // 1280x1280 reais (densidade dobrada — pixels nativos, não interpolados).
-      const REQ = 640;
-      const BASE = REQ * 2; // 1280 — resolução nativa retornada
+      if (!realPanoId) throw new Error("Sem panoId disponível para captura de alta qualidade");
 
-      const params = new URLSearchParams({
-        size: `${REQ}x${REQ}`,
-        scale: "2",
-        fov: String(Math.max(10, Math.min(120, Math.round(realFov)))),
-        heading: String((((realHeading) % 360) + 360) % 360),
-        pitch: String(Math.max(-90, Math.min(90, realPitch))),
-        key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
+      log("info", `${point.cod} — Baixando panorama nativo...`);
+      const svService = new (window as any).google.maps.StreetViewService();
+      const meta: any = await new Promise((resolve, reject) => {
+        svService.getPanorama({ pano: realPanoId }, (data: any, status: any) => {
+          if (status === "OK") resolve(data);
+          else reject(new Error("Falha ao obter metadados do panorama: " + status));
+        });
       });
-      if (realPanoId) params.set("pano", realPanoId);
-      else params.set("location", `${realLat},${realLng}`);
-      const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
+      const originHeading = Number(meta?.tiles?.originHeading ?? 0);
+      const originPitch = Number(meta?.tiles?.originPitch ?? 0);
+      const tileSize = Number(meta?.tiles?.tileSize?.width ?? 512);
 
-      const { data: tileData, error: tileErr } = await supabase.functions.invoke("google-proxy", { body: { url } });
-      if (tileErr || !tileData?.image) throw new Error(tileErr?.message || "Erro ao baixar imagem");
-      const baseImg = new Image();
-      baseImg.crossOrigin = "anonymous";
-      baseImg.src = `data:image/jpeg;base64,${tileData.image}`;
-      await new Promise((res, rej) => { baseImg.onload = res; baseImg.onerror = rej; });
+      // 2) Baixar todos os tiles do panorama (zoom 4 = 16x8 = 128 tiles, 8192x4096)
+      const ZOOM = 4;
+      const cols = 1 << ZOOM;            // 16
+      const rows = 1 << (ZOOM - 1);      // 8
+      const panoW = cols * tileSize;     // 8192
+      const panoH = rows * tileSize;     // 4096
+      const equi = document.createElement("canvas");
+      equi.width = panoW;
+      equi.height = panoH;
+      const equiCtx = equi.getContext("2d")!;
 
-      // Recortar BASE x BASE para o aspect ratio do viewport
-      const baseAspect = 1;
-      let cropW = BASE;
-      let cropH = BASE;
-      if (aspect > baseAspect) {
-        cropH = Math.round(BASE / aspect);
-      } else if (aspect < baseAspect) {
-        cropW = Math.round(BASE * aspect);
+      const tileTasks: Promise<void>[] = [];
+      let okCount = 0;
+      for (let ty = 0; ty < rows; ty++) {
+        for (let tx = 0; tx < cols; tx++) {
+          const tileUrl =
+            `https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile` +
+            `&panoid=${encodeURIComponent(realPanoId)}&x=${tx}&y=${ty}&zoom=${ZOOM}&nbt=1&fover=2`;
+          tileTasks.push((async () => {
+            try {
+              const { data, error } = await supabase.functions.invoke("google-proxy", { body: { url: tileUrl } });
+              if (error || !data?.image) return;
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              img.src = `data:image/jpeg;base64,${data.image}`;
+              await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+              equiCtx.drawImage(img, tx * tileSize, ty * tileSize);
+              okCount++;
+            } catch {}
+          })());
+        }
       }
-      const cropX = Math.round((BASE - cropW) / 2);
-      const cropY = Math.round((BASE - cropH) / 2);
+      await Promise.all(tileTasks);
+      log("info", `${point.cod} — Tiles baixados: ${okCount}/${cols * rows} (panorama ${panoW}x${panoH})`);
 
-      // Upscale final para 4K
-      const MAX_4K = 3840;
-      const cropAspect = cropW / cropH;
-      let outW: number, outH: number;
-      if (cropAspect >= 1) { outW = MAX_4K; outH = Math.round(MAX_4K / cropAspect); }
-      else { outH = MAX_4K; outW = Math.round(MAX_4K * cropAspect); }
+      // 3) Reprojeção equirectangular → perspectiva
+      const MAX_OUT = 3840;
+      const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
+      const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
+      const persp = document.createElement("canvas");
+      persp.width = outW;
+      persp.height = outH;
+      const perspCtx = persp.getContext("2d")!;
+
+      const equiData = equiCtx.getImageData(0, 0, panoW, panoH).data;
+      const outImg = perspCtx.createImageData(outW, outH);
+      const outData = outImg.data;
+
+      const fovRad = (realFov * Math.PI) / 180;
+      const f = (outW / 2) / Math.tan(fovRad / 2);
+      const headingRad = (realHeading * Math.PI) / 180;
+      const pitchRad = (realPitch * Math.PI) / 180;
+      const cosH = Math.cos(headingRad), sinH = Math.sin(headingRad);
+      const cosP = Math.cos(pitchRad), sinP = Math.sin(pitchRad);
+      const originHeadingRad = (originHeading * Math.PI) / 180;
+      const originPitchRad = (originPitch * Math.PI) / 180;
+      const cx = outW / 2, cy = outH / 2;
+      const TWO_PI = Math.PI * 2;
+
+      for (let y = 0; y < outH; y++) {
+        const py = y - cy;
+        for (let x = 0; x < outW; x++) {
+          const px = x - cx;
+          const n = Math.sqrt(px * px + py * py + f * f);
+          const dx = px / n, dy = py / n, dz = f / n;
+          // pitch (X axis)
+          const dy2 = dy * cosP - dz * sinP;
+          const dz2 = dy * sinP + dz * cosP;
+          // heading (Y axis)
+          const dx3 = dx * cosH + dz2 * sinH;
+          const dz3 = -dx * sinH + dz2 * cosH;
+          const dy3 = dy2;
+
+          const worldHeading = Math.atan2(dx3, dz3);
+          const worldPitch = Math.asin(-dy3);
+
+          let u = (worldHeading - originHeadingRad) / TWO_PI;
+          u = u - Math.floor(u);
+          let panoX = u * panoW;
+          let panoY = panoH / 2 - ((worldPitch - originPitchRad) / Math.PI) * panoH;
+          if (panoY < 0) panoY = 0;
+          else if (panoY > panoH - 1) panoY = panoH - 1.0001;
+
+          const x0 = Math.floor(panoX);
+          const y0 = Math.floor(panoY);
+          const x1 = (x0 + 1) % panoW;
+          const y1 = y0 + 1;
+          const fx = panoX - x0;
+          const fyy = panoY - y0;
+          const i00 = (y0 * panoW + x0) * 4;
+          const i10 = (y0 * panoW + x1) * 4;
+          const i01 = (y1 * panoW + x0) * 4;
+          const i11 = (y1 * panoW + x1) * 4;
+          const oi = (y * outW + x) * 4;
+          // bilinear (R,G,B)
+          const r0 = equiData[i00]     + (equiData[i10]     - equiData[i00])     * fx;
+          const r1 = equiData[i01]     + (equiData[i11]     - equiData[i01])     * fx;
+          const g0 = equiData[i00 + 1] + (equiData[i10 + 1] - equiData[i00 + 1]) * fx;
+          const g1 = equiData[i01 + 1] + (equiData[i11 + 1] - equiData[i01 + 1]) * fx;
+          const b0 = equiData[i00 + 2] + (equiData[i10 + 2] - equiData[i00 + 2]) * fx;
+          const b1 = equiData[i01 + 2] + (equiData[i11 + 2] - equiData[i01 + 2]) * fx;
+          outData[oi]     = r0 + (r1 - r0) * fyy;
+          outData[oi + 1] = g0 + (g1 - g0) * fyy;
+          outData[oi + 2] = b0 + (b1 - b0) * fyy;
+          outData[oi + 3] = 255;
+        }
+      }
+      perspCtx.putImageData(outImg, 0, 0);
+
+      // 4) Canvas final com filtros aplicados
       const canvas = document.createElement("canvas");
       canvas.width = outW;
       canvas.height = outH;
       const ctx = canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = true;
       (ctx as any).imageSmoothingQuality = "high";
-
-      // Crop inicial num canvas temporário
-      let curSource: CanvasImageSource;
-      let curW = cropW, curH = cropH;
-      {
-        const tmp = document.createElement("canvas");
-        tmp.width = cropW; tmp.height = cropH;
-        const tctx = tmp.getContext("2d")!;
-        tctx.drawImage(baseImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-        curSource = tmp;
-      }
-      // Upscale progressivo (dobra a cada passo)
-      while (curW * 2 < outW) {
-        const nextW = curW * 2, nextH = curH * 2;
-        const tmp = document.createElement("canvas");
-        tmp.width = nextW; tmp.height = nextH;
-        const tctx = tmp.getContext("2d")!;
-        tctx.imageSmoothingEnabled = true;
-        (tctx as any).imageSmoothingQuality = "high";
-        tctx.drawImage(curSource, 0, 0, nextW, nextH);
-        curSource = tmp; curW = nextW; curH = nextH;
-      }
+      const curSource: CanvasImageSource = persp;
 
       const finalBrilho = Math.round(brilho * 1.05);
       const finalContraste = Math.round(contraste * 1.12);
