@@ -63,9 +63,9 @@ export function StreetViewAdjustModal({
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
 
   // Filtros de imagem
-  const [brilho, setBrilho] = useState(100);
-  const [contraste, setContraste] = useState(100);
-  const [saturacao, setSaturacao] = useState(100);
+  const [brilho, setBrilho] = useState(107);
+  const [contraste, setContraste] = useState(136);
+  const [saturacao, setSaturacao] = useState(151);
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
@@ -713,9 +713,9 @@ export function StreetViewAdjustModal({
                 size="sm" 
                 className="h-7 text-[10px] px-2"
                 onClick={() => {
-                  setBrilho(100);
-                  setContraste(100);
-                  setSaturacao(100);
+                  setBrilho(107);
+                  setContraste(136);
+                  setSaturacao(151);
                 }}
               >
                 <RefreshCw className="size-3 mr-1" />
