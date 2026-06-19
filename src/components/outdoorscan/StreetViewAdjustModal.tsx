@@ -267,7 +267,7 @@ export function StreetViewAdjustModal({
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
       // Saída em resolução máxima (até 5K) para qualidade premium
-      const MAX_OUT = 5120;
+      const MAX_OUT = qualidade;
       const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
       const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
