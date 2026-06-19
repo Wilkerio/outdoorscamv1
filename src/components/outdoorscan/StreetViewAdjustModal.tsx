@@ -329,16 +329,16 @@ export function StreetViewAdjustModal({
         const total = xs.size * ys.size;
         log("info", `${point.cod} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
 
-        const readPixel = (px: number, py: number, channel: number) => {
+        const readIndex = (px: number, py: number) => {
           const safeX = mod(Math.floor(px), panoW);
           const safeY = Math.max(0, Math.min(panoH - 1, Math.floor(py)));
           const tx = Math.floor(safeX / tileSize);
           const ty = Math.floor(safeY / tileSize);
           const data = tileData.get(`${tx},${ty}`)?.data;
-          if (!data) return 0;
+          if (!data) return null;
           const lx = safeX - tx * tileSize;
           const ly = safeY - ty * tileSize;
-          return data[(ly * tileSize + lx) * 4 + channel];
+          return { data, idx: (ly * tileSize + lx) * 4 };
         };
 
         return {
@@ -353,12 +353,17 @@ export function StreetViewAdjustModal({
             const y1 = Math.min(y0 + 1, panoH - 1);
             const fx = panoX - x0;
             const fy = panoY - y0;
-            const r0 = readPixel(x0, y0, 0) + (readPixel(x1, y0, 0) - readPixel(x0, y0, 0)) * fx;
-            const r1 = readPixel(x0, y1, 0) + (readPixel(x1, y1, 0) - readPixel(x0, y1, 0)) * fx;
-            const g0 = readPixel(x0, y0, 1) + (readPixel(x1, y0, 1) - readPixel(x0, y0, 1)) * fx;
-            const g1 = readPixel(x0, y1, 1) + (readPixel(x1, y1, 1) - readPixel(x0, y1, 1)) * fx;
-            const b0 = readPixel(x0, y0, 2) + (readPixel(x1, y0, 2) - readPixel(x0, y0, 2)) * fx;
-            const b1 = readPixel(x0, y1, 2) + (readPixel(x1, y1, 2) - readPixel(x0, y1, 2)) * fx;
+            const p00 = readIndex(x0, y0);
+            const p10 = readIndex(x1, y0);
+            const p01 = readIndex(x0, y1);
+            const p11 = readIndex(x1, y1);
+            if (!p00 || !p10 || !p01 || !p11) return [0, 0, 0] as const;
+            const r0 = p00.data[p00.idx] + (p10.data[p10.idx] - p00.data[p00.idx]) * fx;
+            const r1 = p01.data[p01.idx] + (p11.data[p11.idx] - p01.data[p01.idx]) * fx;
+            const g0 = p00.data[p00.idx + 1] + (p10.data[p10.idx + 1] - p00.data[p00.idx + 1]) * fx;
+            const g1 = p01.data[p01.idx + 1] + (p11.data[p11.idx + 1] - p01.data[p01.idx + 1]) * fx;
+            const b0 = p00.data[p00.idx + 2] + (p10.data[p10.idx + 2] - p00.data[p00.idx + 2]) * fx;
+            const b1 = p01.data[p01.idx + 2] + (p11.data[p11.idx + 2] - p01.data[p01.idx + 2]) * fx;
             return [r0 + (r1 - r0) * fy, g0 + (g1 - g0) * fy, b0 + (b1 - b0) * fy] as const;
           }
         };
