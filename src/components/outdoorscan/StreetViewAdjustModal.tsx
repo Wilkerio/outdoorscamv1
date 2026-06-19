@@ -255,29 +255,62 @@ export function StreetViewAdjustModal({
           else reject(new Error("Falha ao obter metadados do panorama: " + status));
         });
       });
-      const originHeading = Number(meta?.tiles?.originHeading ?? 0);
-      const originPitch = Number(meta?.tiles?.originPitch ?? 0);
       const tileSize = Number(meta?.tiles?.tileSize?.width ?? 512);
 
-      // 2) Baixar todos os tiles do panorama (zoom 4 = 16x8 = 128 tiles, 8192x4096)
-      const ZOOM = 4;
-      const cols = 1 << ZOOM;            // 16
-      const rows = 1 << (ZOOM - 1);      // 8
-      const panoW = cols * tileSize;     // 8192
-      const panoH = rows * tileSize;     // 4096
-      const equi = document.createElement("canvas");
-      equi.width = panoW;
-      equi.height = panoH;
-      const equiCtx = equi.getContext("2d")!;
+      // 2) Definir saída 4K e baixar somente os tiles necessários, em zoom 5
+      // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
+      // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
+      const MAX_OUT = 3840;
+      const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
+      const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
-      const tileTasks: Promise<void>[] = [];
-      let okCount = 0;
-      for (let ty = 0; ty < rows; ty++) {
-        for (let tx = 0; tx < cols; tx++) {
+      const fovRad = (realFov * Math.PI) / 180;
+      const verticalFovDeg = (2 * Math.atan(Math.tan(fovRad / 2) * (outH / outW)) * 180) / Math.PI;
+      const normalizeDeg = (value: number) => ((value % 360) + 360) % 360;
+      const mod = (value: number, size: number) => ((value % size) + size) % size;
+
+      const buildTileSampler = async (zoom: number) => {
+        const cols = 1 << zoom;
+        const rows = 1 << (zoom - 1);
+        const panoW = cols * tileSize;
+        const panoH = rows * tileSize;
+        const tileData = new Map<string, ImageData>();
+        const xs = new Set<number>();
+        const ys = new Set<number>();
+        const tileStepDeg = 360 / cols;
+        const hMargin = Math.max(18, tileStepDeg * 2);
+        const vMargin = 16;
+
+        const addX = (headingDeg: number) => {
+          const tx = Math.floor((normalizeDeg(headingDeg) / 360) * cols);
+          xs.add(mod(tx - 1, cols));
+          xs.add(mod(tx, cols));
+          xs.add(mod(tx + 1, cols));
+        };
+
+        const startH = realHeading - realFov / 2 - hMargin;
+        const endH = realHeading + realFov / 2 + hMargin;
+        for (let h = startH; h <= endH; h += tileStepDeg / 2) addX(h);
+        addX(endH);
+
+        const minPitch = Math.max(-89.9, realPitch - verticalFovDeg / 2 - vMargin);
+        const maxPitch = Math.min(89.9, realPitch + verticalFovDeg / 2 + vMargin);
+        const yFromPitch = (pitchDeg: number) => panoH / 2 - (pitchDeg / 180) * panoH;
+        const yStart = Math.max(0, Math.floor(yFromPitch(maxPitch) / tileSize) - 1);
+        const yEnd = Math.min(rows - 1, Math.floor(yFromPitch(minPitch) / tileSize) + 1);
+        for (let ty = yStart; ty <= yEnd; ty++) ys.add(ty);
+
+        const scratch = document.createElement("canvas");
+        scratch.width = tileSize;
+        scratch.height = tileSize;
+        const scratchCtx = scratch.getContext("2d", { willReadFrequently: true })!;
+        const tasks: Promise<void>[] = [];
+
+        xs.forEach((tx) => ys.forEach((ty) => {
           const tileUrl =
             `https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile` +
-            `&panoid=${encodeURIComponent(realPanoId)}&x=${tx}&y=${ty}&zoom=${ZOOM}&nbt=1&fover=2`;
-          tileTasks.push((async () => {
+            `&panoid=${encodeURIComponent(realPanoId)}&x=${tx}&y=${ty}&zoom=${zoom}&nbt=1&fover=2`;
+          tasks.push((async () => {
             try {
               const { data, error } = await supabase.functions.invoke("google-proxy", { body: { url: tileUrl } });
               if (error || !data?.image) return;
@@ -285,37 +318,79 @@ export function StreetViewAdjustModal({
               img.crossOrigin = "anonymous";
               img.src = `data:image/jpeg;base64,${data.image}`;
               await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
-              equiCtx.drawImage(img, tx * tileSize, ty * tileSize);
-              okCount++;
+              scratchCtx.clearRect(0, 0, tileSize, tileSize);
+              scratchCtx.drawImage(img, 0, 0, tileSize, tileSize);
+              tileData.set(`${tx},${ty}`, scratchCtx.getImageData(0, 0, tileSize, tileSize));
             } catch {}
           })());
-        }
+        }));
+
+        await Promise.all(tasks);
+        const total = xs.size * ys.size;
+        log("info", `${point.cod} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
+
+        const readIndex = (px: number, py: number) => {
+          const safeX = mod(Math.floor(px), panoW);
+          const safeY = Math.max(0, Math.min(panoH - 1, Math.floor(py)));
+          const tx = Math.floor(safeX / tileSize);
+          const ty = Math.floor(safeY / tileSize);
+          const data = tileData.get(`${tx},${ty}`)?.data;
+          if (!data) return null;
+          const lx = safeX - tx * tileSize;
+          const ly = safeY - ty * tileSize;
+          return { data, idx: (ly * tileSize + lx) * 4 };
+        };
+
+        return {
+          zoom,
+          panoW,
+          panoH,
+          complete: tileData.size === total,
+          sample(panoX: number, panoY: number) {
+            const x0 = Math.floor(panoX);
+            const y0 = Math.floor(panoY);
+            const x1 = x0 + 1;
+            const y1 = Math.min(y0 + 1, panoH - 1);
+            const fx = panoX - x0;
+            const fy = panoY - y0;
+            const p00 = readIndex(x0, y0);
+            const p10 = readIndex(x1, y0);
+            const p01 = readIndex(x0, y1);
+            const p11 = readIndex(x1, y1);
+            if (!p00 || !p10 || !p01 || !p11) return [0, 0, 0] as const;
+            const r0 = p00.data[p00.idx] + (p10.data[p10.idx] - p00.data[p00.idx]) * fx;
+            const r1 = p01.data[p01.idx] + (p11.data[p11.idx] - p01.data[p01.idx]) * fx;
+            const g0 = p00.data[p00.idx + 1] + (p10.data[p10.idx + 1] - p00.data[p00.idx + 1]) * fx;
+            const g1 = p01.data[p01.idx + 1] + (p11.data[p11.idx + 1] - p01.data[p01.idx + 1]) * fx;
+            const b0 = p00.data[p00.idx + 2] + (p10.data[p10.idx + 2] - p00.data[p00.idx + 2]) * fx;
+            const b1 = p01.data[p01.idx + 2] + (p11.data[p11.idx + 2] - p01.data[p01.idx + 2]) * fx;
+            return [r0 + (r1 - r0) * fy, g0 + (g1 - g0) * fy, b0 + (b1 - b0) * fy] as const;
+          }
+        };
+      };
+
+      let sampler = await buildTileSampler(5);
+      if (!sampler.complete) {
+        log("info", `${point.cod} — Zoom 5 incompleto, usando zoom 4 completo como fallback.`);
+        sampler = await buildTileSampler(4);
       }
-      await Promise.all(tileTasks);
-      log("info", `${point.cod} — Tiles baixados: ${okCount}/${cols * rows} (panorama ${panoW}x${panoH})`);
+      if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
       // 3) Reprojeção equirectangular → perspectiva
-      const MAX_OUT = 3840;
-      const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
-      const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
       const persp = document.createElement("canvas");
       persp.width = outW;
       persp.height = outH;
       const perspCtx = persp.getContext("2d")!;
 
-      const equiData = equiCtx.getImageData(0, 0, panoW, panoH).data;
       const outImg = perspCtx.createImageData(outW, outH);
       const outData = outImg.data;
 
-      const fovRad = (realFov * Math.PI) / 180;
       const f = (outW / 2) / Math.tan(fovRad / 2);
       const headingRad = (realHeading * Math.PI) / 180;
       const pitchRad = (realPitch * Math.PI) / 180;
       const cosH = Math.cos(headingRad), sinH = Math.sin(headingRad);
       const cosP = Math.cos(pitchRad), sinP = Math.sin(pitchRad);
-      const originHeadingRad = (originHeading * Math.PI) / 180;
-      const originPitchRad = (originPitch * Math.PI) / 180;
       const cx = outW / 2, cy = outH / 2;
       const TWO_PI = Math.PI * 2;
 
@@ -342,32 +417,16 @@ export function StreetViewAdjustModal({
           // de coordenada do panorama.
           let u = worldHeading / TWO_PI;
           u = u - Math.floor(u);
-          let panoX = u * panoW;
-          let panoY = panoH / 2 - (worldPitch / Math.PI) * panoH;
+          let panoX = u * sampler.panoW;
+          let panoY = sampler.panoH / 2 - (worldPitch / Math.PI) * sampler.panoH;
           if (panoY < 0) panoY = 0;
-          else if (panoY > panoH - 1) panoY = panoH - 1.0001;
+          else if (panoY > sampler.panoH - 1) panoY = sampler.panoH - 1.0001;
 
-          const x0 = Math.floor(panoX);
-          const y0 = Math.floor(panoY);
-          const x1 = (x0 + 1) % panoW;
-          const y1 = y0 + 1;
-          const fx = panoX - x0;
-          const fyy = panoY - y0;
-          const i00 = (y0 * panoW + x0) * 4;
-          const i10 = (y0 * panoW + x1) * 4;
-          const i01 = (y1 * panoW + x0) * 4;
-          const i11 = (y1 * panoW + x1) * 4;
+          const [r, g, b] = sampler.sample(panoX, panoY);
           const oi = (y * outW + x) * 4;
-          // bilinear (R,G,B)
-          const r0 = equiData[i00]     + (equiData[i10]     - equiData[i00])     * fx;
-          const r1 = equiData[i01]     + (equiData[i11]     - equiData[i01])     * fx;
-          const g0 = equiData[i00 + 1] + (equiData[i10 + 1] - equiData[i00 + 1]) * fx;
-          const g1 = equiData[i01 + 1] + (equiData[i11 + 1] - equiData[i01 + 1]) * fx;
-          const b0 = equiData[i00 + 2] + (equiData[i10 + 2] - equiData[i00 + 2]) * fx;
-          const b1 = equiData[i01 + 2] + (equiData[i11 + 2] - equiData[i01 + 2]) * fx;
-          outData[oi]     = r0 + (r1 - r0) * fyy;
-          outData[oi + 1] = g0 + (g1 - g0) * fyy;
-          outData[oi + 2] = b0 + (b1 - b0) * fyy;
+          outData[oi] = r;
+          outData[oi + 1] = g;
+          outData[oi + 2] = b;
           outData[oi + 3] = 255;
         }
       }
