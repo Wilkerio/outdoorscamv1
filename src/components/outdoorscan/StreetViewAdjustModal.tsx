@@ -66,6 +66,7 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(107);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
+  const [qualidade, setQualidade] = useState<number>(5120); // 6K padrão
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
