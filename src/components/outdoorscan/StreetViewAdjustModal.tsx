@@ -237,87 +237,42 @@ export function StreetViewAdjustModal({
       log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
-      // Estratégia de máxima qualidade:
-      // 1) Baixar várias capturas 640x640 (tiles) cobrindo o mesmo enquadramento
-      //    com FOVs menores → maior densidade de pixels real (não interpolada).
-      // 2) Montar mosaico em alta resolução nativa.
-      // 3) Aplicar sharpening (unsharp mask) + filtros do usuário.
+      // Captura única em alta qualidade (640x640 — máximo da API gratuita)
+      // + upscale progressivo para 4K + sharpening.
+      // (Mosaico de tiles foi removido porque causava distorção/duplicação:
+      //  tiles em projeção pinhole não podem ser justapostos sem reprojeção.)
       const aspect = offsetWidth / offsetHeight;
-      const TILE = 640;
+      const BASE = 640;
 
-      // Grid de tiles baseado no FOV: quanto maior o FOV, mais tiles.
-      // Cada tile cobre subFov = realFov / cols (horizontal).
-      const cols = realFov >= 90 ? 3 : realFov >= 60 ? 3 : 2;
-      const rows = cols; // mesma divisão vertical
-      const subFov = realFov / cols;
+      const params = new URLSearchParams({
+        size: `${BASE}x${BASE}`,
+        fov: String(Math.max(10, Math.min(120, Math.round(realFov)))),
+        heading: String((((realHeading) % 360) + 360) % 360),
+        pitch: String(Math.max(-90, Math.min(90, realPitch))),
+        key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      });
+      if (realPanoId) params.set("pano", realPanoId);
+      else params.set("location", `${realLat},${realLng}`);
+      const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
 
-      const baseHeading = realHeading;
-      const basePitch = realPitch;
+      const { data: tileData, error: tileErr } = await supabase.functions.invoke("google-proxy", { body: { url } });
+      if (tileErr || !tileData?.image) throw new Error(tileErr?.message || "Erro ao baixar imagem");
+      const baseImg = new Image();
+      baseImg.crossOrigin = "anonymous";
+      baseImg.src = `data:image/jpeg;base64,${tileData.image}`;
+      await new Promise((res, rej) => { baseImg.onload = res; baseImg.onerror = rej; });
 
-      // Offsets em graus a partir do centro
-      const headingOffsets: number[] = [];
-      const pitchOffsets: number[] = [];
-      for (let c = 0; c < cols; c++) {
-        // de -(cols-1)/2 a +(cols-1)/2 multiplicado por subFov
-        headingOffsets.push((c - (cols - 1) / 2) * subFov);
+      // Recortar BASE x BASE para o aspect ratio do viewport
+      const baseAspect = 1;
+      let cropW = BASE;
+      let cropH = BASE;
+      if (aspect > baseAspect) {
+        cropH = Math.round(BASE / aspect);
+      } else if (aspect < baseAspect) {
+        cropW = Math.round(BASE * aspect);
       }
-      for (let r = 0; r < rows; r++) {
-        pitchOffsets.push(-((r - (rows - 1) / 2) * (subFov / aspect)));
-      }
-
-      // Baixar todos os tiles em paralelo
-      const fetchTile = async (h: number, p: number): Promise<HTMLImageElement> => {
-        const params = new URLSearchParams({
-          size: `${TILE}x${TILE}`,
-          fov: String(Math.max(10, Math.min(120, Math.round(subFov)))),
-          heading: String(((h % 360) + 360) % 360),
-          pitch: String(Math.max(-90, Math.min(90, p))),
-          key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-        });
-        if (realPanoId) params.set("pano", realPanoId);
-        else params.set("location", `${realLat},${realLng}`);
-        const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
-        const { data, error } = await supabase.functions.invoke("google-proxy", { body: { url } });
-        if (error || !data?.image) throw new Error(error?.message || "Erro ao baixar tile");
-        const im = new Image();
-        im.crossOrigin = "anonymous";
-        im.src = `data:image/jpeg;base64,${data.image}`;
-        await new Promise((res, rej) => { im.onload = res; im.onerror = rej; });
-        return im;
-      };
-
-      const tilePromises: Promise<{ img: HTMLImageElement; col: number; row: number }>[] = [];
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          tilePromises.push(
-            fetchTile(baseHeading + headingOffsets[c], basePitch + pitchOffsets[r]).then((img) => ({ img, col: c, row: r }))
-          );
-        }
-      }
-      const tiles = await Promise.all(tilePromises);
-
-      // Mosaico nativo: cols*TILE x rows*TILE (ex.: 3x3 = 1920x1920)
-      const mosaicW = cols * TILE;
-      const mosaicH = rows * TILE;
-      const mosaic = document.createElement("canvas");
-      mosaic.width = mosaicW;
-      mosaic.height = mosaicH;
-      const mctx = mosaic.getContext("2d")!;
-      for (const { img, col, row } of tiles) {
-        mctx.drawImage(img, col * TILE, row * TILE, TILE, TILE);
-      }
-
-      // Recortar para o aspect ratio do viewport
-      const mosaicAspect = mosaicW / mosaicH;
-      let cropW = mosaicW;
-      let cropH = mosaicH;
-      if (aspect > mosaicAspect) {
-        cropH = Math.round(mosaicW / aspect);
-      } else if (aspect < mosaicAspect) {
-        cropW = Math.round(mosaicH * aspect);
-      }
-      const cropX = Math.round((mosaicW - cropW) / 2);
-      const cropY = Math.round((mosaicH - cropH) / 2);
+      const cropX = Math.round((BASE - cropW) / 2);
+      const cropY = Math.round((BASE - cropH) / 2);
 
       // Upscale final para 4K
       const MAX_4K = 3840;
@@ -333,18 +288,17 @@ export function StreetViewAdjustModal({
       ctx.imageSmoothingEnabled = true;
       (ctx as any).imageSmoothingQuality = "high";
 
-      // Upscale progressivo
-      let curSource: CanvasImageSource = mosaic;
+      // Crop inicial num canvas temporário
+      let curSource: CanvasImageSource;
       let curW = cropW, curH = cropH;
-      let sx = cropX, sy = cropY;
-      // Primeiro passo: aplica o crop
       {
         const tmp = document.createElement("canvas");
         tmp.width = cropW; tmp.height = cropH;
         const tctx = tmp.getContext("2d")!;
-        tctx.drawImage(mosaic, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+        tctx.drawImage(baseImg, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
         curSource = tmp;
       }
+      // Upscale progressivo (dobra a cada passo)
       while (curW * 2 < outW) {
         const nextW = curW * 2, nextH = curH * 2;
         const tmp = document.createElement("canvas");
