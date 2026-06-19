@@ -760,6 +760,14 @@ export function StreetViewAdjustModal({
               onChange={setSaturacao}
               suffix="%"
             />
+            <SliderRow
+              label="☁️ Brancos"
+              value={brancos}
+              min={50}
+              max={150}
+              onChange={setBrancos}
+              suffix="%"
+            />
           </div>
         )}
 
