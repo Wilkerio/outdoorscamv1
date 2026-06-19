@@ -290,10 +290,10 @@ export function StreetViewAdjustModal({
           xs.add(mod(tx + 1, cols));
         };
 
-        // Os tiles têm x=0 alinhado ao originHeading do panorama, então
-        // convertemos o heading do mundo para o sistema de coordenadas
-        // do panorama antes de escolher quais tiles baixar.
-        const headingInPano = realHeading - originHeadingDeg;
+        // Nos tiles nativos, originHeading/centerHeading representa a direção
+        // do CENTRO horizontal do panorama. Por isso o heading precisa cair em
+        // x = 50% quando é igual ao originHeading, não em x = 0%.
+        const headingInPano = realHeading - originHeadingDeg + 180;
         const startH = headingInPano - realFov / 2 - hMargin;
         const endH = headingInPano + realFov / 2 + hMargin;
         for (let h = startH; h <= endH; h += tileStepDeg / 2) addX(h);
@@ -418,11 +418,10 @@ export function StreetViewAdjustModal({
           const worldHeading = Math.atan2(dx3, dz3);
           const worldPitch = Math.asin(-dy3);
 
-          // Nos tiles do Street View, x=0 corresponde à direção
-          // originHeading e y=H/2 ao horizonte deslocado por originPitch.
-          // Por isso convertemos o ângulo do mundo para o sistema de
-          // coordenadas do panorama antes de amostrar.
-          const headingInPano = worldHeading - (originHeadingDeg * Math.PI) / 180;
+          // Nos tiles do Street View, originHeading/centerHeading fica no
+          // CENTRO horizontal do panorama. O +PI coloca esse ângulo em u=0.5,
+          // fazendo a imagem salva bater com o ângulo visto no ajuste.
+          const headingInPano = worldHeading - (originHeadingDeg * Math.PI) / 180 + Math.PI;
           const pitchInPano = worldPitch - (originPitchDeg * Math.PI) / 180;
           let u = headingInPano / TWO_PI;
           u = u - Math.floor(u);
