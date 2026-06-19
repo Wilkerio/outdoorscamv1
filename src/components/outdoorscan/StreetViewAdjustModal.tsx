@@ -266,8 +266,8 @@ export function StreetViewAdjustModal({
       // 2) Definir saída 4K e baixar somente os tiles necessários, em zoom 5
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
-      // Saída em resolução máxima (até 5K) para qualidade premium
-      const MAX_OUT = qualidade;
+      // Saída em resolução máxima (10K) para qualidade premium
+      const MAX_OUT = QUALIDADE;
       const targetOutW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
       const targetOutH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
