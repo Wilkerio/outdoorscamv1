@@ -268,11 +268,11 @@ export function StreetViewAdjustModal({
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
       // Saída em resolução máxima (até 5K) para qualidade premium
       const MAX_OUT = qualidade;
-      const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
-      const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
+      const targetOutW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
+      const targetOutH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
       const fovRad = (realFov * Math.PI) / 180;
-      const verticalFovDeg = (2 * Math.atan(Math.tan(fovRad / 2) * (outH / outW)) * 180) / Math.PI;
+      const verticalFovDeg = (2 * Math.atan(Math.tan(fovRad / 2) * (targetOutH / targetOutW)) * 180) / Math.PI;
       const normalizeDeg = (value: number) => ((value % 360) + 360) % 360;
       const mod = (value: number, size: number) => ((value % size) + size) % size;
 
@@ -389,6 +389,17 @@ export function StreetViewAdjustModal({
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
+      // Não aumentar a imagem acima do detalhe real dos tiles nativos.
+      // Upscale artificial (ex: 10K quando o pano só tem ~3.5K naquele FOV)
+      // deixa a foto grande, mas visualmente embaçada.
+      const nativeMaxW = Math.floor((sampler.panoW * realFov) / 360);
+      const realMaxOut = Math.max(2048, Math.min(MAX_OUT, Math.floor(nativeMaxW * 1.08)));
+      const outW = aspect >= 1 ? realMaxOut : Math.round(realMaxOut * aspect);
+      const outH = aspect >= 1 ? Math.round(realMaxOut / aspect) : realMaxOut;
+      if (realMaxOut < MAX_OUT) {
+        log("info", `${point.cod} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
+      }
+
       // 3) Reprojeção equirectangular → perspectiva
 
       const persp = document.createElement("canvas");
@@ -451,8 +462,7 @@ export function StreetViewAdjustModal({
       canvas.width = outW;
       canvas.height = outH;
       const ctx = canvas.getContext("2d")!;
-      ctx.imageSmoothingEnabled = true;
-      (ctx as any).imageSmoothingQuality = "high";
+      ctx.imageSmoothingEnabled = false;
       const curSource: CanvasImageSource = persp;
 
       // Render base (preserva ajustes manuais do usuário, sem multiplicar)
@@ -556,18 +566,17 @@ export function StreetViewAdjustModal({
         console.warn("Tratamento automático pulado:", e);
       }
 
-      // Exportar otimizado (qualidade alta, mas com tamanho controlado p/ carregamento rápido)
-      // JPEG com qualidade muito alta (0.97) para máxima fidelidade visual
+      // Exportar sem recompressão JPEG para não criar aparência embaçada.
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.97)
+        canvas.toBlob((b) => resolve(b), "image/png")
       );
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
 
       // Upload para Supabase
-      const fileName = `${point.cod}_${Date.now()}.jpg`;
+      const fileName = `${point.cod}_${Date.now()}.png`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
-        contentType: "image/jpeg",
+        contentType: "image/png",
         upsert: true,
       });
 
