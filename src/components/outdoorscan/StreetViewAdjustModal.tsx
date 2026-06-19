@@ -237,105 +237,161 @@ export function StreetViewAdjustModal({
       log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
-      // A Street View Static API limita a 640x640 por request.
-      // Vamos baixar 4 tiles (2x2) deslocando o heading/pitch e montar
-      // uma imagem ~1280x1280 e depois fazer upscale para 4K com filtros
-      // de qualidade (nitidez + brilho/contraste/saturação extras).
+      // Estratégia de máxima qualidade:
+      // 1) Baixar várias capturas 640x640 (tiles) cobrindo o mesmo enquadramento
+      //    com FOVs menores → maior densidade de pixels real (não interpolada).
+      // 2) Montar mosaico em alta resolução nativa.
+      // 3) Aplicar sharpening (unsharp mask) + filtros do usuário.
       const aspect = offsetWidth / offsetHeight;
       const TILE = 640;
-      const tileW = TILE;
-      const tileH = aspect >= 1 ? Math.round(TILE / aspect) : TILE;
-      const reqW = aspect >= 1 ? TILE : Math.round(TILE * aspect);
-      const reqH = TILE;
-      // Para simplicidade e máxima compatibilidade, baixamos UMA imagem
-      // em 640 e fazemos upscale de altíssima qualidade para 4K.
-      const targetW = reqW;
-      const targetH = reqH;
 
-      // Construir URL usando panoId quando disponível, garantindo que a imagem
-      // salva seja exatamente a que o usuário está vendo no panorama.
-      const params = new URLSearchParams({
-        size: `${targetW}x${targetH}`,
-        fov: String(Math.round(realFov)),
-        heading: String(Math.round(realHeading)),
-        pitch: String(Math.round(realPitch)),
-        key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-      });
-      if (realPanoId) {
-        params.set("pano", realPanoId);
-      } else {
-        params.set("location", `${realLat},${realLng}`);
+      // Grid de tiles baseado no FOV: quanto maior o FOV, mais tiles.
+      // Cada tile cobre subFov = realFov / cols (horizontal).
+      const cols = realFov >= 90 ? 3 : realFov >= 60 ? 3 : 2;
+      const rows = cols; // mesma divisão vertical
+      const subFov = realFov / cols;
+
+      const baseHeading = realHeading;
+      const basePitch = realPitch;
+
+      // Offsets em graus a partir do centro
+      const headingOffsets: number[] = [];
+      const pitchOffsets: number[] = [];
+      for (let c = 0; c < cols; c++) {
+        // de -(cols-1)/2 a +(cols-1)/2 multiplicado por subFov
+        headingOffsets.push((c - (cols - 1) / 2) * subFov);
       }
-      const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
-
-      // Baixar imagem via proxy
-      const { data, error: proxyError } = await supabase.functions.invoke("google-proxy", {
-        body: { url },
-      });
-
-      if (proxyError || !data?.image) {
-        throw new Error(proxyError?.message || "Erro ao baixar imagem");
+      for (let r = 0; r < rows; r++) {
+        pitchOffsets.push(-((r - (rows - 1) / 2) * (subFov / aspect)));
       }
 
-      // Aplicar filtros via Canvas em alta resolução (upscale para 4K)
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = `data:image/jpeg;base64,${data.image}`;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
+      // Baixar todos os tiles em paralelo
+      const fetchTile = async (h: number, p: number): Promise<HTMLImageElement> => {
+        const params = new URLSearchParams({
+          size: `${TILE}x${TILE}`,
+          fov: String(Math.max(10, Math.min(120, Math.round(subFov)))),
+          heading: String(((h % 360) + 360) % 360),
+          pitch: String(Math.max(-90, Math.min(90, p))),
+          key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+        });
+        if (realPanoId) params.set("pano", realPanoId);
+        else params.set("location", `${realLat},${realLng}`);
+        const url = `https://maps.googleapis.com/maps/api/streetview?${params.toString()}`;
+        const { data, error } = await supabase.functions.invoke("google-proxy", { body: { url } });
+        if (error || !data?.image) throw new Error(error?.message || "Erro ao baixar tile");
+        const im = new Image();
+        im.crossOrigin = "anonymous";
+        im.src = `data:image/jpeg;base64,${data.image}`;
+        await new Promise((res, rej) => { im.onload = res; im.onerror = rej; });
+        return im;
+      };
 
-      // Calcular dimensões 4K mantendo aspect ratio da imagem baixada
-      const srcW = img.naturalWidth || targetW;
-      const srcH = img.naturalHeight || targetH;
-      const srcAspect = srcW / srcH;
+      const tilePromises: Promise<{ img: HTMLImageElement; col: number; row: number }>[] = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          tilePromises.push(
+            fetchTile(baseHeading + headingOffsets[c], basePitch + pitchOffsets[r]).then((img) => ({ img, col: c, row: r }))
+          );
+        }
+      }
+      const tiles = await Promise.all(tilePromises);
+
+      // Mosaico nativo: cols*TILE x rows*TILE (ex.: 3x3 = 1920x1920)
+      const mosaicW = cols * TILE;
+      const mosaicH = rows * TILE;
+      const mosaic = document.createElement("canvas");
+      mosaic.width = mosaicW;
+      mosaic.height = mosaicH;
+      const mctx = mosaic.getContext("2d")!;
+      for (const { img, col, row } of tiles) {
+        mctx.drawImage(img, col * TILE, row * TILE, TILE, TILE);
+      }
+
+      // Recortar para o aspect ratio do viewport
+      const mosaicAspect = mosaicW / mosaicH;
+      let cropW = mosaicW;
+      let cropH = mosaicH;
+      if (aspect > mosaicAspect) {
+        cropH = Math.round(mosaicW / aspect);
+      } else if (aspect < mosaicAspect) {
+        cropW = Math.round(mosaicH * aspect);
+      }
+      const cropX = Math.round((mosaicW - cropW) / 2);
+      const cropY = Math.round((mosaicH - cropH) / 2);
+
+      // Upscale final para 4K
       const MAX_4K = 3840;
-      let outW: number;
-      let outH: number;
-      if (srcAspect >= 1) {
-        outW = MAX_4K;
-        outH = Math.round(MAX_4K / srcAspect);
-      } else {
-        outH = MAX_4K;
-        outW = Math.round(MAX_4K * srcAspect);
-      }
+      const cropAspect = cropW / cropH;
+      let outW: number, outH: number;
+      if (cropAspect >= 1) { outW = MAX_4K; outH = Math.round(MAX_4K / cropAspect); }
+      else { outH = MAX_4K; outW = Math.round(MAX_4K * cropAspect); }
 
       const canvas = document.createElement("canvas");
       canvas.width = outW;
       canvas.height = outH;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Não foi possível criar contexto do canvas");
-
-      // Upscale progressivo (melhor qualidade que um único drawImage)
+      const ctx = canvas.getContext("2d")!;
       ctx.imageSmoothingEnabled = true;
       (ctx as any).imageSmoothingQuality = "high";
 
-      let curW = srcW;
-      let curH = srcH;
-      let curSource: CanvasImageSource = img;
-      while (curW * 2 < outW) {
-        const nextW = curW * 2;
-        const nextH = curH * 2;
+      // Upscale progressivo
+      let curSource: CanvasImageSource = mosaic;
+      let curW = cropW, curH = cropH;
+      let sx = cropX, sy = cropY;
+      // Primeiro passo: aplica o crop
+      {
         const tmp = document.createElement("canvas");
-        tmp.width = nextW;
-        tmp.height = nextH;
+        tmp.width = cropW; tmp.height = cropH;
+        const tctx = tmp.getContext("2d")!;
+        tctx.drawImage(mosaic, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+        curSource = tmp;
+      }
+      while (curW * 2 < outW) {
+        const nextW = curW * 2, nextH = curH * 2;
+        const tmp = document.createElement("canvas");
+        tmp.width = nextW; tmp.height = nextH;
         const tctx = tmp.getContext("2d")!;
         tctx.imageSmoothingEnabled = true;
         (tctx as any).imageSmoothingQuality = "high";
         tctx.drawImage(curSource, 0, 0, nextW, nextH);
-        curSource = tmp;
-        curW = nextW;
-        curH = nextH;
+        curSource = tmp; curW = nextW; curH = nextH;
       }
 
-      // Boost automático de qualidade somado aos filtros do usuário
       const finalBrilho = Math.round(brilho * 1.05);
-      const finalContraste = Math.round(contraste * 1.1);
-      const finalSaturacao = Math.round(saturacao * 1.15);
+      const finalContraste = Math.round(contraste * 1.12);
+      const finalSaturacao = Math.round(saturacao * 1.18);
       ctx.filter = `brightness(${finalBrilho}%) contrast(${finalContraste}%) saturate(${finalSaturacao}%)`;
       ctx.drawImage(curSource, 0, 0, outW, outH);
       ctx.filter = "none";
+
+      // Sharpening (unsharp mask simplificado via convolução)
+      try {
+        const imgData = ctx.getImageData(0, 0, outW, outH);
+        const src = imgData.data;
+        const out = new Uint8ClampedArray(src);
+        const w = outW, h = outH;
+        // Kernel sharpen 3x3
+        const k = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            for (let ch = 0; ch < 3; ch++) {
+              let acc = 0, ki = 0;
+              for (let ky = -1; ky <= 1; ky++) {
+                for (let kx = -1; kx <= 1; kx++) {
+                  const idx = ((y + ky) * w + (x + kx)) * 4 + ch;
+                  acc += src[idx] * k[ki++];
+                }
+              }
+              const oi = (y * w + x) * 4 + ch;
+              // mix 60% original + 40% sharpened para evitar artefatos
+              out[oi] = Math.max(0, Math.min(255, src[oi] * 0.6 + acc * 0.4));
+            }
+          }
+        }
+        const sharpData = new ImageData(out, w, h);
+        ctx.putImageData(sharpData, 0, 0);
+      } catch (e) {
+        console.warn("Sharpening pulado:", e);
+      }
 
       // Exportar em altíssima qualidade
       const blob = await new Promise<Blob | null>((resolve) =>
