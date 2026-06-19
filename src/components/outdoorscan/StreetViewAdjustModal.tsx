@@ -66,6 +66,7 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(107);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
+  const [brancos, setBrancos] = useState(82); // < 100 escurece os brancos/highlights
   const QUALIDADE = 10240; // 10K fixo
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
@@ -235,7 +236,7 @@ export function StreetViewAdjustModal({
       const realLng = realPos?.lng?.() ?? point.lng;
       const realPanoId: string | undefined = pano?.getPano?.() || undefined;
 
-      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
+      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}% Br:${brancos}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
       // ============================================================
@@ -484,6 +485,7 @@ export function StreetViewAdjustModal({
         const brightLift = 22;     // brilho profissional sem estourar céu/áreas claras
         const contrastAmt = 0.14;  // contraste extra com S-curve suave
         const shadowGamma = 0.86;  // <1 clareia sombras e tons médios
+        const highlightFactor = brancos / 100;
         for (let i = 0; i < 256; i++) {
           let v = i / 255;
           // gamma para clarear sombras sem queimar luzes
@@ -492,8 +494,8 @@ export function StreetViewAdjustModal({
           v = v + (brightLift / 255) * Math.pow(1 - v, 1.45);
           // s-curve suave (contraste)
           v = v + contrastAmt * (v - 0.5) * (1 - Math.abs(2 * v - 1));
-          // rolloff final para preservar altas luzes naturais
-          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58;
+          // rolloff de highlights: quanto menor o "Brancos", mais comprime os tons claros (céu)
+          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58 * highlightFactor;
           // clamp suave
           if (v < 0) v = 0; else if (v > 1) v = 1;
           lut[i] = Math.round(v * 255);
@@ -726,6 +728,7 @@ export function StreetViewAdjustModal({
                   setBrilho(107);
                   setContraste(136);
                   setSaturacao(151);
+                  setBrancos(82);
                 }}
               >
                 <RefreshCw className="size-3 mr-1" />
@@ -755,6 +758,14 @@ export function StreetViewAdjustModal({
               min={0}
               max={200}
               onChange={setSaturacao}
+              suffix="%"
+            />
+            <SliderRow
+              label="☁️ Brancos"
+              value={brancos}
+              min={50}
+              max={150}
+              onChange={setBrancos}
               suffix="%"
             />
           </div>
