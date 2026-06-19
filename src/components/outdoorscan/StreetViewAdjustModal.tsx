@@ -236,7 +236,7 @@ export function StreetViewAdjustModal({
       const realLng = realPos?.lng?.() ?? point.lng;
       const realPanoId: string | undefined = pano?.getPano?.() || undefined;
 
-      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
+      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}% Br:${brancos}%`);
 
       const { offsetWidth, offsetHeight } = containerRef.current!;
       // ============================================================
