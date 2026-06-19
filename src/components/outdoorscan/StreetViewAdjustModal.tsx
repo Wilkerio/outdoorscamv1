@@ -418,14 +418,16 @@ export function StreetViewAdjustModal({
           const worldHeading = Math.atan2(dx3, dz3);
           const worldPitch = Math.asin(-dy3);
 
-          // Nos tiles nativos do Street View, x=0 corresponde ao norte
-          // (heading 0°) e y=H/2 corresponde ao horizonte (pitch 0°).
-          // originHeading/originPitch são metadados do veículo, não offsets
-          // de coordenada do panorama.
-          let u = worldHeading / TWO_PI;
+          // Nos tiles do Street View, x=0 corresponde à direção
+          // originHeading e y=H/2 ao horizonte deslocado por originPitch.
+          // Por isso convertemos o ângulo do mundo para o sistema de
+          // coordenadas do panorama antes de amostrar.
+          const headingInPano = worldHeading - (originHeadingDeg * Math.PI) / 180;
+          const pitchInPano = worldPitch - (originPitchDeg * Math.PI) / 180;
+          let u = headingInPano / TWO_PI;
           u = u - Math.floor(u);
           let panoX = u * sampler.panoW;
-          let panoY = sampler.panoH / 2 - (worldPitch / Math.PI) * sampler.panoH;
+          let panoY = sampler.panoH / 2 - (pitchInPano / Math.PI) * sampler.panoH;
           if (panoY < 0) panoY = 0;
           else if (panoY > sampler.panoH - 1) panoY = sampler.panoH - 1.0001;
 
