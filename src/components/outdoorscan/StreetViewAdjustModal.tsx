@@ -337,23 +337,25 @@ export function StreetViewAdjustModal({
       ctx.drawImage(curSource, 0, 0, outW, outH);
       ctx.filter = "none";
 
-      // Sharpen leve via convolução manual em uma faixa central para
-      // realçar bordas sem custo absurdo: aplicamos um overlay de
-      // unsharp mask simples redesenhando com diferença.
+      // Sharpen leve via unsharp mask: original*1.4 - blur*0.4
       try {
         const blurCanvas = document.createElement("canvas");
         blurCanvas.width = outW;
         blurCanvas.height = outH;
         const bctx = blurCanvas.getContext("2d")!;
-        bctx.filter = "blur(2px)";
+        bctx.filter = "blur(1.5px)";
         bctx.drawImage(canvas, 0, 0);
-        ctx.globalCompositeOperation = "difference";
-        ctx.globalAlpha = 0.35;
-        ctx.drawImage(blurCanvas, 0, 0);
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = 0;
         ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = 0.25;
+        // overlay invertido cria efeito de nitidez perceptível
+        ctx.filter = "invert(1)";
+        ctx.drawImage(blurCanvas, 0, 0);
+        ctx.filter = "none";
         ctx.globalAlpha = 1;
       } catch {
-        // ignore se o navegador não suportar
+        // ignore
       }
 
       // Exportar em altíssima qualidade
