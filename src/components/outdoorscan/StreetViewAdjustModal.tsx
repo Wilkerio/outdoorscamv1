@@ -242,10 +242,14 @@ export function StreetViewAdjustModal({
       // (Mosaico de tiles foi removido porque causava distorção/duplicação:
       //  tiles em projeção pinhole não podem ser justapostos sem reprojeção.)
       const aspect = offsetWidth / offsetHeight;
-      const BASE = 640;
+      // 640 é o tamanho máximo solicitado, mas com scale=2 a API devolve
+      // 1280x1280 reais (densidade dobrada — pixels nativos, não interpolados).
+      const REQ = 640;
+      const BASE = REQ * 2; // 1280 — resolução nativa retornada
 
       const params = new URLSearchParams({
-        size: `${BASE}x${BASE}`,
+        size: `${REQ}x${REQ}`,
+        scale: "2",
         fov: String(Math.max(10, Math.min(120, Math.round(realFov)))),
         heading: String((((realHeading) % 360) + 360) % 360),
         pitch: String(Math.max(-90, Math.min(90, realPitch))),
