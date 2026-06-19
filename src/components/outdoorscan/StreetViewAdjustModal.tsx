@@ -485,7 +485,12 @@ export function StreetViewAdjustModal({
         const brightLift = 22;     // brilho profissional sem estourar céu/áreas claras
         const contrastAmt = 0.14;  // contraste extra com S-curve suave
         const shadowGamma = 0.86;  // <1 clareia sombras e tons médios
-        const highlightFactor = brancos / 100;
+        const highlightFactor = brancos / 100; // 0.5 = brancos bem escuros, 1.5 = estourados
+        // Teto máximo de brilho: quanto menor o slider, mais escuro o branco máximo permitido
+        // brancos=100 → maxBright=1.0 (sem corte), brancos=82 → 0.91, brancos=50 → 0.78
+        const maxBright = Math.min(1, 0.55 + 0.45 * highlightFactor);
+        // Ponto onde começa a compressão (mais baixo = mais áreas afetadas)
+        const knee = 0.55;
         for (let i = 0; i < 256; i++) {
           let v = i / 255;
           // gamma para clarear sombras sem queimar luzes
@@ -494,8 +499,14 @@ export function StreetViewAdjustModal({
           v = v + (brightLift / 255) * Math.pow(1 - v, 1.45);
           // s-curve suave (contraste)
           v = v + contrastAmt * (v - 0.5) * (1 - Math.abs(2 * v - 1));
-          // rolloff de highlights: quanto menor o "Brancos", mais comprime os tons claros (céu)
-          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58 * highlightFactor;
+          // Rolloff forte de highlights: comprime tudo acima do "knee" até o teto maxBright
+          // Isso garante que o céu/áreas brancas realmente escureçam quando brancos < 100
+          if (v > knee) {
+            const t = (v - knee) / (1 - knee); // 0..1 acima do knee
+            // curva suave (ease-out) para evitar bandas
+            const eased = 1 - Math.pow(1 - t, 1.8);
+            v = knee + (maxBright - knee) * eased;
+          }
           // clamp suave
           if (v < 0) v = 0; else if (v > 1) v = 1;
           lut[i] = Math.round(v * 255);
