@@ -265,7 +265,8 @@ export function StreetViewAdjustModal({
       // 2) Definir saída 4K e baixar somente os tiles necessários, em zoom 5
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
-      const MAX_OUT = 3840;
+      // Saída em resolução máxima (até 5K) para qualidade premium
+      const MAX_OUT = 5120;
       const outW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
       const outH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
 
@@ -379,9 +380,10 @@ export function StreetViewAdjustModal({
         };
       };
 
+      // Tenta o maior zoom disponível primeiro (qualidade máxima)
       let sampler = await buildTileSampler(5);
       if (!sampler.complete) {
-        log("info", `${point.cod} — Zoom 5 incompleto, usando zoom 4 completo como fallback.`);
+        log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
@@ -532,8 +534,8 @@ export function StreetViewAdjustModal({
           }
         }
 
-        const amount = 0.55;     // intensidade da nitidez
-        const threshold = 3;     // ignora ruído sutil
+        const amount = 0.35;     // nitidez sutil para preservar naturalidade
+        const threshold = 4;     // ignora ruído sutil
         const out = new Uint8ClampedArray(toned.length);
         for (let i = 0; i < toned.length; i += 4) {
           for (let c = 0; c < 3; c++) {
@@ -552,8 +554,9 @@ export function StreetViewAdjustModal({
       }
 
       // Exportar otimizado (qualidade alta, mas com tamanho controlado p/ carregamento rápido)
+      // JPEG com qualidade muito alta (0.97) para máxima fidelidade visual
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.97)
       );
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
