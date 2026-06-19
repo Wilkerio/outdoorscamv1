@@ -412,32 +412,16 @@ export function StreetViewAdjustModal({
           // de coordenada do panorama.
           let u = worldHeading / TWO_PI;
           u = u - Math.floor(u);
-          let panoX = u * panoW;
-          let panoY = panoH / 2 - (worldPitch / Math.PI) * panoH;
+          let panoX = u * sampler.panoW;
+          let panoY = sampler.panoH / 2 - (worldPitch / Math.PI) * sampler.panoH;
           if (panoY < 0) panoY = 0;
-          else if (panoY > panoH - 1) panoY = panoH - 1.0001;
+          else if (panoY > sampler.panoH - 1) panoY = sampler.panoH - 1.0001;
 
-          const x0 = Math.floor(panoX);
-          const y0 = Math.floor(panoY);
-          const x1 = (x0 + 1) % panoW;
-          const y1 = y0 + 1;
-          const fx = panoX - x0;
-          const fyy = panoY - y0;
-          const i00 = (y0 * panoW + x0) * 4;
-          const i10 = (y0 * panoW + x1) * 4;
-          const i01 = (y1 * panoW + x0) * 4;
-          const i11 = (y1 * panoW + x1) * 4;
+          const [r, g, b] = sampler.sample(panoX, panoY);
           const oi = (y * outW + x) * 4;
-          // bilinear (R,G,B)
-          const r0 = equiData[i00]     + (equiData[i10]     - equiData[i00])     * fx;
-          const r1 = equiData[i01]     + (equiData[i11]     - equiData[i01])     * fx;
-          const g0 = equiData[i00 + 1] + (equiData[i10 + 1] - equiData[i00 + 1]) * fx;
-          const g1 = equiData[i01 + 1] + (equiData[i11 + 1] - equiData[i01 + 1]) * fx;
-          const b0 = equiData[i00 + 2] + (equiData[i10 + 2] - equiData[i00 + 2]) * fx;
-          const b1 = equiData[i01 + 2] + (equiData[i11 + 2] - equiData[i01 + 2]) * fx;
-          outData[oi]     = r0 + (r1 - r0) * fyy;
-          outData[oi + 1] = g0 + (g1 - g0) * fyy;
-          outData[oi + 2] = b0 + (b1 - b0) * fyy;
+          outData[oi] = r;
+          outData[oi + 1] = g;
+          outData[oi + 2] = b;
           outData[oi + 3] = 255;
         }
       }
