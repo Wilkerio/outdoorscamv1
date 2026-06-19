@@ -728,6 +728,7 @@ export function StreetViewAdjustModal({
                   setBrilho(107);
                   setContraste(136);
                   setSaturacao(151);
+                  setBrancos(82);
                 }}
               >
                 <RefreshCw className="size-3 mr-1" />
