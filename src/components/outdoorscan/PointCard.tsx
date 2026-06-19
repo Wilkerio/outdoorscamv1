@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
-import { Map, Camera, Link as LinkIcon, Trash2 } from "lucide-react";
+import { Map, Camera, Link as LinkIcon, Trash2, Pencil } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { StreetViewAdjustModal } from "./StreetViewAdjustModal";
 import { toast } from "sonner";
  import { useSession } from "@/context/SessionContext";
@@ -27,7 +36,56 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
-   const { points, toggleExcluido } = useSession();
+   const { points, toggleExcluido, editarPonto } = useSession();
+   const [editOpen, setEditOpen] = useState(false);
+   const [form, setForm] = useState({
+     cod: point.cod ?? "",
+     endereco: point.endereco ?? "",
+     bairro: point.bairro ?? "",
+     cidade: point.cidade ?? "",
+     lat: String(point.lat ?? ""),
+     lng: String(point.lng ?? ""),
+     formato: point.formato ?? "",
+     empresa: point.empresa ?? "",
+   });
+   useEffect(() => {
+     if (editOpen) {
+       setForm({
+         cod: point.cod ?? "",
+         endereco: point.endereco ?? "",
+         bairro: point.bairro ?? "",
+         cidade: point.cidade ?? "",
+         lat: String(point.lat ?? ""),
+         lng: String(point.lng ?? ""),
+         formato: point.formato ?? "",
+         empresa: point.empresa ?? "",
+       });
+     }
+   }, [editOpen, point]);
+   const handleSaveEdit = () => {
+     const lat = parseFloat(String(form.lat).replace(",", "."));
+     const lng = parseFloat(String(form.lng).replace(",", "."));
+     if (form.lat && !Number.isFinite(lat)) {
+       toast.error("Latitude inválida.");
+       return;
+     }
+     if (form.lng && !Number.isFinite(lng)) {
+       toast.error("Longitude inválida.");
+       return;
+     }
+     editarPonto(point.id, {
+       cod: form.cod,
+       endereco: form.endereco,
+       bairro: form.bairro,
+       cidade: form.cidade,
+       lat,
+       lng,
+       formato: form.formato,
+       empresa: form.empresa,
+     });
+     toast.success("Ponto atualizado.");
+     setEditOpen(false);
+   };
   const [modalPointId, setModalPointId] = useState<string>(point.id);
   const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
@@ -116,7 +174,7 @@ export function PointCard({ point }: { point: Point }) {
             toggleExcluido(point.id);
             toast.success(point.excluido ? "Ponto restaurado." : "Ponto excluído da exportação.");
           }}
-          className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors ${
+          className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors z-20 ${
             point.excluido
               ? "bg-success/80 text-white hover:bg-success"
               : "bg-black/50 text-white hover:bg-destructive"
@@ -124,6 +182,13 @@ export function PointCard({ point }: { point: Point }) {
           title={point.excluido ? "Restaurar ponto" : "Excluir ponto da exportação"}
         >
           <Trash2 className="size-3.5" />
+        </button>
+        <button
+          onClick={() => setEditOpen(true)}
+          className="absolute top-2 right-10 p-1.5 rounded-md bg-black/50 text-white hover:bg-primary transition-colors z-20"
+          title="Editar dados do ponto"
+        >
+          <Pencil className="size-3.5" />
         </button>
       </div>
 
@@ -206,6 +271,65 @@ export function PointCard({ point }: { point: Point }) {
         onNext={modalIndex >= 0 && modalIndex < points.length - 1 ? goNext : undefined}
         position={modalIndex >= 0 ? { current: modalIndex + 1, total: points.length } : undefined}
       />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar ponto</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Código</Label>
+              <Input value={form.cod} onChange={(e) => setForm({ ...form, cod: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Formato</Label>
+              <Input value={form.formato} onChange={(e) => setForm({ ...form, formato: e.target.value })} />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label className="text-xs">Endereço</Label>
+              <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Bairro</Label>
+              <Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cidade</Label>
+              <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Latitude</Label>
+              <Input
+                value={form.lat}
+                onChange={(e) => setForm({ ...form, lat: e.target.value })}
+                placeholder="-25.4284"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Longitude</Label>
+              <Input
+                value={form.lng}
+                onChange={(e) => setForm({ ...form, lng: e.target.value })}
+                placeholder="-49.2733"
+              />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label className="text-xs">Empresa</Label>
+              <Input value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} />
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Alterar latitude/longitude irá atualizar o Street View e o ponto voltará para "AGUARDANDO".
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
