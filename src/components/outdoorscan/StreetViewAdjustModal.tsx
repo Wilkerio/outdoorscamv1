@@ -441,46 +441,108 @@ export function StreetViewAdjustModal({
       (ctx as any).imageSmoothingQuality = "high";
       const curSource: CanvasImageSource = persp;
 
-      const finalBrilho = Math.round(brilho * 1.05);
-      const finalContraste = Math.round(contraste * 1.12);
-      const finalSaturacao = Math.round(saturacao * 1.18);
-      ctx.filter = `brightness(${finalBrilho}%) contrast(${finalContraste}%) saturate(${finalSaturacao}%)`;
+      // Render base (preserva ajustes manuais do usuário, sem multiplicar)
+      ctx.filter = `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`;
       ctx.drawImage(curSource, 0, 0, outW, outH);
       ctx.filter = "none";
 
-      // Sharpening (unsharp mask simplificado via convolução)
+      // ===== Tratamento automático de qualidade (aplicado a TODA imagem salva) =====
+      // 1) Curva de brilho/contraste preservando highlights (evita estouro)
+      // 2) Saturação sutil
+      // 3) Unsharp mask para nitidez natural (ruas, placas, calçadas)
       try {
         const imgData = ctx.getImageData(0, 0, outW, outH);
         const src = imgData.data;
-        const out = new Uint8ClampedArray(src);
         const w = outW, h = outH;
-        // Kernel sharpen 3x3
-        const k = [0, -1, 0, -1, 5, -1, 0, -1, 0];
-        for (let y = 1; y < h - 1; y++) {
-          for (let x = 1; x < w - 1; x++) {
-            for (let ch = 0; ch < 3; ch++) {
-              let acc = 0, ki = 0;
-              for (let ky = -1; ky <= 1; ky++) {
-                for (let kx = -1; kx <= 1; kx++) {
-                  const idx = ((y + ky) * w + (x + kx)) * 4 + ch;
-                  acc += src[idx] * k[ki++];
-                }
-              }
-              const oi = (y * w + x) * 4 + ch;
-              // mix 60% original + 40% sharpened para evitar artefatos
-              out[oi] = Math.max(0, Math.min(255, src[oi] * 0.6 + acc * 0.4));
+
+        // --- LUT tonal: leve lift de sombras/mid-tones + proteção de highlights ---
+        const lut = new Uint8ClampedArray(256);
+        const brightLift = 8;      // brilho suave (0-255)
+        const contrastAmt = 0.10;  // ~10% de contraste extra (S-curve)
+        const shadowGamma = 0.94;  // <1 clareia sombras
+        for (let i = 0; i < 256; i++) {
+          let v = i / 255;
+          // gamma para clarear sombras sem queimar luzes
+          v = Math.pow(v, shadowGamma);
+          // brilho aditivo decaindo nos highlights (rolloff)
+          v = v + (brightLift / 255) * (1 - v);
+          // s-curve suave (contraste)
+          v = v + contrastAmt * (v - 0.5) * (1 - Math.abs(2 * v - 1));
+          // clamp suave
+          if (v < 0) v = 0; else if (v > 1) v = 1;
+          lut[i] = Math.round(v * 255);
+        }
+
+        // --- Saturação leve em espaço HSL aproximado (boost cromático) ---
+        const satBoost = 1.08;
+        const toned = new Uint8ClampedArray(src.length);
+        for (let i = 0; i < src.length; i += 4) {
+          let r = lut[src[i]];
+          let g = lut[src[i + 1]];
+          let b = lut[src[i + 2]];
+          // luminância perceptual
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          r = lum + (r - lum) * satBoost;
+          g = lum + (g - lum) * satBoost;
+          b = lum + (b - lum) * satBoost;
+          toned[i] = r < 0 ? 0 : r > 255 ? 255 : r;
+          toned[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+          toned[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+          toned[i + 3] = src[i + 3];
+        }
+
+        // --- Unsharp mask: blur 3x3 -> high-pass -> soma com amount ---
+        // Mais natural que o kernel sharpen direto.
+        const blurred = new Uint8ClampedArray(toned.length);
+        // box blur 3x3 separável simples
+        const tmp = new Uint8ClampedArray(toned.length);
+        // horizontal
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const oi = (y * w + x) * 4;
+            for (let c = 0; c < 3; c++) {
+              const a = toned[(y * w + Math.max(0, x - 1)) * 4 + c];
+              const b2 = toned[(y * w + x) * 4 + c];
+              const cc = toned[(y * w + Math.min(w - 1, x + 1)) * 4 + c];
+              tmp[oi + c] = (a + b2 + cc) / 3;
             }
           }
         }
-        const sharpData = new ImageData(out, w, h);
-        ctx.putImageData(sharpData, 0, 0);
+        // vertical
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const oi = (y * w + x) * 4;
+            for (let c = 0; c < 3; c++) {
+              const a = tmp[(Math.max(0, y - 1) * w + x) * 4 + c];
+              const b2 = tmp[(y * w + x) * 4 + c];
+              const cc = tmp[(Math.min(h - 1, y + 1) * w + x) * 4 + c];
+              blurred[oi + c] = (a + b2 + cc) / 3;
+            }
+          }
+        }
+
+        const amount = 0.55;     // intensidade da nitidez
+        const threshold = 3;     // ignora ruído sutil
+        const out = new Uint8ClampedArray(toned.length);
+        for (let i = 0; i < toned.length; i += 4) {
+          for (let c = 0; c < 3; c++) {
+            const orig = toned[i + c];
+            const blur = blurred[i + c];
+            const diff = orig - blur;
+            const v = Math.abs(diff) > threshold ? orig + diff * amount : orig;
+            out[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+          }
+          out[i + 3] = toned[i + 3];
+        }
+
+        ctx.putImageData(new ImageData(out, w, h), 0, 0);
       } catch (e) {
-        console.warn("Sharpening pulado:", e);
+        console.warn("Tratamento automático pulado:", e);
       }
 
-      // Exportar em altíssima qualidade
+      // Exportar otimizado (qualidade alta, mas com tamanho controlado p/ carregamento rápido)
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.98)
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
       );
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
