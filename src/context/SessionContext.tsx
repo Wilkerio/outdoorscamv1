@@ -25,6 +25,7 @@ const STORAGE_KEY = "outdoorscan:session:v1";
    setAdjustedPhoto: (id: string, adj: PhotoAdjustment) => void;
     salvarProgresso: () => void;
     toggleExcluido: (id: string) => void;
+    editarPonto: (id: string, patch: Partial<Point>) => void;
     ultimoSalvamento: number | null;
     stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
@@ -122,6 +123,42 @@ const Ctx = createContext<SessionState | null>(null);
 
   const toggleExcluido = useCallback((id: string) => {
     setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, excluido: !p.excluido } : p)));
+  }, []);
+
+  const editarPonto = useCallback((id: string, patch: Partial<Point>) => {
+    setPointsState((arr) =>
+      arr.map((p) => {
+        if (p.id !== id) return p;
+        const next: Point = { ...p, ...patch };
+        // Sincronizar originalData (usado na exportação Excel)
+        const od = { ...(p.originalData ?? {}) };
+        if (patch.cod !== undefined) od["Cod."] = patch.cod;
+        if (patch.endereco !== undefined) od["Endereço"] = patch.endereco;
+        if (patch.bairro !== undefined) od["Bairro"] = patch.bairro;
+        if (patch.cidade !== undefined) {
+          od["Cidade"] = patch.cidade;
+          if ("Cidade " in od) od["Cidade "] = patch.cidade;
+        }
+        if (patch.lat !== undefined) od["Latitude"] = patch.lat;
+        if (patch.lng !== undefined) od["Longitude"] = patch.lng;
+        if (patch.formato !== undefined) od["Formato"] = patch.formato;
+        if (patch.empresa !== undefined) od["Empresa"] = patch.empresa;
+        next.originalData = od;
+        // Se coordenadas mudaram, invalidar foto salva para regenerar Street View
+        const latChanged = patch.lat !== undefined && patch.lat !== p.lat;
+        const lngChanged = patch.lng !== undefined && patch.lng !== p.lng;
+        if (latChanged || lngChanged) {
+          next.foto_url = undefined;
+          next.fotoSalva = false;
+          next.adjustedPhoto = undefined;
+          next.headingSalvo = undefined;
+          next.pitchSalvo = undefined;
+          next.fovSalvo = undefined;
+          next.status = "AGUARDANDO";
+        }
+        return next;
+      }),
+    );
   }, []);
 
    const setPoints = useCallback((p: Point[], name?: string, cols?: string[]) => {
@@ -528,6 +565,7 @@ const Ctx = createContext<SessionState | null>(null);
         exportarExcel,
         salvarProgresso,
         toggleExcluido,
+        editarPonto,
         ultimoSalvamento,
         stats: { sucesso, erro, semCobertura, total },
       }}
