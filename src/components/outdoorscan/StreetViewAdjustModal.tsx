@@ -257,7 +257,10 @@ export function StreetViewAdjustModal({
       });
       const tileSize = Number(meta?.tiles?.tileSize?.width ?? 512);
       const originHeadingDeg = Number(meta?.tiles?.originHeading ?? 0) || 0;
-      const originPitchDeg = Number(meta?.tiles?.originPitch ?? 0) || 0;
+      // O preview do Google já entrega o pitch em coordenada visual real.
+      // Aplicar originPitch aqui desloca a captura verticalmente, fazendo a foto
+      // salva sair mais para cima/baixo do que a área ajustada pelo usuário.
+      const originPitchDeg = 0;
 
       // 2) Definir saída 4K e baixar somente os tiles necessários, em zoom 5
       // quando disponível. Zoom 5 tem o dobro da resolução do zoom 4 anterior,
