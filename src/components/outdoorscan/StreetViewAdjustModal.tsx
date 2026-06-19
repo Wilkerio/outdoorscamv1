@@ -485,6 +485,7 @@ export function StreetViewAdjustModal({
         const brightLift = 22;     // brilho profissional sem estourar céu/áreas claras
         const contrastAmt = 0.14;  // contraste extra com S-curve suave
         const shadowGamma = 0.86;  // <1 clareia sombras e tons médios
+        const highlightFactor = brancos / 100;
         for (let i = 0; i < 256; i++) {
           let v = i / 255;
           // gamma para clarear sombras sem queimar luzes
@@ -493,8 +494,8 @@ export function StreetViewAdjustModal({
           v = v + (brightLift / 255) * Math.pow(1 - v, 1.45);
           // s-curve suave (contraste)
           v = v + contrastAmt * (v - 0.5) * (1 - Math.abs(2 * v - 1));
-          // rolloff final para preservar altas luzes naturais
-          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58;
+          // rolloff de highlights: quanto menor o "Brancos", mais comprime os tons claros (céu)
+          if (v > 0.86) v = 0.86 + (v - 0.86) * 0.58 * highlightFactor;
           // clamp suave
           if (v < 0) v = 0; else if (v > 1) v = 1;
           lut[i] = Math.round(v * 255);
