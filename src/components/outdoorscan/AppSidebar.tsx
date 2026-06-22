@@ -1,5 +1,5 @@
   import { Link, useLocation } from "react-router-dom";
-  import { Radar, ListChecks } from "lucide-react";
+  import { Radar, ListChecks, BookOpen } from "lucide-react";
 import { useSession } from "@/context/SessionContext";
  import { useState } from "react";
  import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export function AppSidebar() {
 
   const items = [
     { to: "/", label: "Processamento", icon: ListChecks },
+    { to: "/converter-books", label: "Converter Books", icon: BookOpen },
   ];
 
   return (
