@@ -100,8 +100,8 @@ function rewriteSetCookie(cookie: string, proxyPath: string) {
 Deno.serve(async (req) => {
   try {
     const requestUrl = new URL(req.url);
-    const proxyBase = `${requestUrl.origin}${requestUrl.pathname}`;
-    const proxyPath = requestUrl.pathname || "/";
+    const proxyBase = `https://${requestUrl.host}/functions/v1/converter-books-proxy`;
+    const proxyPath = new URL(proxyBase).pathname;
     const targetUrl = targetUrlFromRequest(requestUrl);
 
     const requestHeaders = new Headers(req.headers);
