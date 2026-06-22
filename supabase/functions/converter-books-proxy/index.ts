@@ -77,6 +77,23 @@ function rewriteBody(text: string, proxyBase: string, contentType: string) {
       /(?:window\.)?location\.assign\((['"`])([^'"`]+)\1\)/g,
       (_match, _quote, value) => `window.parent.postMessage({type:"converter-books:navigate",url:${JSON.stringify(value)}}, "*")`,
     );
+
+    if (contentType.includes("html") || contentType.includes("text/plain")) {
+      rewritten = rewritten.replace(
+        "</body>",
+        `<script>
+document.addEventListener('submit', function(event) {
+  var form = event.target;
+  if (!form || form.tagName !== 'FORM') return;
+  event.preventDefault();
+  var data = new FormData(form);
+  var params = new URLSearchParams();
+  data.forEach(function(value, key) { params.append(key, value); });
+  window.parent.postMessage({ type: 'converter-books:submit', url: form.getAttribute('action') || location.href, method: form.getAttribute('method') || 'GET', body: params.toString() }, '*');
+});
+</script></body>`,
+      );
+    }
   }
 
   return rewritten;
