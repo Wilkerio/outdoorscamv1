@@ -12,7 +12,9 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
   "x-frame-options",
+  "x-content-type-options",
   "content-security-policy",
+  "content-type",
 ]);
 
 function targetUrlFromRequest(requestUrl: URL) {
@@ -139,7 +141,9 @@ Deno.serve(async (req) => {
       || contentType.includes("text/css")
       || contentType.includes("javascript")
     ) {
-      responseHeaders.set("content-type", isHtmlPage ? "text/html; charset=utf-8" : contentType);
+      responseHeaders.set("Content-Type", isHtmlPage ? "text/html; charset=utf-8" : contentType);
+      responseHeaders.set("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-ancestors *");
+      responseHeaders.set("X-Converter-Books-Proxy", "text-rewritten");
       const text = await targetResponse.text();
       return new Response(rewriteBody(text, proxyBase, contentType), {
         status: targetResponse.status,
