@@ -144,11 +144,16 @@ Deno.serve(async (req) => {
       responseHeaders.set("Content-Type", isHtmlPage ? "text/html; charset=utf-8" : contentType);
       responseHeaders.set("Content-Security-Policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-ancestors *");
       responseHeaders.set("X-Converter-Books-Proxy", "text-rewritten");
+      responseHeaders.set("access-control-allow-origin", "*");
       const text = await targetResponse.text();
-      return new Response(rewriteBody(text, proxyBase, contentType), {
+      const response = new Response(rewriteBody(text, proxyBase, contentType), {
         status: targetResponse.status,
         headers: responseHeaders,
       });
+      response.headers.set("content-type", isHtmlPage ? "text/html; charset=utf-8" : contentType);
+      response.headers.set("content-security-policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-ancestors *");
+      response.headers.delete("x-content-type-options");
+      return response;
     }
 
     return new Response(targetResponse.body, {
