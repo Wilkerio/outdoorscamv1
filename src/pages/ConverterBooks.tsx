@@ -25,14 +25,18 @@ export default function ConverterBooks() {
     }
   }, []);
 
-  const loadPath = useCallback(async (path: string) => {
+  const loadPath = useCallback(async (path: string, requestInit?: RequestInit) => {
     const cookieHeader = Object.entries(cookieJarRef.current)
       .map(([name, value]) => `${name}=${value}`)
       .join("; ");
 
     const response = await fetch(`${proxyBase}?path=${encodeURIComponent(path)}`, {
       redirect: "manual",
-      headers: cookieHeader ? { "x-proxy-cookie": cookieHeader } : undefined,
+      ...requestInit,
+      headers: {
+        ...(requestInit?.headers || {}),
+        ...(cookieHeader ? { "x-proxy-cookie": cookieHeader } : {}),
+      },
     });
 
     updateCookies(response.headers.get("x-proxy-cookies"));
@@ -53,10 +57,21 @@ export default function ConverterBooks() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type !== "converter-books:navigate") return;
+      if (event.data?.type !== "converter-books:navigate" && event.data?.type !== "converter-books:submit") return;
       const target = String(event.data.url || "/login");
       const nextUrl = new URL(target, proxyBase);
-      loadPath(nextUrl.searchParams.get("path") || target);
+      const nextPath = nextUrl.searchParams.get("path") || target;
+
+      if (event.data.type === "converter-books:submit") {
+        loadPath(nextPath, {
+          method: String(event.data.method || "POST").toUpperCase(),
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: String(event.data.body || ""),
+        });
+        return;
+      }
+
+      loadPath(nextPath);
     };
 
     window.addEventListener("message", handleMessage);
