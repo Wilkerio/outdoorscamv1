@@ -1,1 +1,4 @@
 project_id = "xjyiyhjdzttlrvazxtgw"
+
+[functions.converter-books-proxy]
+verify_jwt = false
