@@ -26,7 +26,6 @@ export default function ConverterBooks() {
         title="Converter Books"
         className="flex-1 w-full border-0"
         allow="clipboard-read; clipboard-write; downloads; fullscreen"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-top-navigation-by-user-activation allow-storage-access-by-user-activation"
         referrerPolicy="no-referrer-when-downgrade"
       />
     </div>
