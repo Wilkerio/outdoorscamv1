@@ -132,12 +132,14 @@ Deno.serve(async (req) => {
     }
 
     const contentType = targetResponse.headers.get("content-type") || "";
+    const isHtmlPage = contentType.includes("text/html")
+      || (!/\.[a-z0-9]+$/i.test(targetUrl.pathname) && contentType.includes("text/plain"));
     if (
-      contentType.includes("text/html")
+      isHtmlPage
       || contentType.includes("text/css")
       || contentType.includes("javascript")
     ) {
-      responseHeaders.set("content-type", contentType);
+      responseHeaders.set("content-type", isHtmlPage ? "text/html; charset=utf-8" : contentType);
       const text = await targetResponse.text();
       return new Response(rewriteBody(text, proxyBase, contentType), {
         status: targetResponse.status,
