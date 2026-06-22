@@ -151,12 +151,19 @@ Deno.serve(async (req) => {
       if (value) headers.set(key, value);
     }
 
-    const location = targetResponse.headers.get("location");
-    if (location) headers.set("location", proxyUrlFor(location, proxyBase));
-
     const cookies = targetResponse.headers.getSetCookie?.() ?? [];
     for (const cookie of cookies) headers.append("set-cookie", rewriteSetCookie(cookie, proxyPath));
     if (cookies.length) headers.set("x-proxy-cookies", encodeURIComponent(JSON.stringify(cookies)));
+
+    const location = targetResponse.headers.get("location");
+    if (location && targetResponse.status >= 300 && targetResponse.status < 400) {
+      headers.set("content-type", "text/html; charset=utf-8");
+      const nextUrl = proxyUrlFor(location, proxyBase);
+      return new Response(
+        `<script>window.parent.postMessage({type:"converter-books:navigate",url:${JSON.stringify(nextUrl)}}, "*")</script>`,
+        { status: 200, headers },
+      );
+    }
 
     if (shouldRewrite) {
       const responseContentType = isHtmlPage ? "text/html; charset=utf-8" : targetContentType;
