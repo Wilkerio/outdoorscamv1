@@ -3,7 +3,8 @@ const TARGET_ORIGIN = "https://msouza-d3df08965b08.herokuapp.com";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-proxy-cookie",
+  "Access-Control-Expose-Headers": "content-disposition, content-type, location, x-converter-books-proxy, x-proxy-cookies",
 };
 
 const allowedResponseHeaders = [
@@ -68,6 +69,14 @@ function rewriteBody(text: string, proxyBase: string, contentType: string) {
       /(["'`])(https:\/\/msouza-d3df08965b08\.herokuapp\.com[^"'`]*)\1/g,
       (_match, quote, value) => `${quote}${proxyUrlFor(value, proxyBase)}${quote}`,
     );
+    rewritten = rewritten.replace(
+      /(?:window\.)?location\.href\s*=\s*(["'`])([^"'`]+)\1/g,
+      (_match, _quote, value) => `window.parent.postMessage({type:"converter-books:navigate",url:${JSON.stringify(value)}}, "*")`,
+    );
+    rewritten = rewritten.replace(
+      /(?:window\.)?location\.assign\((['"`])([^'"`]+)\1\)/g,
+      (_match, _quote, value) => `window.parent.postMessage({type:"converter-books:navigate",url:${JSON.stringify(value)}}, "*")`,
+    );
   }
 
   return rewritten;
@@ -102,7 +111,10 @@ Deno.serve(async (req) => {
     const requestHeaders = new Headers(req.headers);
     requestHeaders.delete("host");
     requestHeaders.delete("origin");
+    requestHeaders.delete("cookie");
     requestHeaders.set("referer", TARGET_ORIGIN);
+    const proxyCookie = req.headers.get("x-proxy-cookie");
+    if (proxyCookie) requestHeaders.set("cookie", proxyCookie);
 
     const targetResponse = await fetch(targetUrl, {
       method: req.method,
@@ -127,6 +139,7 @@ Deno.serve(async (req) => {
 
     const cookies = targetResponse.headers.getSetCookie?.() ?? [];
     for (const cookie of cookies) headers.append("set-cookie", rewriteSetCookie(cookie, proxyPath));
+    if (cookies.length) headers.set("x-proxy-cookies", encodeURIComponent(JSON.stringify(cookies)));
 
     if (shouldRewrite) {
       const responseContentType = isHtmlPage ? "text/html; charset=utf-8" : targetContentType;
