@@ -148,7 +148,13 @@ Deno.serve(async (req) => {
     requestHeaders.delete("host");
     requestHeaders.delete("origin");
     requestHeaders.delete("cookie");
+    requestHeaders.delete("content-length");
+    requestHeaders.delete("accept-encoding");
+    requestHeaders.delete("connection");
     requestHeaders.set("referer", TARGET_ORIGIN);
+    requestHeaders.set("origin", TARGET_ORIGIN);
+    requestHeaders.set("accept", req.headers.get("accept") || "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+    requestHeaders.set("user-agent", req.headers.get("user-agent") || "Mozilla/5.0");
     const proxyCookie = req.headers.get("x-proxy-cookie");
     if (proxyCookie) requestHeaders.set("cookie", proxyCookie);
 
@@ -190,6 +196,12 @@ Deno.serve(async (req) => {
       headers.set("content-security-policy", "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-ancestors *");
       headers.set("x-converter-books-proxy", "text-rewritten");
       const text = await targetResponse.text();
+      if (targetResponse.status >= 500) {
+        return new Response(rewriteBody(text, proxyBase, targetContentType), {
+          status: 200,
+          headers,
+        });
+      }
       return new Response(rewriteBody(text, proxyBase, targetContentType), {
         status: targetResponse.status,
         headers,
