@@ -247,7 +247,7 @@ export function StreetViewAdjustModal({
   const save = async () => {
     try {
       setSaving(true);
-      setSaveProgress(5);
+      updateProgress(5);
       const pano = panoramaRef.current;
       const pov = pano?.getPov();
       const zoom = pano?.getZoom() ?? fovToZoom(fov);
@@ -275,7 +275,7 @@ export function StreetViewAdjustModal({
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
       log("info", `${point.cod} — Baixando panorama nativo...`);
-      setSaveProgress(15);
+      updateProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
         svService.getPanorama({ pano: realPanoId }, (data: any, status: any) => {
@@ -410,11 +410,11 @@ export function StreetViewAdjustModal({
 
       // Tenta o maior zoom disponível primeiro (qualidade máxima)
       let sampler = await buildTileSampler(5);
-      setSaveProgress(45);
+      updateProgress(45);
       if (!sampler.complete) {
         log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
-        setSaveProgress(50);
+        updateProgress(50);
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
@@ -485,7 +485,7 @@ export function StreetViewAdjustModal({
         }
       }
       perspCtx.putImageData(outImg, 0, 0);
-      setSaveProgress(70);
+      updateProgress(70);
 
       // 4) Canvas final com filtros aplicados
       const canvas = document.createElement("canvas");
@@ -594,7 +594,7 @@ export function StreetViewAdjustModal({
         console.warn("Tratamento automático pulado:", e);
       }
 
-      setSaveProgress(85);
+      updateProgress(85);
       // Exportar como JPEG de alta qualidade — arquivo ~10x menor que PNG,
       // upload muito mais rápido e sem perda visível de qualidade.
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -603,7 +603,7 @@ export function StreetViewAdjustModal({
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
 
-      setSaveProgress(92);
+      updateProgress(92);
       // Upload para Supabase
       const fileName = `${point.cod}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
@@ -613,7 +613,7 @@ export function StreetViewAdjustModal({
       });
 
       if (uploadError) throw uploadError;
-      setSaveProgress(100);
+      updateProgress(100);
 
       const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
@@ -632,7 +632,7 @@ export function StreetViewAdjustModal({
       log("error", `❌ Erro ao salvar foto: ${err.message}`);
     } finally {
       setSaving(false);
-      setSaveProgress(0);
+      updateProgress(0);
     }
   };
 
