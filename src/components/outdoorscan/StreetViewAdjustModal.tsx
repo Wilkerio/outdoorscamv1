@@ -626,13 +626,28 @@ export function StreetViewAdjustModal({
       });
 
       log("success", `✅ ${point.cod} — Foto salva com filtros aplicados!`);
-      onOpenChange(false);
+      if (minimizedRef.current && toastIdRef.current != null) {
+        toast.success(`✅ Foto do item ${codRef.current} salva!`, {
+          id: toastIdRef.current,
+          duration: 4000,
+        });
+      } else {
+        onOpenChange(false);
+      }
     } catch (err: any) {
       console.error(err);
       log("error", `❌ Erro ao salvar foto: ${err.message}`);
+      if (minimizedRef.current && toastIdRef.current != null) {
+        toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
+          id: toastIdRef.current,
+          duration: 6000,
+        });
+      }
     } finally {
       setSaving(false);
       updateProgress(0);
+      minimizedRef.current = false;
+      toastIdRef.current = null;
     }
   };
 
@@ -657,6 +672,14 @@ export function StreetViewAdjustModal({
               <div className="mt-2 text-xs text-muted-foreground text-right tabular-nums">
                 {saveProgress}%
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-4"
+                onClick={handleMinimize}
+              >
+                Deixar em segundo plano
+              </Button>
             </div>
           </div>
         )}
