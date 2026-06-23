@@ -7,6 +7,7 @@ import type { Point } from "@/lib/outdoorscan/types";
 import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function loadGoogleMapsApi(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -59,6 +60,29 @@ export function StreetViewAdjustModal({
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+  const minimizedRef = useRef(false);
+  const toastIdRef = useRef<string | number | null>(null);
+  const codRef = useRef(point.cod);
+  useEffect(() => { codRef.current = point.cod; }, [point.cod]);
+
+  const updateProgress = (pct: number) => {
+    setSaveProgress(pct);
+    if (minimizedRef.current && toastIdRef.current != null) {
+      toast.loading(`Salvando foto do item ${codRef.current}... ${pct}%`, {
+        id: toastIdRef.current,
+        duration: Infinity,
+      });
+    }
+  };
+
+  const handleMinimize = () => {
+    minimizedRef.current = true;
+    toastIdRef.current = toast.loading(
+      `Salvando foto do item ${codRef.current}... ${saveProgress}%`,
+      { duration: Infinity }
+    );
+    onOpenChange(false);
+  };
   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
