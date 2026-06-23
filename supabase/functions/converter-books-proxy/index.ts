@@ -82,15 +82,34 @@ function rewriteBody(text: string, proxyBase: string, contentType: string) {
       rewritten = rewritten.replace(
         "</body>",
         `<script>
-document.addEventListener('submit', function(event) {
-  var form = event.target;
-  if (!form || form.tagName !== 'FORM') return;
-  event.preventDefault();
-  var data = new FormData(form);
-  var params = new URLSearchParams();
-  data.forEach(function(value, key) { params.append(key, value); });
-  window.parent.postMessage({ type: 'converter-books:submit', url: form.getAttribute('action') || location.href, method: form.getAttribute('method') || 'GET', body: params.toString() }, '*');
-});
+(function() {
+  function sendForm(form) {
+    if (!form || form.tagName !== 'FORM') return;
+    var data = new FormData(form);
+    var submitter = document.activeElement;
+    if (submitter && submitter.name && (submitter.tagName === 'BUTTON' || submitter.tagName === 'INPUT')) {
+      data.append(submitter.name, submitter.value || '');
+    }
+    var params = new URLSearchParams();
+    data.forEach(function(value, key) { params.append(key, value); });
+    window.parent.postMessage({ type: 'converter-books:submit', url: form.getAttribute('action') || location.href, method: form.getAttribute('method') || 'GET', body: params.toString() }, '*');
+  }
+
+  document.addEventListener('submit', function(event) {
+    var form = event.target;
+    if (!form || form.tagName !== 'FORM') return;
+    event.preventDefault();
+    sendForm(form);
+  }, true);
+
+  HTMLFormElement.prototype.submit = function() {
+    sendForm(this);
+  };
+
+  HTMLFormElement.prototype.requestSubmit = function() {
+    sendForm(this);
+  };
+})();
 </script></body>`,
       );
     }
