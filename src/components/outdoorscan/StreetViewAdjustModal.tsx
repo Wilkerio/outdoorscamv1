@@ -564,18 +564,20 @@ export function StreetViewAdjustModal({
         console.warn("Tratamento automático pulado:", e);
       }
 
-      // Exportar sem recompressão JPEG para não criar aparência embaçada.
+      // Exportar como JPEG de alta qualidade — arquivo ~10x menor que PNG,
+      // upload muito mais rápido e sem perda visível de qualidade.
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), "image/png")
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
       );
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
 
       // Upload para Supabase
-      const fileName = `${point.cod}_${Date.now()}.png`;
+      const fileName = `${point.cod}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
-        contentType: "image/png",
+        contentType: "image/jpeg",
         upsert: true,
+        cacheControl: "3600",
       });
 
       if (uploadError) throw uploadError;
