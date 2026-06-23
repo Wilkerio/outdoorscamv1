@@ -58,12 +58,13 @@ export function StreetViewAdjustModal({
 }) {
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
 
   // Filtros de imagem
-  const [brilho, setBrilho] = useState(107);
+  const [brilho, setBrilho] = useState(90);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
   const QUALIDADE = 10240; // 10K fixo
@@ -222,6 +223,7 @@ export function StreetViewAdjustModal({
   const save = async () => {
     try {
       setSaving(true);
+      setSaveProgress(5);
       const pano = panoramaRef.current;
       const pov = pano?.getPov();
       const zoom = pano?.getZoom() ?? fovToZoom(fov);
@@ -249,6 +251,7 @@ export function StreetViewAdjustModal({
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
       log("info", `${point.cod} — Baixando panorama nativo...`);
+      setSaveProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
         svService.getPanorama({ pano: realPanoId }, (data: any, status: any) => {
@@ -383,9 +386,11 @@ export function StreetViewAdjustModal({
 
       // Tenta o maior zoom disponível primeiro (qualidade máxima)
       let sampler = await buildTileSampler(5);
+      setSaveProgress(45);
       if (!sampler.complete) {
         log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
+        setSaveProgress(50);
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
@@ -456,6 +461,7 @@ export function StreetViewAdjustModal({
         }
       }
       perspCtx.putImageData(outImg, 0, 0);
+      setSaveProgress(70);
 
       // 4) Canvas final com filtros aplicados
       const canvas = document.createElement("canvas");
@@ -564,6 +570,7 @@ export function StreetViewAdjustModal({
         console.warn("Tratamento automático pulado:", e);
       }
 
+      setSaveProgress(85);
       // Exportar como JPEG de alta qualidade — arquivo ~10x menor que PNG,
       // upload muito mais rápido e sem perda visível de qualidade.
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -572,6 +579,7 @@ export function StreetViewAdjustModal({
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
 
+      setSaveProgress(92);
       // Upload para Supabase
       const fileName = `${point.cod}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
@@ -581,6 +589,7 @@ export function StreetViewAdjustModal({
       });
 
       if (uploadError) throw uploadError;
+      setSaveProgress(100);
 
       const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
@@ -599,12 +608,34 @@ export function StreetViewAdjustModal({
       log("error", `❌ Erro ao salvar foto: ${err.message}`);
     } finally {
       setSaving(false);
+      setSaveProgress(0);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl w-[97vw] max-h-[97vh] overflow-y-auto p-4 sm:p-6">
+        {saving && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm rounded-lg">
+            <div className="w-[85%] max-w-md bg-card border border-border rounded-xl p-6 shadow-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <RefreshCw className="size-4 animate-spin text-primary" />
+                <span className="font-semibold text-sm">
+                  Salvando foto do item {point.cod}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${saveProgress}%` }}
+                />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground text-right tabular-nums">
+                {saveProgress}%
+              </div>
+            </div>
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
@@ -723,7 +754,7 @@ export function StreetViewAdjustModal({
                 size="sm" 
                 className="h-7 text-[10px] px-2"
                 onClick={() => {
-                  setBrilho(107);
+                  setBrilho(90);
                   setContraste(136);
                   setSaturacao(151);
                 }}
