@@ -58,12 +58,13 @@ export function StreetViewAdjustModal({
 }) {
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
 
   // Filtros de imagem
-  const [brilho, setBrilho] = useState(107);
+  const [brilho, setBrilho] = useState(90);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
   const QUALIDADE = 10240; // 10K fixo
@@ -723,7 +724,7 @@ export function StreetViewAdjustModal({
                 size="sm" 
                 className="h-7 text-[10px] px-2"
                 onClick={() => {
-                  setBrilho(107);
+                  setBrilho(90);
                   setContraste(136);
                   setSaturacao(151);
                 }}
