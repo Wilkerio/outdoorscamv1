@@ -615,6 +615,27 @@ export function StreetViewAdjustModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl w-[97vw] max-h-[97vh] overflow-y-auto p-4 sm:p-6">
+        {saving && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm rounded-lg">
+            <div className="w-[85%] max-w-md bg-card border border-border rounded-xl p-6 shadow-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <RefreshCw className="size-4 animate-spin text-primary" />
+                <span className="font-semibold text-sm">
+                  Salvando foto do item {point.cod}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${saveProgress}%` }}
+                />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground text-right tabular-nums">
+                {saveProgress}%
+              </div>
+            </div>
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>
             Ajustar foto — <span className="font-mono text-sm text-muted-foreground">{point.cod}</span>
