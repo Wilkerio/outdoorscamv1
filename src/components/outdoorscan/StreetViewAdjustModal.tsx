@@ -7,6 +7,7 @@ import type { Point } from "@/lib/outdoorscan/types";
 import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 function loadGoogleMapsApi(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -59,6 +60,29 @@ export function StreetViewAdjustModal({
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+  const minimizedRef = useRef(false);
+  const toastIdRef = useRef<string | number | null>(null);
+  const codRef = useRef(point.cod);
+  useEffect(() => { codRef.current = point.cod; }, [point.cod]);
+
+  const updateProgress = (pct: number) => {
+    setSaveProgress(pct);
+    if (minimizedRef.current && toastIdRef.current != null) {
+      toast.loading(`Salvando foto do item ${codRef.current}... ${pct}%`, {
+        id: toastIdRef.current,
+        duration: Infinity,
+      });
+    }
+  };
+
+  const handleMinimize = () => {
+    minimizedRef.current = true;
+    toastIdRef.current = toast.loading(
+      `Salvando foto do item ${codRef.current}... ${saveProgress}%`,
+      { duration: Infinity }
+    );
+    onOpenChange(false);
+  };
   const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
   const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
   const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
@@ -223,7 +247,7 @@ export function StreetViewAdjustModal({
   const save = async () => {
     try {
       setSaving(true);
-      setSaveProgress(5);
+      updateProgress(5);
       const pano = panoramaRef.current;
       const pov = pano?.getPov();
       const zoom = pano?.getZoom() ?? fovToZoom(fov);
@@ -251,7 +275,7 @@ export function StreetViewAdjustModal({
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
       log("info", `${point.cod} — Baixando panorama nativo...`);
-      setSaveProgress(15);
+      updateProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
         svService.getPanorama({ pano: realPanoId }, (data: any, status: any) => {
@@ -386,11 +410,11 @@ export function StreetViewAdjustModal({
 
       // Tenta o maior zoom disponível primeiro (qualidade máxima)
       let sampler = await buildTileSampler(5);
-      setSaveProgress(45);
+      updateProgress(45);
       if (!sampler.complete) {
         log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
-        setSaveProgress(50);
+        updateProgress(50);
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
@@ -461,7 +485,7 @@ export function StreetViewAdjustModal({
         }
       }
       perspCtx.putImageData(outImg, 0, 0);
-      setSaveProgress(70);
+      updateProgress(70);
 
       // 4) Canvas final com filtros aplicados
       const canvas = document.createElement("canvas");
@@ -570,7 +594,7 @@ export function StreetViewAdjustModal({
         console.warn("Tratamento automático pulado:", e);
       }
 
-      setSaveProgress(85);
+      updateProgress(85);
       // Exportar como JPEG de alta qualidade — arquivo ~10x menor que PNG,
       // upload muito mais rápido e sem perda visível de qualidade.
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -579,7 +603,7 @@ export function StreetViewAdjustModal({
 
       if (!blob) throw new Error("Erro ao gerar blob da imagem");
 
-      setSaveProgress(92);
+      updateProgress(92);
       // Upload para Supabase
       const fileName = `${point.cod}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
@@ -589,7 +613,7 @@ export function StreetViewAdjustModal({
       });
 
       if (uploadError) throw uploadError;
-      setSaveProgress(100);
+      updateProgress(100);
 
       const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
@@ -602,13 +626,28 @@ export function StreetViewAdjustModal({
       });
 
       log("success", `✅ ${point.cod} — Foto salva com filtros aplicados!`);
-      onOpenChange(false);
+      if (minimizedRef.current && toastIdRef.current != null) {
+        toast.success(`✅ Foto do item ${codRef.current} salva!`, {
+          id: toastIdRef.current,
+          duration: 4000,
+        });
+      } else {
+        onOpenChange(false);
+      }
     } catch (err: any) {
       console.error(err);
       log("error", `❌ Erro ao salvar foto: ${err.message}`);
+      if (minimizedRef.current && toastIdRef.current != null) {
+        toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
+          id: toastIdRef.current,
+          duration: 6000,
+        });
+      }
     } finally {
       setSaving(false);
-      setSaveProgress(0);
+      updateProgress(0);
+      minimizedRef.current = false;
+      toastIdRef.current = null;
     }
   };
 
@@ -633,6 +672,14 @@ export function StreetViewAdjustModal({
               <div className="mt-2 text-xs text-muted-foreground text-right tabular-nums">
                 {saveProgress}%
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-4"
+                onClick={handleMinimize}
+              >
+                Deixar em segundo plano
+              </Button>
             </div>
           </div>
         )}
