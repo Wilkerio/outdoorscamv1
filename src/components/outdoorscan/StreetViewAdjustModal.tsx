@@ -223,6 +223,7 @@ export function StreetViewAdjustModal({
   const save = async () => {
     try {
       setSaving(true);
+      setSaveProgress(5);
       const pano = panoramaRef.current;
       const pov = pano?.getPov();
       const zoom = pano?.getZoom() ?? fovToZoom(fov);
@@ -250,6 +251,7 @@ export function StreetViewAdjustModal({
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
       log("info", `${point.cod} — Baixando panorama nativo...`);
+      setSaveProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
         svService.getPanorama({ pano: realPanoId }, (data: any, status: any) => {
@@ -384,9 +386,11 @@ export function StreetViewAdjustModal({
 
       // Tenta o maior zoom disponível primeiro (qualidade máxima)
       let sampler = await buildTileSampler(5);
+      setSaveProgress(45);
       if (!sampler.complete) {
         log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
+        setSaveProgress(50);
       }
       if (!sampler.complete) throw new Error("Falha ao baixar tiles suficientes para alta qualidade");
 
