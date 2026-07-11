@@ -16,17 +16,23 @@ function gwHeaders() {
 }
 
 // Rewrite a maps.googleapis.com URL to the gateway (strip client-provided key).
-function toGatewayUrl(rawUrl: string): string | null {
+function toGatewayUrl(rawUrl: string): { url: string; useGateway: boolean } | null {
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { return null; }
   if (parsed.protocol !== 'https:') return null;
-  if (parsed.hostname !== 'maps.googleapis.com') return null;
-  parsed.searchParams.delete('key');
-  return `${GATEWAY_BASE}${parsed.pathname}${parsed.search}`;
+  if (parsed.hostname === 'maps.googleapis.com') {
+    parsed.searchParams.delete('key');
+    return { url: `${GATEWAY_BASE}${parsed.pathname}${parsed.search}`, useGateway: true };
+  }
+  // Street View native panorama tiles — public tile server, no key required.
+  if (parsed.hostname === 'streetviewpixels-pa.googleapis.com') {
+    return { url: parsed.toString(), useGateway: false };
+  }
+  return null;
 }
 
-async function fetchImageAsBase64(gwUrl: string) {
-  const resp = await fetch(gwUrl, { headers: gwHeaders() });
+async function fetchImageAsBase64(gwUrl: string, useGateway: boolean) {
+  const resp = await fetch(gwUrl, useGateway ? { headers: gwHeaders() } : undefined);
   const buf = await resp.arrayBuffer();
   const bytes = new Uint8Array(buf);
   let binary = '';
@@ -119,13 +125,13 @@ Deno.serve(async (req) => {
         status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
-    const gwUrl = toGatewayUrl(url);
-    if (!gwUrl) {
+    const target = toGatewayUrl(url);
+    if (!target) {
       return new Response(JSON.stringify({ error: 'URL not allowed' }), {
         status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
-    const img = await fetchImageAsBase64(gwUrl);
+    const img = await fetchImageAsBase64(target.url, target.useGateway);
     if (!img.ok) {
       return new Response(JSON.stringify({ error: `Upstream ${img.status}` }), {
         status: img.status, headers: { 'Content-Type': 'application/json', ...CORS },
