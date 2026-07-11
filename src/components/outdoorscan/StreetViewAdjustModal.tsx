@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { GMAPS_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { GMAPS_BROWSER_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -121,7 +121,7 @@ export function StreetViewAdjustModal({
         requestAnimationFrame(init);
         return;
       }
-      loadGoogleMapsApi(import.meta.env.VITE_GOOGLE_MAPS_API_KEY)
+      loadGoogleMapsApi(GMAPS_BROWSER_KEY)
         .then(() => {
           if (cancelled || !containerRef.current) return;
           const pano = new (window as any).google.maps.StreetViewPanorama(

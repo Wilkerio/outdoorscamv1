@@ -2,20 +2,19 @@ import * as XLSX from "xlsx";
 import { useSession } from "@/context/SessionContext";
 import type { Point } from "@/lib/outdoorscan/types";
 import { normalizeCoord } from "@/lib/outdoorscan/xlsx";
+import { supabase } from "@/integrations/supabase/client";
 
 async function geocodeEndereco(
   endereco: string,
   bairro: string,
   cidade: string,
-  apiKey: string
 ): Promise<{ lat: number; lng: number; bairroResolvido: string } | null> {
-  const query = [endereco, bairro, cidade, "Brasil"]
-    .filter(Boolean)
-    .join(", ");
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
+  const query = [endereco, bairro, cidade, "Brasil"].filter(Boolean).join(", ");
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const { data, error } = await supabase.functions.invoke("google-proxy", {
+      body: { geocode: { address: query } },
+    });
+    if (error) return null;
     if (data.status !== "OK" || !data.results?.[0]) return null;
     const result = data.results[0];
     const loc = result.geometry.location;
@@ -31,15 +30,12 @@ async function geocodeEndereco(
   }
 }
 
-async function reverseGeocodeLatLng(
-  lat: number,
-  lng: number,
-  apiKey: string
-): Promise<string> {
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+async function reverseGeocodeLatLng(lat: number, lng: number): Promise<string> {
   try {
-    const res = await fetch(url);
-    const data = await res.json();
+    const { data, error } = await supabase.functions.invoke("google-proxy", {
+      body: { geocode: { latlng: `${lat},${lng}` } },
+    });
+    if (error) return "";
     if (data.status !== "OK" || !data.results?.[0]) return "";
     const bairro =
       data.results[0].address_components?.find((c: any) =>
@@ -105,8 +101,7 @@ export function UploadDropzone() {
             };
           });
           
-          // Enriquecer pontos sem coordenadas ou sem bairro
-          const GMAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
+          // Enriquecer pontos sem coordenadas ou sem bairro (via proxy — conector Lovable)
           const precisamEnriquecimento = norm.filter(
             (p) => isNaN(p.lat) || isNaN(p.lng) || !p.bairro
           );
@@ -119,7 +114,6 @@ export function UploadDropzone() {
                   p.endereco,
                   p.bairro,
                   p.cidade,
-                  GMAPS_KEY
                 );
                 if (!resultado) {
                   log("warn", `⚠️ ${p.cod} — Geocoding sem resultado`);
@@ -138,7 +132,7 @@ export function UploadDropzone() {
 
                   // Se o geocoding por endereço não resolveu o bairro mas há coordenadas válidas, tenta reverse geocoding
                   if (!bairroFinal && !isNaN(norm[idx].lat) && !isNaN(norm[idx].lng)) {
-                    bairroFinal = await reverseGeocodeLatLng(norm[idx].lat, norm[idx].lng, GMAPS_KEY);
+                    bairroFinal = await reverseGeocodeLatLng(norm[idx].lat, norm[idx].lng);
                   }
 
                   if (bairroFinal) {
