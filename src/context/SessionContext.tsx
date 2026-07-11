@@ -377,10 +377,15 @@ const Ctx = createContext<SessionState | null>(null);
           return;
         }
 
-        // Primeiro verificar se há cobertura básica
-        const metaUrl = `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${key}`;
-        const metaRes = await fetch(metaUrl);
-        const meta = await metaRes.json();
+        // Primeiro verificar se há cobertura básica (via proxy — usa conector Lovable)
+        const { data: meta, error: metaErr } = await supabase.functions.invoke("google-proxy", {
+          body: { metadata: { location: `${lat},${lng}` } },
+        });
+        if (metaErr) {
+          log("error", `❌ ${cod} — Metadata falhou: ${metaErr.message}`);
+          updatePoint(id, { status: "ERRO" });
+          return;
+        }
 
         if (meta.status !== "OK") {
           log("warn", `${cod} — ⚠️ Sem cobertura Street View`);
