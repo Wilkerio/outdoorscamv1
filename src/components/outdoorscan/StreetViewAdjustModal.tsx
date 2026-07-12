@@ -245,6 +245,15 @@ export function StreetViewAdjustModal({
   };
 
   const save = async () => {
+    // Fecha o modal imediatamente e roda todo o processamento em segundo plano.
+    // O usuário pode navegar para o próximo ponto enquanto salvamos.
+    const codAtual = point.cod;
+    const pointId = point.id;
+    minimizedRef.current = true;
+    toastIdRef.current = toast.loading(`Salvando foto do item ${codAtual}...`, {
+      duration: Infinity,
+    });
+    onOpenChange(false);
     try {
       setSaving(true);
       updateProgress(5);
