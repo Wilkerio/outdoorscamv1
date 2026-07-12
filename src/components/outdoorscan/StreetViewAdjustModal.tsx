@@ -245,34 +245,38 @@ export function StreetViewAdjustModal({
   };
 
   const save = async () => {
-    // Fecha o modal imediatamente e roda todo o processamento em segundo plano.
-    // O usuário pode navegar para o próximo ponto enquanto salvamos.
-    const codAtual = point.cod;
-    const pointId = point.id;
+    // Captura tudo do panorama/container ANTES de fechar o modal,
+    // já que o container é desmontado ao fechar.
+    const pano = panoramaRef.current;
+    const pov = pano?.getPov();
+    const zoom = pano?.getZoom() ?? fovToZoom(fov);
+    const realHeading = pov?.heading ?? heading;
+    const realPitch = pov?.pitch ?? pitch;
+    const realFov = zoomToFov(zoom);
+    const realPos = pano?.getPosition?.();
+    const realLat = realPos?.lat?.() ?? point.lat;
+    const realLng = realPos?.lng?.() ?? point.lng;
+    const realPanoId: string | undefined = pano?.getPano?.() || undefined;
+    const offsetWidth = containerRef.current?.offsetWidth ?? 1280;
+    const offsetHeight = containerRef.current?.offsetHeight ?? 720;
+    const brilhoSnap = brilho;
+    const contrasteSnap = contraste;
+    const saturacaoSnap = saturacao;
+    const pointIdSnap = point.id;
+    const codSnap = point.cod;
+
+    // Fecha modal e mostra toast persistente — usuário pode seguir para o próximo.
+    codRef.current = codSnap;
     minimizedRef.current = true;
-    toastIdRef.current = toast.loading(`Salvando foto do item ${codAtual}...`, {
+    toastIdRef.current = toast.loading(`Salvando foto do item ${codSnap}...`, {
       duration: Infinity,
     });
     onOpenChange(false);
+
     try {
       setSaving(true);
       updateProgress(5);
-      const pano = panoramaRef.current;
-      const pov = pano?.getPov();
-      const zoom = pano?.getZoom() ?? fovToZoom(fov);
-      const realHeading = pov?.heading ?? heading;
-      const realPitch = pov?.pitch ?? pitch;
-      const realFov = zoomToFov(zoom);
-
-      // Pegar posição/panoId reais do panorama (Google "snapa" para a foto mais próxima)
-      const realPos = pano?.getPosition?.();
-      const realLat = realPos?.lat?.() ?? point.lat;
-      const realLng = realPos?.lng?.() ?? point.lng;
-      const realPanoId: string | undefined = pano?.getPano?.() || undefined;
-
-      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
-
-      const { offsetWidth, offsetHeight } = containerRef.current!;
+      log("info", `${codSnap} — Salvando foto com filtros: B:${brilhoSnap}% C:${contrasteSnap}% S:${saturacaoSnap}%`);
       // ============================================================
       // Qualidade máxima real: baixar os tiles NATIVOS do panorama do
       // Google (panorama equirectangular completo em alta resolução)
@@ -283,7 +287,7 @@ export function StreetViewAdjustModal({
       if (!realPanoId) throw new Error("Sem panoId disponível para captura de alta qualidade");
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
-      log("info", `${point.cod} — Baixando panorama nativo...`);
+      log("info", `${codSnap} — Baixando panorama nativo...`);
       updateProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
