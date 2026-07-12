@@ -379,7 +379,7 @@ export function StreetViewAdjustModal({
 
         await Promise.all(tasks);
         const total = xs.size * ys.size;
-        log("info", `${point.cod} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
+        log("info", `${codSnap} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
 
         const readIndex = (px: number, py: number) => {
           const safeX = mod(Math.floor(px), panoW);
@@ -425,7 +425,7 @@ export function StreetViewAdjustModal({
       let sampler = await buildTileSampler(5);
       updateProgress(45);
       if (!sampler.complete) {
-        log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
+        log("info", `${codSnap} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
         updateProgress(50);
       }
@@ -439,7 +439,7 @@ export function StreetViewAdjustModal({
       const outW = aspect >= 1 ? realMaxOut : Math.round(realMaxOut * aspect);
       const outH = aspect >= 1 ? Math.round(realMaxOut / aspect) : realMaxOut;
       if (realMaxOut < MAX_OUT) {
-        log("info", `${point.cod} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
+        log("info", `${codSnap} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
       }
 
       // 3) Reprojeção equirectangular → perspectiva
@@ -509,7 +509,7 @@ export function StreetViewAdjustModal({
       const curSource: CanvasImageSource = persp;
 
       // Render base (preserva ajustes manuais do usuário, sem multiplicar)
-      ctx.filter = `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`;
+      ctx.filter = `brightness(${brilhoSnap}%) contrast(${contrasteSnap}%) saturate(${saturacaoSnap}%)`;
       ctx.drawImage(curSource, 0, 0, outW, outH);
       ctx.filter = "none";
 
@@ -618,7 +618,7 @@ export function StreetViewAdjustModal({
 
       updateProgress(92);
       // Upload para Supabase
-      const fileName = `${point.cod}_${Date.now()}.jpg`;
+      const fileName = `${codSnap}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
         contentType: "image/jpeg",
         upsert: true,
@@ -631,26 +631,24 @@ export function StreetViewAdjustModal({
       const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
 
-      setAdjustedPhoto(point.id, {
+      setAdjustedPhoto(pointIdSnap, {
         heading: realHeading,
         pitch: realPitch,
         fov: realFov,
         url: publicUrl
       });
 
-      log("success", `✅ ${point.cod} — Foto salva com filtros aplicados!`);
-      if (minimizedRef.current && toastIdRef.current != null) {
-        toast.success(`✅ Foto do item ${codRef.current} salva!`, {
+      log("success", `✅ ${codSnap} — Foto salva com filtros aplicados!`);
+      if (toastIdRef.current != null) {
+        toast.success(`✅ Foto do item ${codSnap} salva!`, {
           id: toastIdRef.current,
           duration: 4000,
         });
-      } else {
-        onOpenChange(false);
       }
     } catch (err: any) {
       console.error(err);
-      log("error", `❌ Erro ao salvar foto: ${err.message}`);
-      if (minimizedRef.current && toastIdRef.current != null) {
+      log("error", `❌ Erro ao salvar foto ${codSnap}: ${err.message}`);
+      if (toastIdRef.current != null) {
         toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
           id: toastIdRef.current,
           duration: 6000,
