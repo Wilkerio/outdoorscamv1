@@ -245,25 +245,38 @@ export function StreetViewAdjustModal({
   };
 
   const save = async () => {
+    // Captura tudo do panorama/container ANTES de fechar o modal,
+    // já que o container é desmontado ao fechar.
+    const pano = panoramaRef.current;
+    const pov = pano?.getPov();
+    const zoom = pano?.getZoom() ?? fovToZoom(fov);
+    const realHeading = pov?.heading ?? heading;
+    const realPitch = pov?.pitch ?? pitch;
+    const realFov = zoomToFov(zoom);
+    const realPos = pano?.getPosition?.();
+    const realLat = realPos?.lat?.() ?? point.lat;
+    const realLng = realPos?.lng?.() ?? point.lng;
+    const realPanoId: string | undefined = pano?.getPano?.() || undefined;
+    const offsetWidth = containerRef.current?.offsetWidth ?? 1280;
+    const offsetHeight = containerRef.current?.offsetHeight ?? 720;
+    const brilhoSnap = brilho;
+    const contrasteSnap = contraste;
+    const saturacaoSnap = saturacao;
+    const pointIdSnap = point.id;
+    const codSnap = point.cod;
+
+    // Fecha modal e mostra toast persistente — usuário pode seguir para o próximo.
+    codRef.current = codSnap;
+    minimizedRef.current = true;
+    toastIdRef.current = toast.loading(`Salvando foto do item ${codSnap}...`, {
+      duration: Infinity,
+    });
+    onOpenChange(false);
+
     try {
       setSaving(true);
       updateProgress(5);
-      const pano = panoramaRef.current;
-      const pov = pano?.getPov();
-      const zoom = pano?.getZoom() ?? fovToZoom(fov);
-      const realHeading = pov?.heading ?? heading;
-      const realPitch = pov?.pitch ?? pitch;
-      const realFov = zoomToFov(zoom);
-
-      // Pegar posição/panoId reais do panorama (Google "snapa" para a foto mais próxima)
-      const realPos = pano?.getPosition?.();
-      const realLat = realPos?.lat?.() ?? point.lat;
-      const realLng = realPos?.lng?.() ?? point.lng;
-      const realPanoId: string | undefined = pano?.getPano?.() || undefined;
-
-      log("info", `${point.cod} — Salvando foto com filtros: B:${brilho}% C:${contraste}% S:${saturacao}%`);
-
-      const { offsetWidth, offsetHeight } = containerRef.current!;
+      log("info", `${codSnap} — Salvando foto com filtros: B:${brilhoSnap}% C:${contrasteSnap}% S:${saturacaoSnap}%`);
       // ============================================================
       // Qualidade máxima real: baixar os tiles NATIVOS do panorama do
       // Google (panorama equirectangular completo em alta resolução)
@@ -274,7 +287,7 @@ export function StreetViewAdjustModal({
       if (!realPanoId) throw new Error("Sem panoId disponível para captura de alta qualidade");
 
       // 1) Buscar metadados do panorama (originHeading/Pitch, tileSize)
-      log("info", `${point.cod} — Baixando panorama nativo...`);
+      log("info", `${codSnap} — Baixando panorama nativo...`);
       updateProgress(15);
       const svService = new (window as any).google.maps.StreetViewService();
       const meta: any = await new Promise((resolve, reject) => {
@@ -366,7 +379,7 @@ export function StreetViewAdjustModal({
 
         await Promise.all(tasks);
         const total = xs.size * ys.size;
-        log("info", `${point.cod} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
+        log("info", `${codSnap} — Tiles zoom ${zoom}: ${tileData.size}/${total} (panorama ${panoW}x${panoH})`);
 
         const readIndex = (px: number, py: number) => {
           const safeX = mod(Math.floor(px), panoW);
@@ -412,7 +425,7 @@ export function StreetViewAdjustModal({
       let sampler = await buildTileSampler(5);
       updateProgress(45);
       if (!sampler.complete) {
-        log("info", `${point.cod} — Zoom 5 incompleto, tentando zoom 4.`);
+        log("info", `${codSnap} — Zoom 5 incompleto, tentando zoom 4.`);
         sampler = await buildTileSampler(4);
         updateProgress(50);
       }
@@ -426,7 +439,7 @@ export function StreetViewAdjustModal({
       const outW = aspect >= 1 ? realMaxOut : Math.round(realMaxOut * aspect);
       const outH = aspect >= 1 ? Math.round(realMaxOut / aspect) : realMaxOut;
       if (realMaxOut < MAX_OUT) {
-        log("info", `${point.cod} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
+        log("info", `${codSnap} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
       }
 
       // 3) Reprojeção equirectangular → perspectiva
@@ -496,7 +509,7 @@ export function StreetViewAdjustModal({
       const curSource: CanvasImageSource = persp;
 
       // Render base (preserva ajustes manuais do usuário, sem multiplicar)
-      ctx.filter = `brightness(${brilho}%) contrast(${contraste}%) saturate(${saturacao}%)`;
+      ctx.filter = `brightness(${brilhoSnap}%) contrast(${contrasteSnap}%) saturate(${saturacaoSnap}%)`;
       ctx.drawImage(curSource, 0, 0, outW, outH);
       ctx.filter = "none";
 
@@ -605,7 +618,7 @@ export function StreetViewAdjustModal({
 
       updateProgress(92);
       // Upload para Supabase
-      const fileName = `${point.cod}_${Date.now()}.jpg`;
+      const fileName = `${codSnap}_${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
         contentType: "image/jpeg",
         upsert: true,
@@ -618,26 +631,24 @@ export function StreetViewAdjustModal({
       const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
       const publicUrl = urlData.publicUrl;
 
-      setAdjustedPhoto(point.id, {
+      setAdjustedPhoto(pointIdSnap, {
         heading: realHeading,
         pitch: realPitch,
         fov: realFov,
         url: publicUrl
       });
 
-      log("success", `✅ ${point.cod} — Foto salva com filtros aplicados!`);
-      if (minimizedRef.current && toastIdRef.current != null) {
-        toast.success(`✅ Foto do item ${codRef.current} salva!`, {
+      log("success", `✅ ${codSnap} — Foto salva com filtros aplicados!`);
+      if (toastIdRef.current != null) {
+        toast.success(`✅ Foto do item ${codSnap} salva!`, {
           id: toastIdRef.current,
           duration: 4000,
         });
-      } else {
-        onOpenChange(false);
       }
     } catch (err: any) {
       console.error(err);
-      log("error", `❌ Erro ao salvar foto: ${err.message}`);
-      if (minimizedRef.current && toastIdRef.current != null) {
+      log("error", `❌ Erro ao salvar foto ${codSnap}: ${err.message}`);
+      if (toastIdRef.current != null) {
         toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
           id: toastIdRef.current,
           duration: 6000,
