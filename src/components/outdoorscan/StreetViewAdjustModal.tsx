@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
@@ -42,6 +43,25 @@ function zoomToFov(zoom: number): number {
   return Math.round(180 / Math.pow(2, zoom));
 }
 
+const yieldToBrowser = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+function SaveProgressToast({ cod, progress }: { cod: string; progress: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(progress)));
+  return (
+    <div className="w-80 max-w-[calc(100vw-2rem)] space-y-3 rounded-lg border border-border bg-background p-4 text-foreground shadow-lg">
+      <div className="flex items-start gap-3">
+        <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">Imagem {cod} está sendo salva</div>
+          <div className="text-xs text-muted-foreground">Pode selecionar outra imagem enquanto isso.</div>
+        </div>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">{pct}%</span>
+      </div>
+      <Progress value={pct} className="h-2" />
+    </div>
+  );
+}
+
 export function StreetViewAdjustModal({
   open,
   onOpenChange,
@@ -68,7 +88,7 @@ export function StreetViewAdjustModal({
   const updateProgress = (pct: number) => {
     setSaveProgress(pct);
     if (minimizedRef.current && toastIdRef.current != null) {
-      toast.loading(`Salvando foto do item ${codRef.current}... ${pct}%`, {
+      toast.custom(() => <SaveProgressToast cod={codRef.current} progress={pct} />, {
         id: toastIdRef.current,
         duration: Infinity,
       });
@@ -268,10 +288,12 @@ export function StreetViewAdjustModal({
     // Fecha modal e mostra toast persistente — usuário pode seguir para o próximo.
     codRef.current = codSnap;
     minimizedRef.current = true;
-    toastIdRef.current = toast.loading(`Salvando foto do item ${codSnap}...`, {
+    setSaveProgress(0);
+    toastIdRef.current = toast.custom(() => <SaveProgressToast cod={codSnap} progress={0} />, {
       duration: Infinity,
     });
     onOpenChange(false);
+    await yieldToBrowser();
 
     try {
       setSaving(true);
@@ -461,6 +483,10 @@ export function StreetViewAdjustModal({
       const TWO_PI = Math.PI * 2;
 
       for (let y = 0; y < outH; y++) {
+        if (y > 0 && y % 48 === 0) {
+          updateProgress(50 + Math.min(20, Math.round((y / outH) * 20)));
+          await yieldToBrowser();
+        }
         const py = y - cy;
         for (let x = 0; x < outW; x++) {
           const px = x - cx;
@@ -544,6 +570,10 @@ export function StreetViewAdjustModal({
         const satBoost = 1.12;
         const toned = new Uint8ClampedArray(src.length);
         for (let i = 0; i < src.length; i += 4) {
+          if (i > 0 && i % (w * 64 * 4) === 0) {
+            updateProgress(72 + Math.min(4, Math.round((i / src.length) * 4)));
+            await yieldToBrowser();
+          }
           let r = lut[src[i]];
           let g = lut[src[i + 1]];
           let b = lut[src[i + 2]];
@@ -565,6 +595,10 @@ export function StreetViewAdjustModal({
         const tmp = new Uint8ClampedArray(toned.length);
         // horizontal
         for (let y = 0; y < h; y++) {
+          if (y > 0 && y % 64 === 0) {
+            updateProgress(76 + Math.min(3, Math.round((y / h) * 3)));
+            await yieldToBrowser();
+          }
           for (let x = 0; x < w; x++) {
             const oi = (y * w + x) * 4;
             for (let c = 0; c < 3; c++) {
@@ -577,6 +611,10 @@ export function StreetViewAdjustModal({
         }
         // vertical
         for (let y = 0; y < h; y++) {
+          if (y > 0 && y % 64 === 0) {
+            updateProgress(79 + Math.min(3, Math.round((y / h) * 3)));
+            await yieldToBrowser();
+          }
           for (let x = 0; x < w; x++) {
             const oi = (y * w + x) * 4;
             for (let c = 0; c < 3; c++) {
@@ -592,6 +630,10 @@ export function StreetViewAdjustModal({
         const threshold = 3;     // preserva detalhes finos sem puxar ruído demais
         const out = new Uint8ClampedArray(toned.length);
         for (let i = 0; i < toned.length; i += 4) {
+          if (i > 0 && i % (w * 64 * 4) === 0) {
+            updateProgress(82 + Math.min(6, Math.round((i / toned.length) * 6)));
+            await yieldToBrowser();
+          }
           for (let c = 0; c < 3; c++) {
             const orig = toned[i + c];
             const blur = blurred[i + c];
@@ -656,9 +698,9 @@ export function StreetViewAdjustModal({
       }
     } finally {
       setSaving(false);
-      updateProgress(0);
       minimizedRef.current = false;
       toastIdRef.current = null;
+      setSaveProgress(0);
     }
   };
 
