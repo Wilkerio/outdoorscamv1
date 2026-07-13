@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Map, Camera, Link as LinkIcon, Trash2, Pencil } from "lucide-react";
+import { Map, Camera, Link as LinkIcon, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
+import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +104,43 @@ export function PointCard({ point }: { point: Point }) {
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
+  // Fila: só começa a carregar o thumb do Street View quando um slot liberar.
+  // Fotos originais (imgbb) ou foto_url própria não passam pela fila.
+  const needsQueue = !point.foto_url && !(showOriginal && hasOriginalPhoto) && validCoords;
+  const [thumbReady, setThumbReady] = useState(!needsQueue);
+  const [releaseSlot, setReleaseSlot] = useState<null | (() => void)>(null);
+
+  useEffect(() => {
+    if (!needsQueue) {
+      setThumbReady(true);
+      return;
+    }
+    setThumbReady(false);
+    let cancelled = false;
+    let release: (() => void) | null = null;
+    acquireThumbSlot().then((r) => {
+      if (cancelled) {
+        r();
+        return;
+      }
+      release = r;
+      setReleaseSlot(() => r);
+      setThumbReady(true);
+    });
+    return () => {
+      cancelled = true;
+      if (release) release();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsQueue, point.id]);
+
+  const finishSlot = () => {
+    if (releaseSlot) {
+      releaseSlot();
+      setReleaseSlot(null);
+    }
+  };
+
   // Quando o usuário escolhe "Usar Nova Foto" no modal, alternar automaticamente
   // para mostrar a nova foto no card.
   useEffect(() => {
@@ -120,12 +158,14 @@ export function PointCard({ point }: { point: Point }) {
       )}
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
+          thumbReady ? (
           <img 
             src={showOriginal && hasOriginalPhoto ? point.foto : previewUrl} 
             alt={point.endereco} 
             className="w-full h-full object-cover transition-opacity duration-300" 
             loading="lazy" 
             onError={(e) => {
+              finishSlot();
               const img = e.currentTarget;
               // Detecta imagens quebradas (imgbb "image not found" tem dimensões pequenas)
               if (showOriginal && (img.naturalWidth === 0 || img.naturalWidth <= 400)) {
@@ -134,6 +174,7 @@ export function PointCard({ point }: { point: Point }) {
               }
             }}
             onLoad={(e) => {
+              finishSlot();
               const img = e.currentTarget;
               // imgbb placeholder "image not found" é ~400x300
               if (showOriginal && img.naturalWidth > 0 && img.naturalWidth <= 400 && img.naturalHeight <= 400) {
@@ -142,6 +183,12 @@ export function PointCard({ point }: { point: Point }) {
               }
             }}
           />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+              <span className="text-[10px]">Carregando Street View…</span>
+            </div>
+          )
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
             Coordenadas inválidas
