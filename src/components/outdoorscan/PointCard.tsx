@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { googleMapsLink, loadGoogleMapsApi } from "@/lib/outdoorscan/streetview";
+import { googleMapsLink, loadGoogleMapsApi, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,9 +38,9 @@ type StreetViewPreviewResult = "loaded" | "failed";
 
 function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result: StreetViewPreviewResult) => void }) {
   const onReadyRef = useRef(onReady);
-  const panoramaRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [imgSrc, setImgSrc] = useState("");
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -50,146 +50,27 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
     let cancelled = false;
     setFailed(false);
     setLoaded(false);
+    setImgSrc("");
 
     const init = async () => {
       try {
         await loadGoogleMapsApi();
-        if (cancelled || !panoramaRef.current) return;
+        if (cancelled) return;
 
         const google = (window as any).google;
         const service = new google.maps.StreetViewService();
         const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
         const pitch = point.adjustedPhoto?.pitch ?? 0;
-        let hasLoaded = false;
-        let hasFailed = false;
-        let hasPanoramaOk = false;
-        let tileTimeout: number | undefined;
-        let retryTimeout: number | undefined;
-        let retried = false;
-        const cleanupFns: Array<() => void> = [];
-
-        const hasRenderableTile = () => {
-          const root = panoramaRef.current;
-          if (!root) return false;
-          const images = Array.from(root.querySelectorAll("img"));
-          return images.some((img) => img.complete && img.naturalWidth > 32 && img.naturalHeight > 32);
-        };
-
-        const hideBrokenTiles = () => {
-          const root = panoramaRef.current;
-          if (!root) return;
-          root.querySelectorAll("img").forEach((img) => {
-            if (img.complete && img.naturalWidth === 0) img.style.visibility = "hidden";
-          });
-        };
-
-        const scheduleTileCheck = () => {
-          if (cancelled || hasLoaded || hasFailed) return;
-          hideBrokenTiles();
-          if (hasPanoramaOk && hasRenderableTile()) {
-            markLoaded();
-            return;
-          }
-          window.clearTimeout(tileTimeout);
-          tileTimeout = window.setTimeout(scheduleTileCheck, 180);
-        };
-
-        const markLoaded = () => {
-          if (cancelled || hasLoaded) return;
-          if (!hasRenderableTile()) {
-            scheduleTileCheck();
-            return;
-          }
-          hasLoaded = true;
-          hasFailed = false;
-          setFailed(false);
-          setLoaded(true);
-          onReadyRef.current("loaded");
-        };
+        let finished = false;
 
         const markFailed = () => {
-          if (cancelled || hasLoaded || hasFailed) return;
-          hasFailed = true;
+          if (cancelled || finished) return;
+          finished = true;
           setFailed(true);
           onReadyRef.current("failed");
         };
 
-        const attachTileWatchers = () => {
-          const root = panoramaRef.current;
-          if (!root) return;
-
-          const handleTileLoad = () => scheduleTileCheck();
-          const handleTileError = (event: Event) => {
-            const img = event.target as HTMLImageElement | null;
-            if (img?.tagName === "IMG") img.style.visibility = "hidden";
-            if (!hasLoaded && !retried) {
-              retried = true;
-              retryTimeout = window.setTimeout(() => {
-                if (!cancelled && !hasLoaded && panoramaRef.current) {
-                  panoramaRef.current.innerHTML = "";
-                  createPanorama();
-                }
-              }, 700);
-            }
-          };
-          const observer = new MutationObserver(scheduleTileCheck);
-          observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "style"] });
-          root.addEventListener("load", handleTileLoad, true);
-          root.addEventListener("error", handleTileError, true);
-          cleanupFns.push(() => {
-            observer.disconnect();
-            root.removeEventListener("load", handleTileLoad, true);
-            root.removeEventListener("error", handleTileError, true);
-          });
-        };
-
-        const createPanorama = (pano?: string) => {
-          if (!panoramaRef.current) return;
-          hasPanoramaOk = false;
-          attachTileWatchers();
-          const panorama = new google.maps.StreetViewPanorama(panoramaRef.current, {
-            ...(pano ? { pano } : { position: { lat: point.lat, lng: point.lng } }),
-            pov: { heading, pitch },
-            zoom: 0,
-            visible: true,
-            addressControl: false,
-            clickToGo: false,
-            disableDefaultUI: true,
-            disableDoubleClickZoom: true,
-            enableCloseButton: false,
-            fullscreenControl: false,
-            imageDateControl: false,
-            linksControl: false,
-            motionTracking: false,
-            motionTrackingControl: false,
-            panControl: false,
-            scrollwheel: false,
-            showRoadLabels: false,
-            zoomControl: false,
-          });
-
-          const statusListener = panorama.addListener("status_changed", () => {
-            const status = panorama.getStatus?.();
-            if (status === "OK") {
-              hasPanoramaOk = true;
-              google.maps.event.trigger(panorama, "resize");
-              panorama.setPov({ heading, pitch });
-              scheduleTileCheck();
-            } else if (status && !hasLoaded) {
-              markFailed();
-            }
-          });
-          cleanupFns.push(() => google.maps.event.removeListener(statusListener));
-        };
-
-        const safetyTimeout = window.setTimeout(() => {
-          if (cancelled || hasLoaded) return;
-          if (hasPanoramaOk && hasRenderableTile()) {
-            markLoaded();
-            return;
-          }
-          markFailed();
-        }, 8000);
+        const safetyTimeout = window.setTimeout(markFailed, 9000);
 
         service.getPanorama(
           {
@@ -198,20 +79,25 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
             source: google.maps.StreetViewSource?.OUTDOOR,
           },
           (data: any, status: any) => {
-            if (cancelled || hasLoaded || hasFailed) return;
+            if (cancelled || finished) return;
             if (status !== "OK" || !data?.location?.pano) {
               markFailed();
               return;
             }
-            createPanorama(data.location.pano);
+            window.clearTimeout(safetyTimeout);
+            setImgSrc(streetViewImg(point.lat, point.lng, {
+              pano: data.location.pano,
+              heading,
+              pitch,
+              fov: 80,
+              size: "640x320",
+              scale: 2,
+            }));
           },
         );
 
         return () => {
           window.clearTimeout(safetyTimeout);
-          window.clearTimeout(tileTimeout);
-          window.clearTimeout(retryTimeout);
-          cleanupFns.forEach((cleanup) => cleanup());
         };
       } catch {
         if (!cancelled) {
@@ -244,7 +130,29 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
           Street View indisponível
         </div>
       )}
-      <div ref={panoramaRef} className={`h-full w-full ${failed ? "hidden" : ""}`} aria-label="Street View" />
+      {imgSrc && !failed && (
+        <img
+          src={imgSrc}
+          alt={`Street View de ${point.endereco}`}
+          className="h-full w-full object-cover"
+          draggable={false}
+          onLoad={(event) => {
+            const img = event.currentTarget;
+            if (img.naturalWidth <= 32 || img.naturalHeight <= 32) {
+              setFailed(true);
+              onReadyRef.current("failed");
+              return;
+            }
+            setFailed(false);
+            setLoaded(true);
+            onReadyRef.current("loaded");
+          }}
+          onError={() => {
+            setFailed(true);
+            onReadyRef.current("failed");
+          }}
+        />
+      )}
     </>
   );
 }
