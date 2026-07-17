@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Map, Camera, Link as LinkIcon, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewImg, googleMapsLink } from "@/lib/outdoorscan/streetview";
+import { streetViewImg, streetViewEmbed, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +101,8 @@ export function PointCard({ point }: { point: Point }) {
   const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
   // Se não tiver link na planilha (point.foto), forçamos showOriginal como false (Street View)
   const [originalBroken, setOriginalBroken] = useState(false);
+  const [streetViewBroken, setStreetViewBroken] = useState(false);
+  const [streetViewFrameLoaded, setStreetViewFrameLoaded] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
 
@@ -160,6 +162,14 @@ export function PointCard({ point }: { point: Point }) {
     }
   }, [point.adjustedPhoto?.url]);
 
+  useEffect(() => {
+    setStreetViewBroken(false);
+    setStreetViewFrameLoaded(false);
+  }, [point.id, point.lat, point.lng, point.foto_url]);
+
+  const showingOriginal = showOriginal && hasOriginalPhoto;
+  const useStreetViewFrame = validCoords && !showingOriginal && !point.foto_url && streetViewBroken;
+
   return (
     <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido ? 'opacity-40 grayscale' : ''}`}>
       {point.excluido && (
@@ -170,30 +180,54 @@ export function PointCard({ point }: { point: Point }) {
       <div className="relative aspect-[2/1] bg-muted">
         {validCoords ? (
           thumbReady ? (
-          <img 
-            src={showOriginal && hasOriginalPhoto ? point.foto : previewUrl} 
-            alt={point.endereco} 
-            className="w-full h-full object-cover transition-opacity duration-300" 
-            loading="lazy" 
-            onError={(e) => {
-              finishSlot();
-              const img = e.currentTarget;
-              // Detecta imagens quebradas (imgbb "image not found" tem dimensões pequenas)
-              if (showOriginal && (img.naturalWidth === 0 || img.naturalWidth <= 400)) {
-                setOriginalBroken(true);
-                setShowOriginal(false);
-              }
-            }}
-            onLoad={(e) => {
-              finishSlot();
-              const img = e.currentTarget;
-              // imgbb placeholder "image not found" é ~400x300
-              if (showOriginal && img.naturalWidth > 0 && img.naturalWidth <= 400 && img.naturalHeight <= 400) {
-                setOriginalBroken(true);
-                setShowOriginal(false);
-              }
-            }}
-          />
+            useStreetViewFrame ? (
+              <>
+                {!streetViewFrameLoaded && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground">
+                    <Loader2 className="size-5 animate-spin" />
+                    <span className="text-[10px]">Carregando Street View…</span>
+                  </div>
+                )}
+                <iframe
+                  title={`Street View ${point.endereco}`}
+                  src={streetViewEmbed(point.lat, point.lng, point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0, point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0, point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80)}
+                  className={`h-full w-full border-0 transition-opacity duration-300 ${streetViewFrameLoaded ? "opacity-100" : "opacity-0"}`}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  tabIndex={-1}
+                  onLoad={() => setStreetViewFrameLoaded(true)}
+                />
+              </>
+            ) : (
+              <img 
+                src={showingOriginal ? point.foto : previewUrl} 
+                alt={point.endereco} 
+                className="w-full h-full object-cover transition-opacity duration-300" 
+                loading="lazy" 
+                onError={(e) => {
+                  finishSlot();
+                  const img = e.currentTarget;
+                  // Detecta imagens quebradas (imgbb "image not found" tem dimensões pequenas)
+                  if (showingOriginal && (img.naturalWidth === 0 || img.naturalWidth <= 400)) {
+                    setOriginalBroken(true);
+                    setShowOriginal(false);
+                    return;
+                  }
+                  if (!showingOriginal && !point.foto_url) {
+                    setStreetViewBroken(true);
+                  }
+                }}
+                onLoad={(e) => {
+                  finishSlot();
+                  const img = e.currentTarget;
+                  // imgbb placeholder "image not found" é ~400x300
+                  if (showingOriginal && img.naturalWidth > 0 && img.naturalWidth <= 400 && img.naturalHeight <= 400) {
+                    setOriginalBroken(true);
+                    setShowOriginal(false);
+                  }
+                }}
+              />
+            )
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
