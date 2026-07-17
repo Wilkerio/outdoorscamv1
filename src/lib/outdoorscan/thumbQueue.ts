@@ -2,7 +2,7 @@
 // Evita disparar centenas de requisições em paralelo (168 cards) e permite
 // mostrar um indicador de "carregando" até o slot ficar livre.
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 8;
 let active = 0;
 const queue: Array<() => void> = [];
 
