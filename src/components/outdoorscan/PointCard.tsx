@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Map, Camera, Link as LinkIcon, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewImg, loadGoogleMapsApi, googleMapsLink } from "@/lib/outdoorscan/streetview";
+import { loadGoogleMapsApi, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,13 @@ const STATUS_STYLES: Record<Point["status"], string> = {
 
 function StreetViewPreview({ point, onReady }: { point: Point; onReady?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onReadyRef = useRef(onReady);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,11 +81,11 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady?: () => v
           const status = panorama?.getStatus?.();
           if ((window as any).google?.maps?.StreetViewStatus && status === (window as any).google.maps.StreetViewStatus.ZERO_RESULTS) {
             setFailed(true);
-            onReady?.();
+            onReadyRef.current?.();
             return;
           }
           setLoaded(true);
-          onReady?.();
+          onReadyRef.current?.();
         };
 
         listeners = [
@@ -91,7 +96,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady?: () => v
       } catch {
         if (!cancelled) {
           setFailed(true);
-          onReady?.();
+          onReadyRef.current?.();
         }
       }
     };
@@ -102,7 +107,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady?: () => v
       listeners.forEach((listener) => listener?.remove?.());
       if (panorama) panorama.setVisible(false);
     };
-  }, [point.id, point.lat, point.lng, point.headingSalvo, point.pitchSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch, onReady]);
+  }, [point.id, point.lat, point.lng, point.headingSalvo, point.pitchSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
 
   return (
     <>
@@ -185,10 +190,9 @@ export function PointCard({ point }: { point: Point }) {
   };
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
-  const previewUrl = point.foto_url || (point.lat && point.lng ? streetViewImg(point.lat, point.lng) : "");
+  const previewUrl = point.foto_url || "";
   // Se não tiver link na planilha (point.foto), forçamos showOriginal como false (Street View)
   const [originalBroken, setOriginalBroken] = useState(false);
-  const [streetViewBroken, setStreetViewBroken] = useState(false);
   const [streetViewFrameLoaded, setStreetViewFrameLoaded] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
@@ -250,12 +254,11 @@ export function PointCard({ point }: { point: Point }) {
   }, [point.adjustedPhoto?.url]);
 
   useEffect(() => {
-    setStreetViewBroken(false);
     setStreetViewFrameLoaded(false);
   }, [point.id, point.lat, point.lng, point.foto_url]);
 
   const showingOriginal = showOriginal && hasOriginalPhoto;
-  const useStreetViewFrame = validCoords && !showingOriginal && !point.foto_url && streetViewBroken;
+  const useStreetViewFrame = validCoords && !showingOriginal && !point.foto_url;
 
   return (
     <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido ? 'opacity-40 grayscale' : ''}`}>
@@ -293,9 +296,6 @@ export function PointCard({ point }: { point: Point }) {
                     setOriginalBroken(true);
                     setShowOriginal(false);
                     return;
-                  }
-                  if (!showingOriginal && !point.foto_url) {
-                    setStreetViewBroken(true);
                   }
                 }}
                 onLoad={(e) => {
