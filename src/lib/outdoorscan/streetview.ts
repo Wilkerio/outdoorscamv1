@@ -60,15 +60,17 @@ const PROXY_BASE = `${SUPABASE_URL}/functions/v1/google-proxy`;
 export function streetViewImg(
   lat: number,
   lng: number,
-  opts?: { heading?: number; pitch?: number; fov?: number; size?: string },
+  opts?: { heading?: number; pitch?: number; fov?: number; size?: string; scale?: number; pano?: string },
 ) {
   const size = opts?.size ?? "640x400";
   const params = new URLSearchParams({
     kind: "streetview",
     size,
-    location: `${lat},${lng}`,
     fov: String(opts?.fov ?? 80),
+    scale: String(opts?.scale ?? 2),
   });
+  if (opts?.pano) params.set("pano", opts.pano);
+  else params.set("location", `${lat},${lng}`);
   if (opts?.heading != null) params.set("heading", String(opts.heading));
   if (opts?.pitch != null) params.set("pitch", String(opts.pitch));
   return `${PROXY_BASE}?${params.toString()}`;
