@@ -2,7 +2,10 @@
 // Evita disparar centenas de requisições em paralelo (168 cards) e permite
 // mostrar um indicador de "carregando" até o slot ficar livre.
 
-const MAX_CONCURRENT = 8;
+// Sem limite artificial: o browser já limita conexões por host (~6) e o proxy
+// enfileira do lado dele. Assim todos os cards começam a carregar em paralelo
+// e vão aparecendo conforme respondem.
+const MAX_CONCURRENT = 999;
 let active = 0;
 const queue: Array<() => void> = [];
 
