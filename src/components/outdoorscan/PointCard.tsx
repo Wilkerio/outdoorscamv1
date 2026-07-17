@@ -93,7 +93,16 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
             onReadyRef.current();
           }
         });
-        const panoListener = panorama.addListener("pano_changed", markLoaded);
+        const safetyTimeout = window.setTimeout(() => {
+          if (cancelled) return;
+          const status = panorama.getStatus?.();
+          if (status === "OK") {
+            markLoaded();
+            return;
+          }
+          setFailed(true);
+          onReadyRef.current();
+        }, 4500);
 
         service.getPanorama(
           {
@@ -110,13 +119,12 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
             }
             panorama.setPano(data.location.pano);
             panorama.setPov({ heading, pitch });
-            window.setTimeout(markLoaded, 1200);
           },
         );
 
         return () => {
+          window.clearTimeout(safetyTimeout);
           google.maps.event.removeListener(statusListener);
-          google.maps.event.removeListener(panoListener);
         };
       } catch {
         if (!cancelled) {
