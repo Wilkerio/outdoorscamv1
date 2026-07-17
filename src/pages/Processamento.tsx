@@ -29,8 +29,7 @@ export default function Processamento() {
       }
       // IndexedDB
       if (indexedDB && "databases" in indexedDB) {
-        // @ts-expect-error - databases() nem sempre está tipado
-        const dbs = await indexedDB.databases();
+        const dbs = await (indexedDB as unknown as { databases: () => Promise<{ name?: string }[]> }).databases();
         await Promise.all(
           (dbs || []).map((db: { name?: string }) => db.name && new Promise((res) => {
             const req = indexedDB.deleteDatabase(db.name!);
