@@ -162,7 +162,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
   );
 }
 
-export function PointCard({ point }: { point: Point }) {
+export function PointCard({ point, onReady }: { point: Point; onReady?: (id: string) => void }) {
   const { points, toggleExcluido, editarPonto } = useSession();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -172,6 +172,16 @@ export function PointCard({ point }: { point: Point }) {
   const [streetViewLoaded, setStreetViewLoaded] = useState(false);
   const [showOriginal, setShowOriginal] = useState(isValidOriginalPhoto(point.foto));
   const [releaseSlot, setReleaseSlot] = useState<null | (() => void)>(null);
+  const readyFiredRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+  const notifyReady = () => {
+    if (readyFiredRef.current) return;
+    readyFiredRef.current = true;
+    onReadyRef.current?.(point.id);
+  };
   const [form, setForm] = useState({
     cod: point.cod ?? "",
     endereco: point.endereco ?? "",
@@ -192,6 +202,13 @@ export function PointCard({ point }: { point: Point }) {
   const [thumbReady, setThumbReady] = useState(!needsQueue);
   const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
+
+  useEffect(() => {
+    if (!validCoords) {
+      notifyReady();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validCoords]);
 
   useEffect(() => {
     if (editOpen) {
@@ -241,6 +258,7 @@ export function PointCard({ point }: { point: Point }) {
   }, [needsQueue, point.id]);
 
   const finishSlot = () => {
+    notifyReady();
     if (!releaseSlot) return;
     releaseSlot();
     setReleaseSlot(null);

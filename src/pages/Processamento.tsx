@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Pause, RotateCcw, Trash2, Download, Save, Play, Eraser } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
@@ -13,6 +14,25 @@ export default function Processamento() {
   const hasProcessed = ativos.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
   const progressPct = totalAtivos ? Math.round((processed / totalAtivos) * 100) : 0;
   const excluidosCount = total - totalAtivos;
+
+  const INITIAL_BATCH = 6;
+  const AHEAD = 3;
+  const readyIdsRef = useRef<Set<string>>(new Set());
+  const [readyCount, setReadyCount] = useState(0);
+
+  useEffect(() => {
+    readyIdsRef.current = new Set();
+    setReadyCount(0);
+  }, [total]);
+
+  const handlePointReady = (id: string) => {
+    if (readyIdsRef.current.has(id)) return;
+    readyIdsRef.current.add(id);
+    setReadyCount(readyIdsRef.current.size);
+  };
+
+  const visibleCount = Math.min(total, Math.max(INITIAL_BATCH, readyCount + AHEAD));
+  const visiblePoints = points.slice(0, visibleCount);
 
   const limparTudo = async () => {
     if (!confirm("Limpar TUDO? Isso vai apagar pontos, progresso e todo o cache do navegador (Street View, imagens, etc).")) return;
@@ -118,11 +138,23 @@ export default function Processamento() {
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
             Pontos ({totalAtivos} ativos{excluidosCount > 0 ? `, ${excluidosCount} excluído${excluidosCount > 1 ? 's' : ''}` : ''})
             </div>
+            {total > 0 && (
+              <div className="text-[11px] text-muted-foreground mb-2">
+                Exibindo {Math.min(readyCount, visibleCount)} de {total} carregados
+                {visibleCount < total && ` · aguardando próximos…`}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {points.map((p) => (
-                <PointCard key={p.id} point={p} />
+              {visiblePoints.map((p) => (
+                <PointCard key={p.id} point={p} onReady={handlePointReady} />
               ))}
             </div>
+            {visibleCount < total && (
+              <div className="flex items-center justify-center gap-2 mt-4 text-xs text-muted-foreground">
+                <RotateCcw className="size-3 animate-spin" />
+                Carregando mais pontos ({visibleCount}/{total})…
+              </div>
+            )}
           </div>
           {total > 0 && (
             <div className="flex justify-center pt-2">
