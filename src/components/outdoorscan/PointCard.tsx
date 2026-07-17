@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Map, Camera, Link as LinkIcon, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { streetViewImg, streetViewEmbed, googleMapsLink } from "@/lib/outdoorscan/streetview";
+import { streetViewImg, loadGoogleMapsApi, googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,93 @@ const STATUS_STYLES: Record<Point["status"], string> = {
    ERRO: "ERRO",
    SEM_OUTDOOR_VISIVEL: "SEM OUTDOOR VISÍVEL",
  };
+
+function StreetViewPreview({ point, onReady }: { point: Point; onReady?: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let panorama: any = null;
+    let listeners: any[] = [];
+    setLoaded(false);
+    setFailed(false);
+
+    const init = async () => {
+      try {
+        await loadGoogleMapsApi();
+        if (cancelled || !containerRef.current) return;
+        panorama = new (window as any).google.maps.StreetViewPanorama(containerRef.current, {
+          position: { lat: point.lat, lng: point.lng },
+          pov: {
+            heading: point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0,
+            pitch: point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0,
+          },
+          zoom: 1,
+          disableDefaultUI: true,
+          linksControl: false,
+          panControl: false,
+          zoomControl: false,
+          addressControl: false,
+          showRoadLabels: false,
+          fullscreenControl: false,
+          motionTracking: false,
+          motionTrackingControl: false,
+          clickToGo: false,
+          scrollwheel: false,
+        });
+
+        const markReady = () => {
+          if (cancelled) return;
+          const status = panorama?.getStatus?.();
+          if ((window as any).google?.maps?.StreetViewStatus && status === (window as any).google.maps.StreetViewStatus.ZERO_RESULTS) {
+            setFailed(true);
+            onReady?.();
+            return;
+          }
+          setLoaded(true);
+          onReady?.();
+        };
+
+        listeners = [
+          panorama.addListener("status_changed", markReady),
+          panorama.addListener("pano_changed", markReady),
+        ];
+        window.setTimeout(markReady, 2500);
+      } catch {
+        if (!cancelled) {
+          setFailed(true);
+          onReady?.();
+        }
+      }
+    };
+
+    init();
+    return () => {
+      cancelled = true;
+      listeners.forEach((listener) => listener?.remove?.());
+      if (panorama) panorama.setVisible(false);
+    };
+  }, [point.id, point.lat, point.lng, point.headingSalvo, point.pitchSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch, onReady]);
+
+  return (
+    <>
+      {!loaded && !failed && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-muted text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" />
+          <span className="text-[10px]">Carregando Street View…</span>
+        </div>
+      )}
+      {failed && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted px-3 text-center text-xs text-muted-foreground">
+          Street View indisponível
+        </div>
+      )}
+      <div ref={containerRef} className="h-full w-full pointer-events-none" />
+    </>
+  );
+}
 
 export function PointCard({ point }: { point: Point }) {
   const [open, setOpen] = useState(false);
@@ -188,15 +275,9 @@ export function PointCard({ point }: { point: Point }) {
                     <span className="text-[10px]">Carregando Street View…</span>
                   </div>
                 )}
-                <iframe
-                  title={`Street View ${point.endereco}`}
-                  src={streetViewEmbed(point.lat, point.lng, point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0, point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0, point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80)}
-                  className={`h-full w-full border-0 transition-opacity duration-300 ${streetViewFrameLoaded ? "opacity-100" : "opacity-0"}`}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  tabIndex={-1}
-                  onLoad={() => setStreetViewFrameLoaded(true)}
-                />
+                <div className={`h-full w-full transition-opacity duration-300 ${streetViewFrameLoaded ? "opacity-100" : "opacity-0"}`}>
+                  <StreetViewPreview point={point} onReady={() => setStreetViewFrameLoaded(true)} />
+                </div>
               </>
             ) : (
               <img 
