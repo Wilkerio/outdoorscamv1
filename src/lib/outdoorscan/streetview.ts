@@ -6,6 +6,52 @@ export const GMAPS_BROWSER_KEY =
 // Mantido por compatibilidade com imports existentes.
 export const GMAPS_KEY = GMAPS_BROWSER_KEY;
 
+const GMAPS_TRACKING_ID =
+  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) ?? "";
+
+let googleMapsPromise: Promise<void> | null = null;
+
+export function loadGoogleMapsApi(apiKey = GMAPS_BROWSER_KEY): Promise<void> {
+  if ((window as any).google?.maps?.StreetViewPanorama) return Promise.resolve();
+  if (!apiKey) return Promise.reject(new Error("Google Maps browser key not configured"));
+  if (googleMapsPromise) return googleMapsPromise;
+
+  googleMapsPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById("gmaps-js") as HTMLScriptElement | null;
+    if (existing) {
+      const interval = window.setInterval(() => {
+        if ((window as any).google?.maps?.StreetViewPanorama) {
+          window.clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+      existing.addEventListener("error", () => {
+        window.clearInterval(interval);
+        reject(new Error("Falha ao carregar Maps API"));
+      }, { once: true });
+      return;
+    }
+
+    const callbackName = "__outdoorScanGoogleMapsReady";
+    (window as any)[callbackName] = () => resolve();
+    const params = new URLSearchParams({
+      key: apiKey,
+      loading: "async",
+      callback: callbackName,
+    });
+    if (GMAPS_TRACKING_ID) params.set("channel", GMAPS_TRACKING_ID);
+
+    const script = document.createElement("script");
+    script.id = "gmaps-js";
+    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+    script.async = true;
+    script.onerror = () => reject(new Error("Falha ao carregar Maps API"));
+    document.head.appendChild(script);
+  });
+
+  return googleMapsPromise;
+}
+
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "";
 const PROXY_BASE = `${SUPABASE_URL}/functions/v1/google-proxy`;
 
