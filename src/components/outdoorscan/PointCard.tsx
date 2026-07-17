@@ -196,6 +196,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
   const useStreetView = validCoords && !showingOriginal && !savedPhotoUrl;
   const needsQueue = useStreetView;
   const [thumbReady, setThumbReady] = useState(!needsQueue);
+  const releaseSlotRef = useRef<null | (() => void)>(null);
   const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
 
@@ -245,31 +246,42 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
         return;
       }
       release = r;
+      releaseSlotRef.current = r;
       setReleaseSlot(() => r);
       setThumbReady(true);
     });
     return () => {
       cancelled = true;
-      if (release) release();
+      if (release) {
+        release();
+        if (releaseSlotRef.current === release) releaseSlotRef.current = null;
+      }
     };
   }, [needsQueue, point.id]);
 
   const finishSlot = () => {
     notifyReady();
-    if (!releaseSlot) return;
-    releaseSlot();
+    const release = releaseSlotRef.current ?? releaseSlot;
+    if (!release) return;
+    release();
+    releaseSlotRef.current = null;
     setReleaseSlot(null);
   };
 
   const releaseThumbSlot = () => {
-    if (!releaseSlot) return;
-    releaseSlot();
+    const release = releaseSlotRef.current ?? releaseSlot;
+    if (!release) return;
+    release();
+    releaseSlotRef.current = null;
     setReleaseSlot(null);
   };
 
   useEffect(() => {
     if (!thumbReady || !releaseSlot) return;
-    const timeout = window.setTimeout(releaseThumbSlot, 10000);
+    const timeout = window.setTimeout(() => {
+      setStreetViewUnavailable(true);
+      finishSlot();
+    }, 10000);
     return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thumbReady, releaseSlot]);
@@ -336,7 +348,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
                         return;
                       }
                       setStreetViewUnavailable(true);
-                      releaseThumbSlot();
+                      finishSlot();
                     }}
                   />
                 </div>
