@@ -80,20 +80,27 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
         });
 
         let hasLoaded = false;
+        let hasFailed = false;
         const markLoaded = () => {
           if (cancelled || hasLoaded) return;
           hasLoaded = true;
+          hasFailed = false;
+          setFailed(false);
           setLoaded(true);
+          onReadyRef.current();
+        };
+
+        const markFailed = () => {
+          if (cancelled || hasLoaded || hasFailed) return;
+          hasFailed = true;
+          setFailed(true);
           onReadyRef.current();
         };
 
         const statusListener = panorama.addListener("status_changed", () => {
           const status = panorama.getStatus?.();
           if (status === "OK") markLoaded();
-          else if (status && !hasLoaded) {
-            setFailed(true);
-            onReadyRef.current();
-          }
+          else if (status && !hasLoaded) markFailed();
         });
         const safetyTimeout = window.setTimeout(() => {
           if (cancelled || hasLoaded) return;
@@ -102,8 +109,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
             markLoaded();
             return;
           }
-          setFailed(true);
-          onReadyRef.current();
+          markFailed();
         }, 8000);
 
         service.getPanorama(
@@ -113,10 +119,9 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
             source: google.maps.StreetViewSource?.OUTDOOR,
           },
           (data: any, status: any) => {
-            if (cancelled) return;
+            if (cancelled || hasLoaded) return;
             if (status !== "OK" || !data?.location?.pano) {
-              setFailed(true);
-              onReadyRef.current();
+              markFailed();
               return;
             }
             panorama.setPano(data.location.pano);
