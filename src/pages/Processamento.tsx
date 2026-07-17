@@ -1,4 +1,4 @@
-import { Pause, RotateCcw, Trash2, Download, Save, Play } from "lucide-react";
+import { Pause, RotateCcw, Trash2, Download, Save, Play, Eraser } from "lucide-react";
 import { UploadDropzone } from "@/components/outdoorscan/UploadDropzone";
 import { PointCard } from "@/components/outdoorscan/PointCard";
 import { useSession } from "@/context/SessionContext";
@@ -13,6 +13,35 @@ export default function Processamento() {
   const hasProcessed = ativos.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
   const progressPct = totalAtivos ? Math.round((processed / totalAtivos) * 100) : 0;
   const excluidosCount = total - totalAtivos;
+
+  const limparTudo = async () => {
+    if (!confirm("Limpar TUDO? Isso vai apagar pontos, progresso e todo o cache do navegador (Street View, imagens, etc).")) return;
+    try {
+      // Reset session state
+      reset();
+      // localStorage / sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+      // Cache API
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      // IndexedDB
+      if (indexedDB && "databases" in indexedDB) {
+        // @ts-expect-error - databases() nem sempre está tipado
+        const dbs = await indexedDB.databases();
+        await Promise.all(
+          (dbs || []).map((db: { name?: string }) => db.name && new Promise((res) => {
+            const req = indexedDB.deleteDatabase(db.name!);
+            req.onsuccess = req.onerror = req.onblocked = () => res(null);
+          }))
+        );
+      }
+    } finally {
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -50,6 +79,9 @@ export default function Processamento() {
           </Button>
           <Button variant="ghost" onClick={reset} disabled={!total}>
             <Trash2 className="size-4" /> Limpar
+          </Button>
+          <Button variant="destructive" onClick={limparTudo}>
+            <Eraser className="size-4" /> Limpar Página
           </Button>
         </div>
       </header>
