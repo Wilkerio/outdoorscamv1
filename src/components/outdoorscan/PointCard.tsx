@@ -79,8 +79,10 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
           zoomControl: false,
         });
 
+        let hasLoaded = false;
         const markLoaded = () => {
-          if (cancelled) return;
+          if (cancelled || hasLoaded) return;
+          hasLoaded = true;
           setLoaded(true);
           onReadyRef.current();
         };
@@ -88,13 +90,13 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
         const statusListener = panorama.addListener("status_changed", () => {
           const status = panorama.getStatus?.();
           if (status === "OK") markLoaded();
-          if (status && status !== "OK") {
+          else if (status && !hasLoaded) {
             setFailed(true);
             onReadyRef.current();
           }
         });
         const safetyTimeout = window.setTimeout(() => {
-          if (cancelled) return;
+          if (cancelled || hasLoaded) return;
           const status = panorama.getStatus?.();
           if (status === "OK") {
             markLoaded();
@@ -102,7 +104,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
           }
           setFailed(true);
           onReadyRef.current();
-        }, 4500);
+        }, 8000);
 
         service.getPanorama(
           {
