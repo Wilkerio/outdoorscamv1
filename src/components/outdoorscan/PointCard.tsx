@@ -353,6 +353,12 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
     setReleaseSlot(null);
   };
 
+  const releaseThumbSlot = () => {
+    if (!releaseSlot) return;
+    releaseSlot();
+    setReleaseSlot(null);
+  };
+
   useEffect(() => {
     if (!thumbReady || !releaseSlot) return;
     const timeout = window.setTimeout(finishSlot, 10000);
@@ -416,9 +422,13 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
                   <StreetViewPreview
                     point={point}
                     onReady={(result) => {
-                      if (result === "loaded") setStreetViewLoaded(true);
-                      if (result === "failed") setStreetViewUnavailable(true);
-                      finishSlot();
+                      if (result === "loaded") {
+                        setStreetViewLoaded(true);
+                        finishSlot();
+                        return;
+                      }
+                      setStreetViewUnavailable(true);
+                      releaseThumbSlot();
                     }}
                   />
                 </div>
