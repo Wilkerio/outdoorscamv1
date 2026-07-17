@@ -55,6 +55,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
         if (cancelled || !panoramaRef.current) return;
 
         const google = (window as any).google;
+        const service = new google.maps.StreetViewService();
         const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
         const pitch = point.adjustedPhoto?.pitch ?? 0;
         const panorama = new google.maps.StreetViewPanorama(panoramaRef.current, {
@@ -133,7 +134,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
       cancelled = true;
       cleanup?.();
     };
-  }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading]);
+  }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
 
   return (
     <>
