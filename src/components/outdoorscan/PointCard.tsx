@@ -361,7 +361,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
 
   useEffect(() => {
     if (!thumbReady || !releaseSlot) return;
-    const timeout = window.setTimeout(finishSlot, 10000);
+    const timeout = window.setTimeout(releaseThumbSlot, 10000);
     return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thumbReady, releaseSlot]);
