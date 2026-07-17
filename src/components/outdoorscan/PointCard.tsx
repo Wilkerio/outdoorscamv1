@@ -134,6 +134,17 @@ export function PointCard({ point }: { point: Point }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsQueue, point.id]);
 
+  // Safety net: se o img não disparar onLoad/onError em 10s (imagem cacheada,
+  // hidden tab, etc.), libera o slot para não travar a fila inteira.
+  useEffect(() => {
+    if (!thumbReady || !releaseSlot) return;
+    const t = setTimeout(() => {
+      finishSlot();
+    }, 10000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thumbReady, releaseSlot]);
+
   const finishSlot = () => {
     if (releaseSlot) {
       releaseSlot();
