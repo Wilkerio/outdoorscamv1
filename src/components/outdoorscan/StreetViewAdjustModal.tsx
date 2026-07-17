@@ -111,7 +111,10 @@ export function StreetViewAdjustModal({
   const [brilho, setBrilho] = useState(90);
   const [contraste, setContraste] = useState(136);
   const [saturacao, setSaturacao] = useState(151);
-  const QUALIDADE = 10240; // 10K fixo
+  // Cap alto o suficiente para manter nitidez máxima (o tile nativo já limita
+  // o output real a ~4K na maioria dos FOVs). Valores acima disso só multiplicavam
+  // o tempo de salvamento sem ganho visual perceptível.
+  const QUALIDADE = 5120;
   const [originalBroken, setOriginalBroken] = useState(false);
   const hasOriginalPhoto = !!(point.foto && point.foto.trim() !== "" && !point.foto.toLowerCase().includes("not found") && point.foto !== "link da imagem nao localizado") && !originalBroken;
   const [showOriginal, setShowOriginal] = useState(hasOriginalPhoto);
