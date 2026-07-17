@@ -36,8 +36,9 @@ function isValidOriginalPhoto(value?: string) {
 
 function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => void }) {
   const onReadyRef = useRef(onReady);
-  const [tileUrls, setTileUrls] = useState<string[]>([]);
+  const panoramaRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -45,16 +46,54 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
 
   useEffect(() => {
     let cancelled = false;
-    setTileUrls([]);
     setFailed(false);
+    setLoaded(false);
 
     const init = async () => {
       try {
         await loadGoogleMapsApi();
-        if (cancelled) return;
+        if (cancelled || !panoramaRef.current) return;
 
         const google = (window as any).google;
-        const service = new google.maps.StreetViewService();
+        const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
+        const pitch = point.adjustedPhoto?.pitch ?? 0;
+        const panorama = new google.maps.StreetViewPanorama(panoramaRef.current, {
+          position: { lat: point.lat, lng: point.lng },
+          pov: { heading, pitch },
+          zoom: 0,
+          visible: true,
+          addressControl: false,
+          clickToGo: false,
+          disableDefaultUI: true,
+          disableDoubleClickZoom: true,
+          enableCloseButton: false,
+          fullscreenControl: false,
+          imageDateControl: false,
+          linksControl: false,
+          motionTracking: false,
+          motionTrackingControl: false,
+          panControl: false,
+          scrollwheel: false,
+          showRoadLabels: false,
+          zoomControl: false,
+        });
+
+        const markLoaded = () => {
+          if (cancelled) return;
+          setLoaded(true);
+          onReadyRef.current();
+        };
+
+        const statusListener = panorama.addListener("status_changed", () => {
+          const status = panorama.getStatus?.();
+          if (status === "OK") markLoaded();
+          if (status && status !== "OK") {
+            setFailed(true);
+            onReadyRef.current();
+          }
+        });
+        const panoListener = panorama.addListener("pano_changed", markLoaded);
+
         service.getPanorama(
           {
             location: { lat: point.lat, lng: point.lng },
@@ -68,21 +107,16 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
               onReadyRef.current();
               return;
             }
-
-            const zoom = 3;
-            const cols = 1 << zoom;
-            const rows = 1 << (zoom - 1);
-            const desiredHeading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
-            const centerHeading = data.tiles?.centerHeading ?? data.tiles?.originHeading ?? 0;
-            const headingInPano = (((desiredHeading - centerHeading + 180) % 360) + 360) % 360;
-            const centerX = Math.floor((headingInPano / 360) * cols);
-            const y = Math.max(0, Math.min(rows - 1, Math.floor(rows / 2) - 1));
-            const makeTile = (x: number) =>
-              `https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid=${encodeURIComponent(data.location.pano)}&x=${((x % cols) + cols) % cols}&y=${y}&zoom=${zoom}&nbt=1&fover=2`;
-
-            setTileUrls([makeTile(centerX), makeTile(centerX + 1)]);
+            panorama.setPano(data.location.pano);
+            panorama.setPov({ heading, pitch });
+            window.setTimeout(markLoaded, 1200);
           },
         );
+
+        return () => {
+          google.maps.event.removeListener(statusListener);
+          google.maps.event.removeListener(panoListener);
+        };
       } catch {
         if (!cancelled) {
           setFailed(true);
@@ -91,17 +125,19 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
       }
     };
 
-    init();
+    let cleanup: void | (() => void);
+    init().then((result) => {
+      cleanup = result;
+    });
     return () => {
       cancelled = true;
+      cleanup?.();
     };
   }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading]);
 
-  const handleReady = () => onReadyRef.current();
-
   return (
     <>
-      {!tileUrls.length && !failed && (
+      {!loaded && !failed && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-muted text-muted-foreground">
           <Loader2 className="size-5 animate-spin" />
           <span className="text-[10px]">Carregando Street View…</span>
@@ -112,21 +148,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: () => vo
           Street View indisponível
         </div>
       )}
-      {tileUrls.length > 0 && (
-        <div className="grid h-full w-full grid-cols-2 overflow-hidden">
-          {tileUrls.map((url, index) => (
-            <img
-              key={`${url}-${index}`}
-              src={url}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-              onLoad={handleReady}
-              onError={handleReady}
-            />
-          ))}
-        </div>
-      )}
+      <div ref={panoramaRef} className={`h-full w-full ${failed ? "hidden" : ""}`} aria-label="Street View" />
     </>
   );
 }
