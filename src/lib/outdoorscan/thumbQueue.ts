@@ -2,10 +2,10 @@
 // Evita disparar centenas de requisições em paralelo (168 cards) e permite
 // mostrar um indicador de "carregando" até o slot ficar livre.
 
-// Sem limite artificial: o browser já limita conexões por host (~6) e o proxy
-// enfileira do lado dele. Assim todos os cards começam a carregar em paralelo
-// e vão aparecendo conforme respondem.
-const MAX_CONCURRENT = 999;
+// Limite controlado: muitas instâncias do Street View ao mesmo tempo fazem os
+// tiles do Google virarem quadros brancos/quebrados. Mantém a tela estável e
+// libera os próximos cards conforme cada preview termina.
+const MAX_CONCURRENT = 6;
 let active = 0;
 const queue: Array<() => void> = [];
 
