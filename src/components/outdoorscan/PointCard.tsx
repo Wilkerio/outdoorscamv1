@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { StreetViewAdjustModal } from "./StreetViewAdjustModal";
 import { toast } from "sonner";
 import { useSession } from "@/context/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_STYLES: Record<Point["status"], string> = {
   AGUARDANDO: "bg-muted text-muted-foreground",
@@ -47,20 +48,34 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
   }, [onReady]);
 
   useEffect(() => {
+    let cancelled = false;
     setFailed(false);
     setLoaded(false);
+    setImgSrc("");
     const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
     const pitch = point.adjustedPhoto?.pitch ?? 0;
-    // Direto pela imagem estática via proxy — Google escolhe automaticamente o
-    // panorama mais próximo do lat/lng, sem gastar chamada JS StreetViewService
-    // (que trava com centenas de pontos simultâneos).
-    setImgSrc(streetViewImg(point.lat, point.lng, {
-      heading,
-      pitch,
-      fov: 80,
-      size: "640x320",
-      scale: 2,
-    }));
+
+    const loadPreview = async () => {
+      // Usar invoke em vez de <img src> direto: a função protegida precisa dos
+      // headers do cliente, então o GET público virava 401 e todos os cards
+      // apareciam como "Street View indisponível".
+      const apiUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80`;
+      const { data, error } = await supabase.functions.invoke("google-proxy", {
+        body: { url: apiUrl },
+      });
+      if (cancelled) return;
+      if (error || !data?.image) {
+        setFailed(true);
+        onReadyRef.current("failed");
+        return;
+      }
+      setImgSrc(`data:${data.contentType ?? "image/jpeg"};base64,${data.image}`);
+    };
+
+    loadPreview();
+    return () => {
+      cancelled = true;
+    };
   }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
 
   return (
