@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { googleMapsLink, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,7 +59,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
       // Usar invoke em vez de <img src> direto: a função protegida precisa dos
       // headers do cliente, então o GET público virava 401 e todos os cards
       // apareciam como "Street View indisponível".
-      const apiUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80`;
+      const apiUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80&radius=300&return_error_code=true`;
       const { data, error } = await supabase.functions.invoke("google-proxy", {
         body: { url: apiUrl },
       });
