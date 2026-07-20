@@ -70,31 +70,52 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
           onReadyRef.current("failed");
         };
 
-        const safetyTimeout = window.setTimeout(markFailed, 9000);
+        const useFallbackImage = () => {
+          if (cancelled || finished) return;
+          finished = true;
+          window.clearTimeout(safetyTimeout);
+          // Last-resort: request static Street View by lat/lng (Google will pick nearest pano).
+          setImgSrc(streetViewImg(point.lat, point.lng, {
+            heading,
+            pitch,
+            fov: 80,
+            size: "640x320",
+            scale: 2,
+          }));
+        };
 
-        service.getPanorama(
-          {
-            location: { lat: point.lat, lng: point.lng },
-            radius: 80,
-            source: google.maps.StreetViewSource?.OUTDOOR,
-          },
-          (data: any, status: any) => {
-            if (cancelled || finished) return;
-            if (status !== "OK" || !data?.location?.pano) {
-              markFailed();
-              return;
-            }
-            window.clearTimeout(safetyTimeout);
-            setImgSrc(streetViewImg(point.lat, point.lng, {
-              pano: data.location.pano,
-              heading,
-              pitch,
-              fov: 80,
-              size: "640x320",
-              scale: 2,
-            }));
-          },
-        );
+        const safetyTimeout = window.setTimeout(useFallbackImage, 9000);
+
+        const tryPanorama = (radius: number, source?: any) => {
+          service.getPanorama(
+            { location: { lat: point.lat, lng: point.lng }, radius, ...(source ? { source } : {}) },
+            (data: any, status: any) => {
+              if (cancelled || finished) return;
+              if (status === "OK" && data?.location?.pano) {
+                finished = true;
+                window.clearTimeout(safetyTimeout);
+                setImgSrc(streetViewImg(point.lat, point.lng, {
+                  pano: data.location.pano,
+                  heading,
+                  pitch,
+                  fov: 80,
+                  size: "640x320",
+                  scale: 2,
+                }));
+                return;
+              }
+              if (radius < 300) {
+                // Broaden search: bigger radius + any source (indoor allowed).
+                tryPanorama(300);
+                return;
+              }
+              // Give up on service — fall back to static image request.
+              useFallbackImage();
+            },
+          );
+        };
+
+        tryPanorama(100, google.maps.StreetViewSource?.OUTDOOR);
 
         return () => {
           window.clearTimeout(safetyTimeout);
