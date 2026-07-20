@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { googleMapsLink, loadGoogleMapsApi, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { googleMapsLink, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,95 +47,20 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
   }, [onReady]);
 
   useEffect(() => {
-    let cancelled = false;
     setFailed(false);
     setLoaded(false);
-    setImgSrc("");
-
-    const init = async () => {
-      try {
-        await loadGoogleMapsApi();
-        if (cancelled) return;
-
-        const google = (window as any).google;
-        const service = new google.maps.StreetViewService();
-        const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
-        const pitch = point.adjustedPhoto?.pitch ?? 0;
-        let finished = false;
-
-        const markFailed = () => {
-          if (cancelled || finished) return;
-          finished = true;
-          setFailed(true);
-          onReadyRef.current("failed");
-        };
-
-        const useFallbackImage = () => {
-          if (cancelled || finished) return;
-          finished = true;
-          window.clearTimeout(safetyTimeout);
-          // Last-resort: request static Street View by lat/lng (Google will pick nearest pano).
-          setImgSrc(streetViewImg(point.lat, point.lng, {
-            heading,
-            pitch,
-            fov: 80,
-            size: "640x320",
-            scale: 2,
-          }));
-        };
-
-        const safetyTimeout = window.setTimeout(useFallbackImage, 9000);
-
-        const tryPanorama = (radius: number, source?: any) => {
-          service.getPanorama(
-            { location: { lat: point.lat, lng: point.lng }, radius, ...(source ? { source } : {}) },
-            (data: any, status: any) => {
-              if (cancelled || finished) return;
-              if (status === "OK" && data?.location?.pano) {
-                finished = true;
-                window.clearTimeout(safetyTimeout);
-                setImgSrc(streetViewImg(point.lat, point.lng, {
-                  pano: data.location.pano,
-                  heading,
-                  pitch,
-                  fov: 80,
-                  size: "640x320",
-                  scale: 2,
-                }));
-                return;
-              }
-              if (radius < 300) {
-                // Broaden search: bigger radius + any source (indoor allowed).
-                tryPanorama(300);
-                return;
-              }
-              // Give up on service — fall back to static image request.
-              useFallbackImage();
-            },
-          );
-        };
-
-        tryPanorama(100, google.maps.StreetViewSource?.OUTDOOR);
-
-        return () => {
-          window.clearTimeout(safetyTimeout);
-        };
-      } catch {
-        if (!cancelled) {
-          setFailed(true);
-          onReadyRef.current("failed");
-        }
-      }
-    };
-
-    let cleanup: void | (() => void);
-    init().then((result) => {
-      cleanup = result;
-    });
-    return () => {
-      cancelled = true;
-      cleanup?.();
-    };
+    const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
+    const pitch = point.adjustedPhoto?.pitch ?? 0;
+    // Direto pela imagem estática via proxy — Google escolhe automaticamente o
+    // panorama mais próximo do lat/lng, sem gastar chamada JS StreetViewService
+    // (que trava com centenas de pontos simultâneos).
+    setImgSrc(streetViewImg(point.lat, point.lng, {
+      heading,
+      pitch,
+      fov: 80,
+      size: "640x320",
+      scale: 2,
+    }));
   }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
 
   return (
