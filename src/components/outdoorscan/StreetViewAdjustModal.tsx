@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Save, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Save, Loader2, RefreshCw, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { GMAPS_BROWSER_KEY, streetViewImg } from "@/lib/outdoorscan/streetview";
 import { useSession } from "@/context/SessionContext";
@@ -44,6 +44,16 @@ function zoomToFov(zoom: number): number {
 }
 
 const yieldToBrowser = () => new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+function saveStatusLabel(pct: number): string {
+  if (pct >= 100) return "Pronto!";
+  if (pct >= 92) return "Finalizando...";
+  if (pct >= 85) return "Enviando pro servidor...";
+  if (pct >= 70) return "Aplicando filtros e nitidez...";
+  if (pct >= 50) return "Montando a imagem final...";
+  if (pct >= 15) return "Baixando panorama em alta resolução...";
+  return "Preparando...";
+}
 
 function SaveProgressToast({ cod, progress }: { cod: string; progress: number }) {
   const pct = Math.max(0, Math.min(100, Math.round(progress)));
@@ -288,18 +298,15 @@ export function StreetViewAdjustModal({
     const pointIdSnap = point.id;
     const codSnap = point.cod;
 
-    // Fecha modal e mostra toast persistente — usuário pode seguir para o próximo.
+    // Fica bloqueado com "Salvando foto..." até terminar. Usuário só pode
+    // trocar de tela/ponto depois de pronto — a menos que clique em
+    // "Deixar em segundo plano" (handleMinimize), aí sim fecha e segue via toast.
     codRef.current = codSnap;
-    minimizedRef.current = true;
     setSaveProgress(0);
-    toastIdRef.current = toast.custom(() => <SaveProgressToast cod={codSnap} progress={0} />, {
-      duration: Infinity,
-    });
-    onOpenChange(false);
+    setSaving(true);
     await yieldToBrowser();
 
     try {
-      setSaving(true);
       updateProgress(5);
       log("info", `${codSnap} — Salvando foto com filtros: B:${brilhoSnap}% C:${contrasteSnap}% S:${saturacaoSnap}%`);
       // ============================================================
@@ -684,21 +691,20 @@ export function StreetViewAdjustModal({
       });
 
       log("success", `✅ ${codSnap} — Foto salva com filtros aplicados!`);
-      if (toastIdRef.current != null) {
-        toast.success(`✅ Foto do item ${codSnap} salva!`, {
-          id: toastIdRef.current,
-          duration: 4000,
-        });
-      }
+      toast.success(`✅ Foto do item ${codSnap} salva!`, {
+        id: toastIdRef.current ?? undefined,
+        duration: 4000,
+      });
+      // Só fecha sozinho se o usuário não pediu pra minimizar — nesse caso
+      // ele já saiu da tela e o toast acima já avisa que terminou.
+      if (!minimizedRef.current) onOpenChange(false);
     } catch (err: any) {
       console.error(err);
       log("error", `❌ Erro ao salvar foto ${codSnap}: ${err.message}`);
-      if (toastIdRef.current != null) {
-        toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
-          id: toastIdRef.current,
-          duration: 6000,
-        });
-      }
+      toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
+        id: toastIdRef.current ?? undefined,
+        duration: 6000,
+      });
     } finally {
       setSaving(false);
       minimizedRef.current = false;
@@ -708,34 +714,67 @@ export function StreetViewAdjustModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl w-[97vw] max-h-[97vh] overflow-y-auto p-4 sm:p-6">
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        // Enquanto salva (e não minimizado), ignora Esc/clique fora — só fecha
+        // sozinho quando terminar, ou se o usuário clicar "Deixar em segundo plano".
+        if (saving && v === false && !minimizedRef.current) return;
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent className="max-w-7xl w-[97vw] max-h-[97vh] overflow-y-auto p-4 sm:p-6" hideClose>
+        {!saving && (
+          <button
+            onClick={save}
+            title="Salvar e fechar"
+            className="absolute right-4 top-4 z-40 rounded-sm opacity-70 ring-offset-background cursor-pointer transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Salvar e fechar</span>
+          </button>
+        )}
         {saving && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/85 backdrop-blur-sm rounded-lg">
-            <div className="w-[85%] max-w-md bg-card border border-border rounded-xl p-6 shadow-2xl">
-              <div className="flex items-center gap-2 mb-3">
-                <RefreshCw className="size-4 animate-spin text-primary" />
-                <span className="font-semibold text-sm">
-                  Salvando foto do item {point.cod}
-                </span>
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-md rounded-lg">
+            <div className="w-[90%] max-w-sm bg-card border border-border rounded-2xl p-6 shadow-2xl">
+              <div className="flex flex-col items-center text-center gap-3">
+                <div className="relative flex items-center justify-center size-14">
+                  <svg className="size-14 -rotate-90" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted" />
+                    <circle
+                      cx="28" cy="28" r="24" fill="none" stroke="currentColor" strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={2 * Math.PI * 24}
+                      strokeDashoffset={2 * Math.PI * 24 * (1 - saveProgress / 100)}
+                      className="text-primary transition-all duration-300 ease-out"
+                    />
+                  </svg>
+                  {saveProgress >= 100 ? (
+                    <Check className="absolute size-6 text-primary" />
+                  ) : (
+                    <span className="absolute text-xs font-semibold tabular-nums">{saveProgress}%</span>
+                  )}
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">Salvando foto — {point.cod}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{saveStatusLabel(saveProgress)}</div>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${saveProgress}%` }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-1 gap-2"
+                  onClick={handleMinimize}
+                >
+                  <RefreshCw className="size-3.5" />
+                  Deixar em segundo plano
+                </Button>
               </div>
-              <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300 ease-out"
-                  style={{ width: `${saveProgress}%` }}
-                />
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground text-right tabular-nums">
-                {saveProgress}%
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-4"
-                onClick={handleMinimize}
-              >
-                Deixar em segundo plano
-              </Button>
             </div>
           </div>
         )}

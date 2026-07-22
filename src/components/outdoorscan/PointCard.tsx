@@ -98,6 +98,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
           src={imgSrc}
           alt={`Street View de ${point.endereco}`}
           className="h-full w-full object-cover"
+          style={{ filter: "brightness(90%) contrast(136%) saturate(151%)" }}
           draggable={false}
           onLoad={(event) => {
             const img = event.currentTarget;

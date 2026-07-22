@@ -13,7 +13,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <BrowserRouter>
-          <div className="flex min-h-screen w-full bg-background text-foreground">
+          <div className="flex flex-col lg:flex-row min-h-screen w-full bg-background text-foreground">
             <AppSidebar />
             <main className="flex-1 min-w-0">
               <Routes>

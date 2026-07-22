@@ -14,7 +14,7 @@ const STORAGE_KEY = "outdoorscan:session:v1";
   phase: Phase;
    currentIndex: number;
    log: (level: LogEntry["level"], message: string) => void;
-    salvarFotoSupabase: (cod: string, url: string) => Promise<string>;
+    salvarFotoSupabase: (cod: string, url: string, applyFilter?: boolean) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
   setPoints: (p: Point[], sheetName?: string, colunasOriginais?: string[]) => void;
   exportarExcel: () => Promise<void>;
@@ -28,6 +28,25 @@ const STORAGE_KEY = "outdoorscan:session:v1";
     editarPonto: (id: string, patch: Partial<Point>) => void;
     ultimoSalvamento: number | null;
     stats: { sucesso: number; erro: number; semCobertura: number; total: number };
+}
+
+// Preset padrão do modal "Ajustar foto" (brilho/contraste/saturação).
+async function aplicarFiltroPadrao(base64Jpeg: string): Promise<Blob> {
+  const img = new Image();
+  img.src = `data:image/jpeg;base64,${base64Jpeg}`;
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Falha ao decodificar imagem"));
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d")!;
+  ctx.filter = "brightness(90%) contrast(136%) saturate(151%)";
+  ctx.drawImage(img, 0, 0);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (!blob) throw new Error("Falha ao gerar imagem com filtro");
+  return blob;
 }
 
 const Ctx = createContext<SessionState | null>(null);
@@ -335,18 +354,25 @@ const Ctx = createContext<SessionState | null>(null);
       [log]
     );
 
-    const salvarFotoSupabase = useCallback(async (cod: string, url: string) => {
+    const salvarFotoSupabase = useCallback(async (cod: string, url: string, applyFilter = false) => {
      const { data, error } = await supabase.functions.invoke("google-proxy", {
        body: { url },
      });
      if (error || data.error) throw new Error(error?.message || data.error);
- 
-     const byteString = atob(data.image);
-     const ab = new ArrayBuffer(byteString.length);
-     const ia = new Uint8Array(ab);
-     for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-     const blob = new Blob([ab], { type: "image/jpeg" });
- 
+
+     // Mesmo preset padrão usado no modal "Ajustar foto" (brilho/contraste/
+     // saturação), aplicado automaticamente nas fotos do processamento em lote
+     // pra não depender de ajuste manual ponto a ponto.
+     const blob = applyFilter
+       ? await aplicarFiltroPadrao(data.image)
+       : (() => {
+           const byteString = atob(data.image);
+           const ab = new ArrayBuffer(byteString.length);
+           const ia = new Uint8Array(ab);
+           for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+           return new Blob([ab], { type: "image/jpeg" });
+         })();
+
      const fileName = `${cod}_${Date.now()}.jpg`;
      const { error: uploadError } = await supabase.storage.from("imagens-outdoors").upload(fileName, blob, {
        contentType: "image/jpeg",
@@ -449,7 +475,7 @@ const Ctx = createContext<SessionState | null>(null);
           log("success", `✅ ${cod} — Salvo no ângulo ${finalHeading}° fov=${finalFov}`);
         }
 
-        const urlPublica = await salvarFotoSupabase(cod, fotoFinalUrl);
+        const urlPublica = await salvarFotoSupabase(cod, fotoFinalUrl, true);
         updatePoint(id, {
           status: statusFinal,
           foto_url: urlPublica,

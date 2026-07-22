@@ -63,7 +63,7 @@ export default function Processamento() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       <header className="flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Processamento</h1>
@@ -71,7 +71,7 @@ export default function Processamento() {
             Faça upload da planilha e verifique a cobertura Street View de cada ponto.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {phase === "running" ? (
             <Button onClick={pause} variant="secondary">
               <Pause className="size-4" /> Pausar
