@@ -70,8 +70,25 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
           onReadyRef.current("failed");
         };
 
-        const safetyTimeout = window.setTimeout(markFailed, 9000);
+        const safetyTimeout = window.setTimeout(markFailed, 12000);
 
+        const applyPano = (pano: string) => {
+          window.clearTimeout(safetyTimeout);
+          setImgSrc(streetViewImg(point.lat, point.lng, {
+            pano,
+            heading,
+            pitch,
+            fov: 80,
+            size: "640x320",
+            scale: 2,
+          }));
+        };
+
+        // Busca inicial restrita a panoramas "outdoor" (evita interiores de
+        // estabelecimentos). Se não achar, cai para busca livre, sem filtro
+        // de source — mesmo comportamento do StreetViewPanorama usado no
+        // modal "Ajustar", que costuma achar cobertura que essa busca
+        // restrita descarta.
         service.getPanorama(
           {
             location: { lat: point.lat, lng: point.lng },
@@ -80,19 +97,24 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
           },
           (data: any, status: any) => {
             if (cancelled || finished) return;
-            if (status !== "OK" || !data?.location?.pano) {
-              markFailed();
+            if (status === "OK" && data?.location?.pano) {
+              applyPano(data.location.pano);
               return;
             }
-            window.clearTimeout(safetyTimeout);
-            setImgSrc(streetViewImg(point.lat, point.lng, {
-              pano: data.location.pano,
-              heading,
-              pitch,
-              fov: 80,
-              size: "640x320",
-              scale: 2,
-            }));
+            service.getPanorama(
+              {
+                location: { lat: point.lat, lng: point.lng },
+                radius: 80,
+              },
+              (data2: any, status2: any) => {
+                if (cancelled || finished) return;
+                if (status2 !== "OK" || !data2?.location?.pano) {
+                  markFailed();
+                  return;
+                }
+                applyPano(data2.location.pano);
+              },
+            );
           },
         );
 
@@ -281,7 +303,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
     const timeout = window.setTimeout(() => {
       setStreetViewUnavailable(true);
       finishSlot();
-    }, 10000);
+    }, 14000);
     return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [thumbReady, releaseSlot]);
