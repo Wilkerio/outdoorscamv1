@@ -4,15 +4,17 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GATEWAY_BASE = 'https://connector-gateway.lovable.dev/google_maps';
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY') ?? '';
-const GMAPS_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY') ?? '';
+// Chama a API do Google Maps diretamente com a chave do usuário
+// (GOOGLE_MAPS_API_KEY_CUSTOM), sem passar pelo gateway do conector.
+const GOOGLE_BASE = 'https://maps.googleapis.com';
+const GMAPS_KEY =
+  Deno.env.get('GOOGLE_MAPS_API_KEY_CUSTOM') ??
+  Deno.env.get('GOOGLE_MAPS_API_KEY') ??
+  '';
 
-function gwHeaders() {
-  return {
-    Authorization: `Bearer ${LOVABLE_API_KEY}`,
-    'X-Connection-Api-Key': GMAPS_KEY,
-  };
+function withKey(qs: URLSearchParams) {
+  qs.set('key', GMAPS_KEY);
+  return qs;
 }
 
 // Rewrite a maps.googleapis.com URL to the gateway (strip client-provided key).
@@ -21,8 +23,8 @@ function toGatewayUrl(rawUrl: string): { url: string; useGateway: boolean } | nu
   try { parsed = new URL(rawUrl); } catch { return null; }
   if (parsed.protocol !== 'https:') return null;
   if (parsed.hostname === 'maps.googleapis.com') {
-    parsed.searchParams.delete('key');
-    return { url: `${GATEWAY_BASE}${parsed.pathname}${parsed.search}`, useGateway: true };
+    parsed.searchParams.set('key', GMAPS_KEY);
+    return { url: parsed.toString(), useGateway: false };
   }
   // Street View native panorama tiles — public tile server, no key required.
   if (parsed.hostname === 'streetviewpixels-pa.googleapis.com') {
@@ -31,8 +33,8 @@ function toGatewayUrl(rawUrl: string): { url: string; useGateway: boolean } | nu
   return null;
 }
 
-async function fetchImageAsBase64(gwUrl: string, useGateway: boolean) {
-  const resp = await fetch(gwUrl, useGateway ? { headers: gwHeaders() } : undefined);
+async function fetchImageAsBase64(gwUrl: string, _useGateway: boolean) {
+  const resp = await fetch(gwUrl);
   const buf = await resp.arrayBuffer();
   const bytes = new Uint8Array(buf);
   let binary = '';
@@ -55,9 +57,9 @@ async function fetchImageAsBase64(gwUrl: string, useGateway: boolean) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
-  if (!LOVABLE_API_KEY || !GMAPS_KEY) {
+  if (!GMAPS_KEY) {
     return new Response(
-      JSON.stringify({ error: 'Google Maps connector not configured' }),
+      JSON.stringify({ error: 'GOOGLE_MAPS_API_KEY_CUSTOM not configured' }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...CORS } },
     );
   }
@@ -77,8 +79,8 @@ Deno.serve(async (req) => {
       const qs = new URLSearchParams(reqUrl.searchParams);
       qs.delete('kind');
       qs.delete('key');
-      const gw = `${GATEWAY_BASE}${path}?${qs.toString()}`;
-      const upstream = await fetch(gw, { headers: gwHeaders() });
+      withKey(qs);
+      const upstream = await fetch(`${GOOGLE_BASE}${path}?${qs.toString()}`);
       const buf = await upstream.arrayBuffer();
       return new Response(buf, {
         status: upstream.status,
@@ -98,8 +100,8 @@ Deno.serve(async (req) => {
       const qs = new URLSearchParams();
       if (address) qs.set('address', address);
       if (latlng) qs.set('latlng', latlng);
-      const gw = `${GATEWAY_BASE}/maps/api/geocode/json?${qs.toString()}`;
-      const r = await fetch(gw, { headers: gwHeaders() });
+      withKey(qs);
+      const r = await fetch(`${GOOGLE_BASE}/maps/api/geocode/json?${qs.toString()}`);
       const text = await r.text();
       return new Response(text, {
         status: r.status,
@@ -110,8 +112,8 @@ Deno.serve(async (req) => {
     if (body?.metadata) {
       const { location } = body.metadata as { location: string };
       const qs = new URLSearchParams({ location });
-      const gw = `${GATEWAY_BASE}/maps/api/streetview/metadata?${qs.toString()}`;
-      const r = await fetch(gw, { headers: gwHeaders() });
+      withKey(qs);
+      const r = await fetch(`${GOOGLE_BASE}/maps/api/streetview/metadata?${qs.toString()}`);
       const text = await r.text();
       return new Response(text, {
         status: r.status,
