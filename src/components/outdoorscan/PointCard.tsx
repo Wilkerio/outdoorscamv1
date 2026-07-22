@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2 } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
-import { googleMapsLink, loadGoogleMapsApi, streetViewImg } from "@/lib/outdoorscan/streetview";
+import { googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { StreetViewAdjustModal } from "./StreetViewAdjustModal";
 import { toast } from "sonner";
 import { useSession } from "@/context/SessionContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STATUS_STYLES: Record<Point["status"], string> = {
   AGUARDANDO: "bg-muted text-muted-foreground",
@@ -51,91 +52,31 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
     setFailed(false);
     setLoaded(false);
     setImgSrc("");
+    const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
+    const pitch = point.adjustedPhoto?.pitch ?? 0;
 
-    const init = async () => {
-      try {
-        await loadGoogleMapsApi();
-        if (cancelled) return;
-
-        const google = (window as any).google;
-        const service = new google.maps.StreetViewService();
-        const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
-        const pitch = point.adjustedPhoto?.pitch ?? 0;
-        let finished = false;
-
-        const markFailed = () => {
-          if (cancelled || finished) return;
-          finished = true;
-          setFailed(true);
-          onReadyRef.current("failed");
-        };
-
-        const safetyTimeout = window.setTimeout(markFailed, 12000);
-
-        const applyPano = (pano: string) => {
-          window.clearTimeout(safetyTimeout);
-          setImgSrc(streetViewImg(point.lat, point.lng, {
-            pano,
-            heading,
-            pitch,
-            fov: 80,
-            size: "640x320",
-            scale: 2,
-          }));
-        };
-
-        // Busca inicial restrita a panoramas "outdoor" (evita interiores de
-        // estabelecimentos). Se não achar, cai para busca livre, sem filtro
-        // de source — mesmo comportamento do StreetViewPanorama usado no
-        // modal "Ajustar", que costuma achar cobertura que essa busca
-        // restrita descarta.
-        service.getPanorama(
-          {
-            location: { lat: point.lat, lng: point.lng },
-            radius: 80,
-            source: google.maps.StreetViewSource?.OUTDOOR,
-          },
-          (data: any, status: any) => {
-            if (cancelled || finished) return;
-            if (status === "OK" && data?.location?.pano) {
-              applyPano(data.location.pano);
-              return;
-            }
-            service.getPanorama(
-              {
-                location: { lat: point.lat, lng: point.lng },
-                radius: 80,
-              },
-              (data2: any, status2: any) => {
-                if (cancelled || finished) return;
-                if (status2 !== "OK" || !data2?.location?.pano) {
-                  markFailed();
-                  return;
-                }
-                applyPano(data2.location.pano);
-              },
-            );
-          },
-        );
-
-        return () => {
-          window.clearTimeout(safetyTimeout);
-        };
-      } catch {
-        if (!cancelled) {
-          setFailed(true);
-          onReadyRef.current("failed");
-        }
+    const loadPreview = async () => {
+      // Usar invoke em vez de <img src> direto: a função protegida precisa dos
+      // headers do cliente, então o GET público virava 401 e todos os cards
+      // apareciam como "Street View indisponível". radius=300 faz a Street View
+      // Static API buscar cobertura próxima quando o ponto exato não tem imagem,
+      // em vez de falhar.
+      const apiUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80&radius=300&return_error_code=true`;
+      const { data, error } = await supabase.functions.invoke("google-proxy", {
+        body: { url: apiUrl },
+      });
+      if (cancelled) return;
+      if (error || !data?.image) {
+        setFailed(true);
+        onReadyRef.current("failed");
+        return;
       }
+      setImgSrc(`data:${data.contentType ?? "image/jpeg"};base64,${data.image}`);
     };
 
-    let cleanup: void | (() => void);
-    init().then((result) => {
-      cleanup = result;
-    });
+    loadPreview();
     return () => {
       cancelled = true;
-      cleanup?.();
     };
   }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
 
