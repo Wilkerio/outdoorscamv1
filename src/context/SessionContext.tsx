@@ -1,6 +1,6 @@
   import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
- import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
+ import { GMAPS_KEY, googleMapsLink } from "@/lib/outdoorscan/streetview";
  import { fetchNearbyPois, estimateAudience, poiCounts } from "@/lib/outdoorscan/audience";
  import { supabase } from "@/integrations/supabase/client";
  import ExcelJS from "exceljs";
@@ -31,6 +31,15 @@ const STORAGE_KEY = "outdoorscan:session:v1";
     ultimoSalvamento: number | null;
     stats: { sucesso: number; erro: number; semCobertura: number; total: number };
 }
+
+const STATUS_EXPORT: Record<PointStatus, { label: string; bg: string; fg: string }> = {
+  AGUARDANDO: { label: "Aguardando", bg: "FFEDEDED", fg: "FF666666" },
+  PROCESSANDO: { label: "Processando", bg: "FFDCEAFB", fg: "FF1E5FA8" },
+  SUCESSO: { label: "Sucesso", bg: "FFD9F2DA", fg: "FF1E7A2E" },
+  SEM_COBERTURA: { label: "Sem cobertura", bg: "FFFCEFC7", fg: "FF9A6B00" },
+  ERRO: { label: "Erro", bg: "FFF9D6D6", fg: "FFB3261E" },
+  SEM_OUTDOOR_VISIVEL: { label: "Sem outdoor visível", bg: "FFFCEFC7", fg: "FF9A6B00" },
+};
 
 // Preset padrão do modal "Ajustar foto" (brilho/contraste/saturação).
 async function aplicarFiltroPadrao(base64Jpeg: string): Promise<Blob> {
@@ -199,74 +208,89 @@ const Ctx = createContext<SessionState | null>(null);
       return;
     }
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet(sheetName || "Book");
+    wb.creator = "OutdoorScan";
+    const ws = wb.addWorksheet(sheetName || "Book", { views: [{ state: "frozen", ySplit: 4 }] });
 
-    // Definir colunas com larguras adequadas
-    ws.columns = [
-      { header: "Cod.", key: "cod", width: 12 },
-      { header: "Endereço", key: "endereco", width: 40 },
-      { header: "Bairro", key: "bairro", width: 18 },
-      { header: "Cidade", key: "cidade", width: 15 },
-      { header: "Latitude", key: "lat", width: 15 },
-      { header: "Longitude", key: "lng", width: 15 },
-      { header: "Formato", key: "formato", width: 12 },
-      { header: "Foto", key: "foto", width: 50 },
-      { header: "Empresa", key: "empresa", width: 20 },
-      { header: "POIs Próximos (300m)", key: "poi", width: 40 },
-      { header: "Fluxo Estimado (pessoas/dia)", key: "audiencia", width: 24 },
-    ];
+    const COLS = [
+      { key: "cod", header: "Cod.", width: 12 },
+      { key: "status", header: "Status", width: 16 },
+      { key: "endereco", header: "Endereço", width: 42 },
+      { key: "bairro", header: "Bairro", width: 18 },
+      { key: "cidade", header: "Cidade", width: 15 },
+      { key: "formato", header: "Formato", width: 12 },
+      { key: "empresa", header: "Empresa", width: 20 },
+      { key: "lat", header: "Latitude", width: 14 },
+      { key: "lng", header: "Longitude", width: 14 },
+      { key: "audiencia", header: "Fluxo Estimado (pessoas/dia)", width: 24 },
+      { key: "poi", header: "POIs Próximos (300m)", width: 42 },
+      { key: "foto", header: "Foto", width: 16 },
+      { key: "mapa", header: "Mapa", width: 12 },
+    ] as const;
+    ws.columns = COLS.map(({ key, width }) => ({ key, width }));
+    const lastCol = String.fromCharCode(64 + COLS.length); // 13 colunas → "M"
 
-    // Estilizar cabeçalho
-    const headerRow = ws.getRow(1);
+    // Título
+    ws.mergeCells(`A1:${lastCol}1`);
+    const titleCell = ws.getCell("A1");
+    titleCell.value = `OutdoorScan — ${sheetName || "Relatório de Pontos"}`;
+    titleCell.font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
+    titleCell.alignment = { vertical: "middle", horizontal: "left" };
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF13253F" } };
+    ws.getRow(1).height = 30;
+
+    // Subtítulo com resumo
+    ws.mergeCells(`A2:${lastCol}2`);
+    const subtitleCell = ws.getCell("A2");
+    const dataGeracao = new Date().toLocaleString("pt-BR");
+    subtitleCell.value = `${pontosAtivos.length} ponto(s) ativo(s) · Gerado em ${dataGeracao}`;
+    subtitleCell.font = { italic: true, size: 10, color: { argb: "FFFFFFFF" } };
+    subtitleCell.alignment = { vertical: "middle", horizontal: "left" };
+    subtitleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+    ws.getRow(2).height = 20;
+
+    ws.getRow(3).height = 6;
+
+    // Cabeçalho (linha 4)
+    const headerRow = ws.getRow(4);
+    COLS.forEach((c, i) => {
+      headerRow.getCell(i + 1).value = c.header;
+    });
     headerRow.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FF1E3A5F" },
-      };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
       cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
-      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
       cell.border = {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
-        left: { style: "thin" },
-        right: { style: "thin" },
+        top: { style: "thin" }, bottom: { style: "thin" },
+        left: { style: "thin" }, right: { style: "thin" },
       };
     });
-    headerRow.height = 25;
+    headerRow.height = 32;
 
-      // Adicionar dados
+    // Dados
     pontosAtivos.forEach((ponto, idx) => {
+      const lat = Number.isFinite(ponto.lat) ? ponto.lat : parseFloat(String(ponto.originalData?.["Latitude"] ?? "").replace(",", "."));
+      const lng = Number.isFinite(ponto.lng) ? ponto.lng : parseFloat(String(ponto.originalData?.["Longitude"] ?? "").replace(",", "."));
+      const validCoords = Number.isFinite(lat) && Number.isFinite(lng);
+      const fotoUrl = ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "";
+      const status = STATUS_EXPORT[ponto.status] ?? STATUS_EXPORT.AGUARDANDO;
+
       const row = ws.addRow({
         cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
+        status: status.label,
         endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
         bairro: (ponto.bairro || ponto.originalData?.["Bairro"]) ?? "",
-        cidade:
-          ponto.originalData?.["Cidade"] ??
-          ponto.originalData?.["Cidade "] ??
-          ponto.cidade ??
-          "",
-        lat: Number.isFinite(ponto.lat)
-          ? String(ponto.lat).replace(",", ".")
-          : String(ponto.originalData?.["Latitude"] ?? "").replace(",", "."),
-        lng: Number.isFinite(ponto.lng)
-          ? String(ponto.lng).replace(",", ".")
-          : String(ponto.originalData?.["Longitude"] ?? "").replace(",", "."),
+        cidade: ponto.originalData?.["Cidade"] ?? ponto.originalData?.["Cidade "] ?? ponto.cidade ?? "",
         formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
-        foto: ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "",
         empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
-        poi: (ponto.poi ?? []).map((p) => `${p.label} (${p.count})`).join(", "),
+        lat: validCoords ? lat : "",
+        lng: validCoords ? lng : "",
         audiencia: ponto.audienceEstimate ?? "",
+        poi: (ponto.poi ?? []).map((p) => `${p.label} (${p.count})`).join(", "),
       });
 
-      // Cor alternada nas linhas
       const bgColor = idx % 2 === 0 ? "FFF5F8FF" : "FFFFFFFF";
       row.eachCell((cell) => {
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: bgColor },
-        };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
         cell.alignment = { vertical: "middle", wrapText: false };
         cell.border = {
           top: { style: "thin", color: { argb: "FFE0E0E0" } },
@@ -276,16 +300,41 @@ const Ctx = createContext<SessionState | null>(null);
         };
       });
 
-      // Coluna Foto com URL direta
+      const statusCell = row.getCell("status");
+      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: status.bg } };
+      statusCell.font = { bold: true, color: { argb: status.fg }, size: 10 };
+      statusCell.alignment = { vertical: "middle", horizontal: "center" };
+
+      row.getCell("lat").numFmt = "0.000000";
+      row.getCell("lng").numFmt = "0.000000";
+      row.getCell("lat").alignment = { horizontal: "right" };
+      row.getCell("lng").alignment = { horizontal: "right" };
+
+      const audienciaCell = row.getCell("audiencia");
+      if (ponto.audienceEstimate != null) {
+        audienciaCell.numFmt = "#,##0";
+        audienciaCell.alignment = { horizontal: "right" };
+        audienciaCell.font = { bold: true, color: { argb: "FF1E7A2E" } };
+      }
+
       const fotoCell = row.getCell("foto");
-      fotoCell.value = ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "";
-      fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
+      if (fotoUrl) {
+        fotoCell.value = { text: "Ver foto", hyperlink: fotoUrl };
+        fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
+      }
+      fotoCell.alignment = { horizontal: "center" };
+
+      const mapaCell = row.getCell("mapa");
+      if (validCoords) {
+        mapaCell.value = { text: "Abrir mapa", hyperlink: googleMapsLink(lat, lng) };
+        mapaCell.font = { color: { argb: "FF0563C1" }, underline: true };
+      }
+      mapaCell.alignment = { horizontal: "center" };
 
       row.height = 20;
     });
 
-    // Congelar linha do cabeçalho
-    ws.views = [{ state: "frozen", ySplit: 1 }];
+    ws.autoFilter = { from: "A4", to: `${lastCol}4` };
 
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
