@@ -361,10 +361,13 @@ const Ctx = createContext<SessionState | null>(null);
     );
 
     const salvarFotoSupabase = useCallback(async (cod: string, url: string, applyFilter = false) => {
+     if (typeof url !== "string" || !/^https:\/\//.test(url)) {
+       throw new Error(`URL de foto inválida para ${cod}`);
+     }
      const { data, error } = await supabase.functions.invoke("google-proxy", {
        body: { url },
      });
-     if (error || data.error) throw new Error(error?.message || data.error);
+     if (error || data?.error) throw new Error(error?.message || data?.error);
 
      // Mesmo preset padrão usado no modal "Ajustar foto" (brilho/contraste/
      // saturação), aplicado automaticamente nas fotos do processamento em lote
