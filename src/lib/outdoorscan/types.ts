@@ -1,5 +1,11 @@
 export type PointStatus = "AGUARDANDO" | "PROCESSANDO" | "SUCESSO" | "SEM_COBERTURA" | "ERRO" | "SEM_OUTDOOR_VISIVEL";
 
+export interface PoiCount {
+  type: string;
+  label: string;
+  count: number;
+}
+
 export interface PhotoAdjustment {
   heading: number;
   pitch: number;
@@ -30,6 +36,9 @@ export interface Point {
   fovSalvo?: number;
   error?: string;
   originalData?: any;
+  poi?: PoiCount[];
+  audienceEstimate?: number;
+  audienceCalculated?: boolean;
 }
 
 export interface LogEntry {

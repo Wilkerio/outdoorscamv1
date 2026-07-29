@@ -109,6 +109,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (body?.nearby) {
+      const { lat, lng, radius, type } = body.nearby as { lat: number; lng: number; radius?: number; type: string };
+      const qs = new URLSearchParams({
+        location: `${lat},${lng}`,
+        radius: String(radius ?? 300),
+        type,
+      });
+      withKey(qs);
+      const r = await fetch(`${GOOGLE_BASE}/maps/api/place/nearbysearch/json?${qs.toString()}`);
+      const text = await r.text();
+      return new Response(text, {
+        status: r.status,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
+    }
+
     if (body?.metadata) {
       const { location } = body.metadata as { location: string };
       const qs = new URLSearchParams({ location });

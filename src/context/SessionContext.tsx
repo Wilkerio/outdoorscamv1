@@ -1,6 +1,7 @@
   import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import type { Point, PointStatus, LogEntry, PhotoAdjustment } from "@/lib/outdoorscan/types";
  import { GMAPS_KEY } from "@/lib/outdoorscan/streetview";
+ import { fetchNearbyPois, estimateAudience, poiCounts } from "@/lib/outdoorscan/audience";
  import { supabase } from "@/integrations/supabase/client";
  import ExcelJS from "exceljs";
 
@@ -16,6 +17,7 @@ const STORAGE_KEY = "outdoorscan:session:v1";
    log: (level: LogEntry["level"], message: string) => void;
     salvarFotoSupabase: (cod: string, url: string, applyFilter?: boolean) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
+    calcularAudiencia: (ponto: Point) => Promise<void>;
   setPoints: (p: Point[], sheetName?: string, colunasOriginais?: string[]) => void;
   exportarExcel: () => Promise<void>;
    start: () => void;
@@ -210,6 +212,8 @@ const Ctx = createContext<SessionState | null>(null);
       { header: "Formato", key: "formato", width: 12 },
       { header: "Foto", key: "foto", width: 50 },
       { header: "Empresa", key: "empresa", width: 20 },
+      { header: "POIs Próximos (300m)", key: "poi", width: 40 },
+      { header: "Fluxo Estimado (pessoas/dia)", key: "audiencia", width: 24 },
     ];
 
     // Estilizar cabeçalho
@@ -251,6 +255,8 @@ const Ctx = createContext<SessionState | null>(null);
         formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
         foto: ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "",
         empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
+        poi: (ponto.poi ?? []).map((p) => `${p.label} (${p.count})`).join(", "),
+        audiencia: ponto.audienceEstimate ?? "",
       });
 
       // Cor alternada nas linhas
@@ -383,6 +389,23 @@ const Ctx = createContext<SessionState | null>(null);
      const { data: urlData } = supabase.storage.from("imagens-outdoors").getPublicUrl(fileName);
      return urlData.publicUrl;
    }, []);
+  const calcularAudiencia = useCallback(
+    async (p: Point) => {
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return;
+      try {
+        const hits = await fetchNearbyPois(p.lat, p.lng);
+        updatePoint(p.id, {
+          poi: poiCounts(hits),
+          audienceEstimate: estimateAudience(hits),
+          audienceCalculated: true,
+        });
+      } catch (err: any) {
+        log("error", `❌ ${p.cod} — Erro ao calcular fluxo estimado: ${err.message}`);
+      }
+    },
+    [updatePoint, log],
+  );
+
   const processarPonto = useCallback(
     async (p: Point, forceProcess?: boolean) => {
       if (!forceProcess && p.fotoSalva && p.status === "SUCESSO") {
@@ -401,6 +424,10 @@ const Ctx = createContext<SessionState | null>(null);
           log("error", `❌ ${cod} — Coordenadas inválidas`);
           updatePoint(id, { status: "ERRO" });
           return;
+        }
+
+        if (!p.audienceCalculated) {
+          void calcularAudiencia(p);
         }
 
         // Primeiro verificar se há cobertura básica (via proxy — usa conector Lovable)
@@ -489,7 +516,7 @@ const Ctx = createContext<SessionState | null>(null);
         updatePoint(id, { status: "ERRO" });
       }
     },
-    [updatePoint, log, salvarFotoSupabase, verificarOutdoor]
+    [updatePoint, log, salvarFotoSupabase, verificarOutdoor, calcularAudiencia]
   );
 
   const corrigirComIA = useCallback(
@@ -593,6 +620,7 @@ const Ctx = createContext<SessionState | null>(null);
         setAdjustedPhoto,
         salvarFotoSupabase,
         corrigirComIA,
+        calcularAudiencia,
         exportarExcel,
         salvarProgresso,
         toggleExcluido,

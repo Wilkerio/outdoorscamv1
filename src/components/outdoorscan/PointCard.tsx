@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2 } from "lucide-react";
+import { Camera, Link as LinkIcon, Loader2, Map, Pencil, Trash2, Users } from "lucide-react";
 import type { Point } from "@/lib/outdoorscan/types";
 import { googleMapsLink } from "@/lib/outdoorscan/streetview";
 import { acquireThumbSlot } from "@/lib/outdoorscan/thumbQueue";
@@ -409,6 +409,22 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
           {point.formato && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{point.formato}</span>}
           {point.empresa && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{point.empresa}</span>}
         </div>
+
+        {point.audienceEstimate != null && (
+          <div className="flex items-center gap-1 text-xs font-medium text-primary">
+            <Users className="size-3.5" />
+            ~{point.audienceEstimate.toLocaleString("pt-BR")} pessoas/dia
+          </div>
+        )}
+        {point.poi && point.poi.length > 0 && (
+          <div className="flex flex-wrap gap-1 text-[9px]" title="POIs em até 300m">
+            {point.poi.map((p) => (
+              <span key={p.type} className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                {p.label} ({p.count})
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mt-auto grid grid-cols-2 gap-1.5 pt-2">
           <Button size="sm" variant="secondary" className="w-full px-2" disabled={!validCoords} onClick={() => window.open(googleMapsLink(point.lat, point.lng), "_blank")} title="Ver no Mapa">
