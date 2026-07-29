@@ -76,9 +76,13 @@ export default function Processamento() {
             <Button onClick={pause} variant="secondary">
               <Pause className="size-4" /> Pausar
             </Button>
-          ) : phase === "paused" && (
+          ) : phase === "paused" ? (
             <Button onClick={resume}>
               <Play className="size-4" /> Retomar
+            </Button>
+          ) : (
+            <Button onClick={start} disabled={!total}>
+              <Play className="size-4" /> Iniciar Processamento
             </Button>
           )}
           <Button
