@@ -122,7 +122,8 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
 }
 
 export function PointCard({ point, onReady }: { point: Point; onReady?: (id: string) => void }) {
-  const { points, toggleExcluido, editarPonto } = useSession();
+  const { points, toggleExcluido, editarPonto, corrigirComIA } = useSession();
+  const [substituindo, setSubstituindo] = useState(false);
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [modalPointId, setModalPointId] = useState(point.id);
@@ -442,6 +443,25 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
             <span className="text-xs">Ajustar</span>
           </Button>
         </div>
+
+        {hasOriginalPhoto && !point.foto_url && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full text-[11px] h-8"
+            disabled={!validCoords || substituindo}
+            onClick={async () => {
+              setSubstituindo(true);
+              await corrigirComIA(point);
+              setShowOriginal(false);
+              setSubstituindo(false);
+            }}
+            title="Buscar e usar a foto do Street View no lugar da original"
+          >
+            {substituindo ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Camera className="size-3.5 mr-1" />}
+            {substituindo ? "Substituindo…" : "Substituir por Street View"}
+          </Button>
+        )}
 
         <div className="flex gap-2 border-t border-border/50 pt-1 mt-1">
           {hasOriginalPhoto && (

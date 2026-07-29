@@ -352,6 +352,11 @@ const Ctx = createContext<SessionState | null>(null);
     [updatePoint, log],
   );
 
+  const temFotoOriginal = (foto?: string) => {
+    const f = (foto ?? "").trim();
+    return !!f && !f.toLowerCase().includes("not found") && f !== "link da imagem nao localizado";
+  };
+
   const processarPonto = useCallback(
     async (p: Point, forceProcess?: boolean) => {
       if (!forceProcess && p.fotoSalva && p.status === "SUCESSO") {
@@ -374,6 +379,14 @@ const Ctx = createContext<SessionState | null>(null);
 
         if (!p.audienceCalculated) {
           void calcularAudiencia(p);
+        }
+
+        // Ponto já veio com foto na planilha — processamento só cuida da localização
+        // (fluxo/POI acima). Não busca/sobrescreve Street View a menos que forceProcess.
+        if (!forceProcess && temFotoOriginal(p.foto)) {
+          log("info", `📍 ${cod} — Foto original mantida, localização processada.`);
+          updatePoint(id, { status: "SUCESSO" });
+          return;
         }
 
         // Primeiro verificar se há cobertura básica (via proxy — usa conector Lovable)
