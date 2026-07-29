@@ -26,10 +26,16 @@ function toGatewayUrl(rawUrl: string): { url: string; useGateway: boolean } | nu
     parsed.searchParams.set('key', GMAPS_KEY);
     return { url: parsed.toString(), useGateway: false };
   }
-  // Street View native panorama tiles — public tile server, no key required.
-  if (parsed.hostname === 'streetviewpixels-pa.googleapis.com') {
-    return { url: parsed.toString(), useGateway: false };
-  }
+  // Street View native panorama tiles — public tile servers, no key required.
+  // Google serves panorama tiles from several hosts depending on the pano age.
+  const host = parsed.hostname;
+  const publicTileHost =
+    host === 'streetviewpixels-pa.googleapis.com' ||
+    host.endsWith('.ggpht.com') ||
+    host.endsWith('.gstatic.com') ||
+    host.endsWith('.googleusercontent.com') ||
+    host.endsWith('.googleapis.com');
+  if (publicTileHost) return { url: parsed.toString(), useGateway: false };
   return null;
 }
 
@@ -139,13 +145,13 @@ Deno.serve(async (req) => {
 
     const { url } = body ?? {};
     if (typeof url !== 'string' || url.length > 2048) {
-      return new Response(JSON.stringify({ error: 'Invalid url' }), {
+      return new Response(JSON.stringify({ error: `Invalid url: ${JSON.stringify(url ?? null)}` }), {
         status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
     const target = toGatewayUrl(url);
     if (!target) {
-      return new Response(JSON.stringify({ error: 'URL not allowed' }), {
+      return new Response(JSON.stringify({ error: `URL not allowed: ${url.slice(0, 120)}` }), {
         status: 400, headers: { 'Content-Type': 'application/json', ...CORS },
       });
     }
