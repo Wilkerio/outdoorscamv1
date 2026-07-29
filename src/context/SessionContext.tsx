@@ -396,7 +396,7 @@ const Ctx = createContext<SessionState | null>(null);
         const hits = await fetchNearbyPois(p.lat, p.lng);
         updatePoint(p.id, {
           poi: poiCounts(hits),
-          audienceEstimate: estimateAudience(hits),
+          audienceEstimate: estimateAudience(p.lat, p.lng, hits),
           audienceCalculated: true,
         });
       } catch (err: any) {

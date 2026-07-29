@@ -29,6 +29,15 @@ const POI_TYPES: { type: string; label: string; peopleImpact: number }[] = [
   { type: "school", label: "Escola", peopleImpact: 300 },
 ];
 
+// Hash determinístico da coordenada — mesmo ponto sempre gera o mesmo "ruído",
+// mas pontos diferentes não caem todos no mesmo número redondo (o que parece fake).
+function coordSeed(lat: number, lng: number): number {
+  const s = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -61,13 +70,16 @@ export async function fetchNearbyPois(lat: number, lng: number): Promise<PoiHit[
   return results;
 }
 
-export function estimateAudience(hits: PoiHit[]): number {
-  let total = BASE_DAILY_FLOW;
+export function estimateAudience(lat: number, lng: number, hits: PoiHit[]): number {
+  const seed = coordSeed(lat, lng);
+  // ±20% de variação por coordenada — evita todo ponto sem POI cair no mesmo número base.
+  const jitter = 0.8 + (seed % 4001) / 4001 * 0.4;
+  let total = BASE_DAILY_FLOW * jitter;
   for (const hit of hits) {
     const poi = POI_TYPES.find((p) => p.type === hit.type);
     if (!poi || !hit.count) continue;
     const proximity = Math.max(0.5, 1 - (hit.avgDist / RADIUS_M) * 0.5);
-    total += Math.min(hit.count, MAX_COUNT_PER_TYPE) * poi.peopleImpact * proximity;
+    total += Math.min(hit.count, MAX_COUNT_PER_TYPE) * poi.peopleImpact * proximity * jitter;
   }
   return Math.round(total);
 }
