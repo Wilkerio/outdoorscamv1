@@ -410,6 +410,12 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
           {point.empresa && <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{point.empresa}</span>}
         </div>
 
+        {point.audienceLoading && point.audienceEstimate == null && (
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Analisando quantidade de pessoas perto…
+          </div>
+        )}
         {point.audienceEstimate != null && (
           <div className="flex items-center gap-1 text-xs font-medium text-primary">
             <Users className="size-3.5" />

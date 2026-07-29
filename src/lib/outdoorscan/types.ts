@@ -39,6 +39,7 @@ export interface Point {
   poi?: PoiCount[];
   audienceEstimate?: number;
   audienceCalculated?: boolean;
+  audienceLoading?: boolean;
 }
 
 export interface LogEntry {

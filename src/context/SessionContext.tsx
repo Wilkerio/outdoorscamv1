@@ -395,15 +395,18 @@ const Ctx = createContext<SessionState | null>(null);
   const calcularAudiencia = useCallback(
     async (p: Point) => {
       if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return;
+      updatePoint(p.id, { audienceLoading: true });
       try {
         const hits = await fetchNearbyPois(p.lat, p.lng);
         updatePoint(p.id, {
           poi: poiCounts(hits),
           audienceEstimate: estimateAudience(p.lat, p.lng, hits),
           audienceCalculated: true,
+          audienceLoading: false,
         });
       } catch (err: any) {
         log("error", `❌ ${p.cod} — Erro ao calcular fluxo estimado: ${err.message}`);
+        updatePoint(p.id, { audienceLoading: false });
       }
     },
     [updatePoint, log],
