@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/outdoorscan/AppSidebar'
 import { Toaster } from './components/ui/sonner'
 import Processamento from './pages/Processamento'
 import ConverterBooks from './pages/ConverterBooks'
+import Checking from './pages/Checking'
 
 const queryClient = new QueryClient()
 
@@ -19,6 +20,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Processamento />} />
                 <Route path="/converter-books" element={<ConverterBooks />} />
+                <Route path="/checking" element={<Checking />} />
               </Routes>
             </main>
           </div>

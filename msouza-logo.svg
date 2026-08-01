@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <!-- Background transparent -->
+  
+  <!-- Geometric shape icon (triangle/mountain shape like in the PDF) -->
+  <g transform="translate(0, 5)">
+    <!-- White curved/triangular shape - outer -->
+    <path d="M10,45 Q14,10 28,8 Q38,6 44,45 Z" fill="#FFFFFF"/>
+    <!-- Dark cutout to create the layered look -->
+    <path d="M16,45 Q20,18 28,16 Q34,14 38,45 Z" fill="#222222"/>
+    <!-- Small white dot / bubble top -->
+    <circle cx="32" cy="6" r="5" fill="#FFFFFF"/>
+    <circle cx="32" cy="6" r="2.5" fill="#222222"/>
+  </g>
+
+  <!-- "M.SOUZA" text -->
+  <text x="58" y="36" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="22" fill="#FFFFFF" letter-spacing="1.5">M.SOUZA</text>
+
+  <!-- Yellow accent line at bottom -->
+  <rect x="56" y="46" width="140" height="3" rx="1" fill="#F5C518"/>
+</svg>
