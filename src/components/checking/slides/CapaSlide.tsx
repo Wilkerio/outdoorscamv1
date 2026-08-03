@@ -1,4 +1,4 @@
-import { User, ClipboardList, MapPin, Calendar, Clock } from "lucide-react";
+import { User, ClipboardList, MapPin, Calendar, Clock, Building2 } from "lucide-react";
 import type { CheckingData } from "@/lib/checking/types";
 import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
@@ -12,6 +12,10 @@ const ROWS: { key: "cliente" | "campanha" | "praca" | "periodo" | "ativo"; label
 ];
 
 export function CapaSlide({ data }: { data: CheckingData }) {
+  const rows = data.temAgencia && data.agencia
+    ? [ROWS[0], { key: "agencia" as const, label: "Agência", icon: Building2 }, ...ROWS.slice(1)]
+    : ROWS;
+
   return (
     <div
       style={{ width: SLIDE_W, height: SLIDE_H, fontFamily: CHECKING_FONT_BODY, background: C.white }}
@@ -52,7 +56,7 @@ export function CapaSlide({ data }: { data: CheckingData }) {
         </div>
 
         <div className="flex flex-col gap-4" style={{ marginTop: 44 }}>
-          {ROWS.map(({ key, label, icon: Icon }) => (
+          {rows.map(({ key, label, icon: Icon }) => (
             <div key={key} className="flex items-center gap-3">
               <div
                 className="flex items-center justify-center shrink-0 rounded-md"

@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import "@/components/checking/checking-fonts.css";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Download, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,17 +10,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { CapaSlide } from "@/components/checking/slides/CapaSlide";
 import { PotencialImpactoSlide } from "@/components/checking/slides/PotencialImpactoSlide";
 import { RegistroFotograficoSlide } from "@/components/checking/slides/RegistroFotograficoSlide";
+import { TituloSlide } from "@/components/checking/slides/TituloSlide";
 import { ImageDropZone } from "@/components/checking/ImageDropZone";
 import { SLIDE_H, SLIDE_W } from "@/components/checking/slideTokens";
 import { exportSlidesToPdf } from "@/lib/checking/exportPdf";
-import { checkingVazio, novaFoto, novoLocal, type CheckingData, type CheckingFoto, type CheckingLocal } from "@/lib/checking/types";
+import { carregarChecking, salvarChecking } from "@/lib/checking/persistence";
+import {
+  checkingVazio,
+  novaFoto,
+  novoLocal,
+  novoSlideTitulo,
+  type CheckingData,
+  type CheckingFoto,
+  type CheckingLocal,
+} from "@/lib/checking/types";
 
 const PREVIEW_SCALE = 0.42;
 
 export default function Checking() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const checkingId = searchParams.get("id");
   const [data, setData] = useState<CheckingData>(checkingVazio());
   const [gerando, setGerando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [carregando, setCarregando] = useState(!!checkingId);
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!checkingId) return;
+    setCarregando(true);
+    carregarChecking(checkingId)
+      .then((loaded) => setData({ ...loaded, slidesTitulo: loaded.slidesTitulo ?? [] }))
+      .catch((err: any) => toast.error(`Falha ao carregar checking: ${err.message}`))
+      .finally(() => setCarregando(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkingId]);
 
   const updateField = (patch: Partial<CheckingData>) => setData((d) => ({ ...d, ...patch }));
 
@@ -49,9 +74,19 @@ export default function Checking() {
       locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
     }));
 
-  // Ordem das páginas do PDF: capa, depois por local [potencial de impacto, 1 registro fotográfico por foto].
+  const addSlideTitulo = () => setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novoSlideTitulo()] }));
+  const updateSlideTitulo = (id: string, texto: string) =>
+    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, texto } : s)) }));
+  const removeSlideTitulo = (id: string) =>
+    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.filter((s) => s.id !== id) }));
+
+  // Ordem das páginas do PDF: capa, slides de título (contracapas), locais
+  // [potencial de impacto, 1 registro fotográfico por foto], e sempre um "Obrigado!" no final.
   const paginas = useMemo(() => {
     const pgs: { key: string; node: ReactNode }[] = [{ key: "capa", node: <CapaSlide data={data} /> }];
+    for (const slide of data.slidesTitulo) {
+      pgs.push({ key: `titulo-${slide.id}`, node: <TituloSlide texto={slide.texto} /> });
+    }
     for (const local of data.locais) {
       pgs.push({ key: `${local.id}-potencial`, node: <PotencialImpactoSlide local={local} /> });
       local.fotos.forEach((foto, idx) => {
@@ -63,6 +98,7 @@ export default function Checking() {
         });
       });
     }
+    pgs.push({ key: "obrigado", node: <TituloSlide texto="OBRIGADO!" /> });
     return pgs;
   }, [data]);
 
@@ -79,6 +115,29 @@ export default function Checking() {
       setGerando(false);
     }
   };
+
+  const salvar = async () => {
+    const nome = window.prompt("Nome desse checking:", data.cliente || "Checking sem nome");
+    if (nome === null) return;
+    setSalvando(true);
+    try {
+      const id = await salvarChecking(checkingId, nome, data);
+      if (!checkingId) setSearchParams({ id }, { replace: true });
+      toast.success("Checking salvo. Você pode voltar e continuar editando depois em \"Meus Checkings\".");
+    } catch (err: any) {
+      toast.error(`Falha ao salvar: ${err.message}`);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (carregando) {
+    return (
+      <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+        Carregando checking…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col lg:flex-row h-full">
@@ -97,10 +156,67 @@ export default function Checking() {
             aspect="aspect-video"
           />
           <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Esse material tem agência?</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={data.temAgencia ? "default" : "secondary"}
+                className="flex-1"
+                onClick={() => updateField({ temAgencia: true })}
+              >
+                Sim
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={!data.temAgencia ? "default" : "secondary"}
+                className="flex-1"
+                onClick={() => updateField({ temAgencia: false, agencia: "" })}
+              >
+                Não
+              </Button>
+            </div>
+            {data.temAgencia && (
+              <FieldInput label="Nome da agência" value={data.agencia} onChange={(v) => updateField({ agencia: v })} />
+            )}
+          </div>
+
           <FieldInput label="Campanha" value={data.campanha} onChange={(v) => updateField({ campanha: v })} />
           <FieldInput label="Praça" value={data.praca} onChange={(v) => updateField({ praca: v })} />
           <FieldInput label="Período" value={data.periodo} onChange={(v) => updateField({ periodo: v })} />
           <FieldInput label="Ativo(s)" value={data.ativo} onChange={(v) => updateField({ ativo: v })} placeholder="Painel de LED" />
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Slides de título</div>
+            <Button size="sm" variant="secondary" onClick={addSlideTitulo}>
+              <Plus className="size-3.5" /> Slide
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Página preta de destaque (tipo "PAINEL LED") — entram entre a capa e os locais, na ordem que adicionar. Um
+            slide "Obrigado!" já é incluído automático no final de todo PDF.
+          </p>
+          {data.slidesTitulo.map((slide) => (
+            <div key={slide.id} className="flex items-center gap-2">
+              <Input
+                placeholder="Texto do slide (ex.: Painel LED)"
+                value={slide.texto}
+                onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
+              />
+              <button
+                onClick={() => removeSlideTitulo(slide.id)}
+                className="text-muted-foreground hover:text-destructive shrink-0"
+                title="Remover slide"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
         </div>
 
         <div className="space-y-4">
@@ -157,8 +273,18 @@ export default function Checking() {
                     <Plus className="size-3" /> Foto
                   </Button>
                 </div>
-                {local.fotos.map((foto) => (
+                {local.fotos.map((foto, fotoIdx) => (
                   <div key={foto.id} className="space-y-1.5 border-t border-border/50 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">Foto {fotoIdx + 1}</span>
+                      <button
+                        onClick={() => removeFoto(local.id, foto.id)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive"
+                        title="Remover esta foto"
+                      >
+                        <Trash2 className="size-3" /> Remover foto
+                      </button>
+                    </div>
                     <ImageDropZone
                       label="Solte a foto do outdoor"
                       value={foto.imageDataUrl}
@@ -171,12 +297,6 @@ export default function Checking() {
                       value={foto.videoUrl ?? ""}
                       onChange={(e) => updateFoto(local.id, foto.id, { videoUrl: e.target.value })}
                     />
-                    <button
-                      onClick={() => removeFoto(local.id, foto.id)}
-                      className="text-[11px] text-muted-foreground hover:text-destructive"
-                    >
-                      Remover foto
-                    </button>
                   </div>
                 ))}
                 {!local.fotos.length && <p className="text-[11px] text-muted-foreground">Nenhuma foto adicionada ainda.</p>}
@@ -185,10 +305,16 @@ export default function Checking() {
           ))}
         </div>
 
-        <Button className="w-full" size="lg" onClick={gerarPdf} disabled={gerando}>
-          <Download className="size-4" />
-          {gerando ? "Gerando PDF…" : "Gerar PDF"}
-        </Button>
+        <div className="flex gap-2">
+          <Button className="flex-1" variant="secondary" onClick={salvar} disabled={salvando}>
+            <Save className="size-4" />
+            {salvando ? "Salvando…" : checkingId ? "Salvar alterações" : "Salvar"}
+          </Button>
+          <Button className="flex-1" onClick={gerarPdf} disabled={gerando}>
+            <Download className="size-4" />
+            {gerando ? "Gerando…" : "Gerar PDF"}
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-muted/30">

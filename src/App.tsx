@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/sonner'
 import Processamento from './pages/Processamento'
 import ConverterBooks from './pages/ConverterBooks'
 import Checking from './pages/Checking'
+import MeusCheckings from './pages/MeusCheckings'
 
 const queryClient = new QueryClient()
 
@@ -21,6 +22,7 @@ export default function App() {
                 <Route path="/" element={<Processamento />} />
                 <Route path="/converter-books" element={<ConverterBooks />} />
                 <Route path="/checking" element={<Checking />} />
+                <Route path="/meus-checkings" element={<MeusCheckings />} />
               </Routes>
             </main>
           </div>

@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import { SLIDE_H, SLIDE_W } from "@/components/checking/slideTokens";
 
 export async function exportSlidesToPdf(elements: HTMLElement[], filename: string) {

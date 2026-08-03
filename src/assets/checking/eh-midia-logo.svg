@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 60" width="160" height="60">
+  <!-- Background black box -->
+  <rect width="160" height="60" rx="4" fill="#111111"/>
+
+  <!-- Yellow star/sparkle icon -->
+  <g transform="translate(14, 20)">
+    <!-- Main star shape -->
+    <polygon points="10,0 12,7 19,7 13.5,11 15.5,18 10,14 4.5,18 6.5,11 1,7 8,7" fill="#F5C518"/>
+    <!-- Small dot top right -->
+    <circle cx="18" cy="3" r="2" fill="#F5C518"/>
+  </g>
+
+  <!-- "EH!" text -->
+  <text x="34" y="28" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="18" fill="#FFFFFF" letter-spacing="0.5">EH!</text>
+
+  <!-- "Mídia" text below -->
+  <text x="34" y="44" font-family="Arial, sans-serif" font-weight="400" font-size="12" fill="#FFFFFF" letter-spacing="1">Mídia</text>
+
+  <!-- Yellow accent line at bottom -->
+  <rect x="0" y="56" width="160" height="3" rx="1" fill="#F5C518"/>
+</svg>

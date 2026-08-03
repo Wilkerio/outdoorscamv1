@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      checkings: {
+        Row: {
+          created_at: string
+          dados: Json
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dados: Json
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pontos: {
         Row: {
           bairro: string | null
