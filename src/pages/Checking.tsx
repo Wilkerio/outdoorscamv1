@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import "@/components/checking/checking-fonts.css";
-import { ChevronDown, ChevronUp, Download, Link2, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Download, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { buildPdfBlob, exportSlidesToPdf } from "@/lib/checking/exportPdf";
 import { carregarChecking, gerarLinkPdf, salvarChecking } from "@/lib/checking/persistence";
 import {
   checkingVazio,
+  normalizarChecking,
   novaFoto,
   novoLocal,
   novoSlideTitulo,
@@ -30,7 +31,7 @@ const DRAFT_KEY = "checking:draft:v1";
 
 function moveItem<T>(arr: T[], index: number, dir: -1 | 1): T[] {
   const target = index + dir;
-  if (target < 0 || target >= arr.length) return arr;
+  if (index < 0 || target < 0 || target >= arr.length) return arr;
   const next = [...arr];
   [next[index], next[target]] = [next[target], next[index]];
   return next;
@@ -43,7 +44,7 @@ export default function Checking() {
     if (searchParams.get("id")) return checkingVazio();
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) return { ...checkingVazio(), ...JSON.parse(raw) };
+      if (raw) return normalizarChecking({ ...checkingVazio(), ...JSON.parse(raw) });
     } catch {}
     return checkingVazio();
   });
@@ -51,13 +52,22 @@ export default function Checking() {
   const [salvando, setSalvando] = useState(false);
   const [gerandoLink, setGerandoLink] = useState(false);
   const [carregando, setCarregando] = useState(!!checkingId);
+  const [colapsados, setColapsados] = useState<Set<string>>(new Set());
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const toggleColapso = (key: string) =>
+    setColapsados((s) => {
+      const next = new Set(s);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   useEffect(() => {
     if (!checkingId) return;
     setCarregando(true);
     carregarChecking(checkingId)
-      .then((loaded) => setData({ ...loaded, slidesTitulo: loaded.slidesTitulo ?? [] }))
+      .then((loaded) => setData(normalizarChecking(loaded)))
       .catch((err: any) => toast.error(`Falha ao carregar checking: ${err.message}`))
       .finally(() => setCarregando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,10 +87,16 @@ export default function Checking() {
   const updateLocal = (id: string, patch: Partial<CheckingLocal>) =>
     setData((d) => ({ ...d, locais: d.locais.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
 
-  const addLocal = () => setData((d) => ({ ...d, locais: [...d.locais, novoLocal()] }));
-  const removeLocal = (id: string) => setData((d) => ({ ...d, locais: d.locais.filter((l) => l.id !== id) }));
-  const moveLocal = (id: string, dir: -1 | 1) =>
-    setData((d) => ({ ...d, locais: moveItem(d.locais, d.locais.findIndex((l) => l.id === id), dir) }));
+  const addLocal = () => {
+    const novo = novoLocal();
+    setData((d) => ({ ...d, locais: [...d.locais, novo], ordem: [...d.ordem, `local:${novo.id}`] }));
+  };
+  const removeLocal = (id: string) =>
+    setData((d) => ({
+      ...d,
+      locais: d.locais.filter((l) => l.id !== id),
+      ordem: d.ordem.filter((t) => t !== `local:${id}`),
+    }));
 
   const addFoto = (localId: string) =>
     setData((d) => ({
@@ -110,28 +126,44 @@ export default function Checking() {
       ),
     }));
 
-  const addSlideTitulo = () => setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novoSlideTitulo()] }));
+  const addSlideTitulo = () => {
+    const novo = novoSlideTitulo();
+    setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novo], ordem: [...d.ordem, `titulo:${novo.id}`] }));
+  };
   const updateSlideTitulo = (id: string, texto: string) =>
     setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, texto } : s)) }));
   const removeSlideTitulo = (id: string) =>
-    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.filter((s) => s.id !== id) }));
-  const moveSlideTitulo = (id: string, dir: -1 | 1) =>
     setData((d) => ({
       ...d,
-      slidesTitulo: moveItem(d.slidesTitulo, d.slidesTitulo.findIndex((s) => s.id === id), dir),
+      slidesTitulo: d.slidesTitulo.filter((s) => s.id !== id),
+      ordem: d.ordem.filter((t) => t !== `titulo:${id}`),
     }));
 
-  // Ordem das páginas do PDF: capa, slides de título (contracapas), locais
-  // [potencial de impacto, 1 registro fotográfico por foto], e sempre um "Obrigado!" no final.
+  // Move um item (slide de título OU local) pra qualquer posição — mesma lista, cruza categorias.
+  const moveOrdem = (token: string, dir: -1 | 1) =>
+    setData((d) => ({ ...d, ordem: moveItem(d.ordem, d.ordem.indexOf(token as any), dir) }));
+
+  // Ordem das páginas do PDF: capa, depois segue data.ordem (slides de título e locais
+  // intercalados como o usuário organizou — cada local expande em [potencial, registros]),
+  // e sempre um "Obrigado!" no final.
   const paginas = useMemo(() => {
     const pgs: { key: string; label: string; node: ReactNode }[] = [
       { key: "capa", label: "Capa", node: <CapaSlide data={data} /> },
     ];
-    data.slidesTitulo.forEach((slide) => {
-      pgs.push({ key: `titulo-${slide.id}`, label: slide.texto || "Slide de título", node: <TituloSlide texto={slide.texto} /> });
-    });
-    data.locais.forEach((local, li) => {
-      const nomeLocal = local.localVeiculacao || `Local ${li + 1}`;
+    data.ordem.forEach((token) => {
+      if (token.startsWith("titulo:")) {
+        const slide = data.slidesTitulo.find((s) => `titulo:${s.id}` === token);
+        if (!slide) return;
+        pgs.push({
+          key: `titulo-${slide.id}`,
+          label: slide.texto || "Slide de título",
+          node: <TituloSlide texto={slide.texto} />,
+        });
+        return;
+      }
+      const local = data.locais.find((l) => `local:${l.id}` === token);
+      if (!local) return;
+      const nomeLocal = local.localVeiculacao || "Local";
       pgs.push({
         key: `${local.id}-potencial`,
         label: `Potencial de Impacto — ${nomeLocal}`,
@@ -207,6 +239,8 @@ export default function Checking() {
     );
   }
 
+  const capaColapsada = colapsados.has("capa");
+
   return (
     <div className="flex flex-col lg:flex-row h-full">
       <div className="w-full lg:w-[420px] lg:shrink-0 border-r border-border p-5 space-y-6 overflow-y-auto">
@@ -216,229 +250,258 @@ export default function Checking() {
         </div>
 
         <div className="space-y-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Capa</div>
-          <ImageDropZone
-            label="Foto de capa"
-            value={data.capaImageDataUrl}
-            onChange={(v) => updateField({ capaImageDataUrl: v })}
-            aspect="aspect-video"
-            position={data.capaImagePosition}
-            onPositionChange={(p) => updateField({ capaImagePosition: p })}
-            melhorada={data.capaMelhorada}
-            onToggleMelhorada={() => updateField({ capaMelhorada: !data.capaMelhorada })}
-          />
-          <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
+          <button
+            onClick={() => toggleColapso("capa")}
+            className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+          >
+            {capaColapsada ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            Capa
+          </button>
+          {!capaColapsada && (
+            <>
+              <ImageDropZone
+                label="Foto de capa"
+                value={data.capaImageDataUrl}
+                onChange={(v) => updateField({ capaImageDataUrl: v })}
+                aspect="aspect-video"
+                position={data.capaImagePosition}
+                onPositionChange={(p) => updateField({ capaImagePosition: p })}
+                melhorada={data.capaMelhorada}
+                onToggleMelhorada={() => updateField({ capaMelhorada: !data.capaMelhorada })}
+              />
+              <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Esse material tem agência?</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={data.temAgencia ? "default" : "secondary"}
-                className="flex-1"
-                onClick={() => updateField({ temAgencia: true })}
-              >
-                Sim
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={!data.temAgencia ? "default" : "secondary"}
-                className="flex-1"
-                onClick={() => updateField({ temAgencia: false, agencia: "" })}
-              >
-                Não
-              </Button>
-            </div>
-            {data.temAgencia && (
-              <FieldInput label="Nome da agência" value={data.agencia} onChange={(v) => updateField({ agencia: v })} />
-            )}
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Esse material tem agência?</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={data.temAgencia ? "default" : "secondary"}
+                    className="flex-1"
+                    onClick={() => updateField({ temAgencia: true })}
+                  >
+                    Sim
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!data.temAgencia ? "default" : "secondary"}
+                    className="flex-1"
+                    onClick={() => updateField({ temAgencia: false, agencia: "" })}
+                  >
+                    Não
+                  </Button>
+                </div>
+                {data.temAgencia && (
+                  <FieldInput label="Nome da agência" value={data.agencia} onChange={(v) => updateField({ agencia: v })} />
+                )}
+              </div>
 
-          <FieldInput label="Campanha" value={data.campanha} onChange={(v) => updateField({ campanha: v })} />
-          <FieldInput label="Praça" value={data.praca} onChange={(v) => updateField({ praca: v })} />
-          <FieldInput label="Período" value={data.periodo} onChange={(v) => updateField({ periodo: v })} />
-          <FieldInput label="Ativo(s)" value={data.ativo} onChange={(v) => updateField({ ativo: v })} placeholder="Painel de LED" />
+              <FieldInput label="Campanha" value={data.campanha} onChange={(v) => updateField({ campanha: v })} />
+              <FieldInput label="Praça" value={data.praca} onChange={(v) => updateField({ praca: v })} />
+              <FieldInput label="Período" value={data.periodo} onChange={(v) => updateField({ periodo: v })} />
+              <FieldInput label="Ativo(s)" value={data.ativo} onChange={(v) => updateField({ ativo: v })} placeholder="Painel de LED" />
+            </>
+          )}
         </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Slides de título</div>
-            <Button size="sm" variant="secondary" onClick={addSlideTitulo}>
-              <Plus className="size-3.5" /> Slide
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Página preta de destaque (tipo "PAINEL LED") — entram entre a capa e os locais, na ordem que adicionar. Um
-            slide "Obrigado!" já é incluído automático no final de todo PDF.
-          </p>
-          {data.slidesTitulo.map((slide, i) => (
-            <div key={slide.id} className="flex items-center gap-1">
-              <div className="flex flex-col shrink-0">
-                <button
-                  onClick={() => moveSlideTitulo(slide.id, -1)}
-                  disabled={i === 0}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                >
-                  <ChevronUp className="size-3.5" />
-                </button>
-                <button
-                  onClick={() => moveSlideTitulo(slide.id, 1)}
-                  disabled={i === data.slidesTitulo.length - 1}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                >
-                  <ChevronDown className="size-3.5" />
-                </button>
-              </div>
-              <Input
-                placeholder="Texto do slide (ex.: Painel LED)"
-                value={slide.texto}
-                onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
-              />
-              <button
-                onClick={() => removeSlideTitulo(slide.id)}
-                className="text-muted-foreground hover:text-destructive shrink-0"
-                title="Remover slide"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Conteúdo</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="secondary" onClick={addSlideTitulo}>
+                <Plus className="size-3.5" /> Slide
+              </Button>
+              <Button size="sm" variant="secondary" onClick={addLocal}>
+                <Plus className="size-3.5" /> Local
+              </Button>
             </div>
-          ))}
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Locais</div>
-            <Button size="sm" variant="secondary" onClick={addLocal}>
-              <Plus className="size-3.5" /> Local
-            </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Cada local gera 1 página "Potencial de Impacto" automática. "Registro Fotográfico" só aparece quando você
-            clica em "+ Foto" dentro do local — uma página por foto adicionada.
+            Slides de título e Locais aparecem nessa ordem — usa ▲▼ pra mover qualquer um pra qualquer posição, mesmo
+            entre categorias diferentes. Cada Local sempre gera 1 "Potencial de Impacto"; "Registro Fotográfico" só
+            aparece com "+ Foto" dentro dele. Um "Obrigado!" já é incluído automático no final de todo PDF.
           </p>
 
-          {data.locais.map((local, i) => (
-            <div key={local.id} className="rounded-lg border border-border p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-muted-foreground">Local {i + 1}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => moveLocal(local.id, -1)}
-                    disabled={i === 0}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                    title="Mover pra cima"
-                  >
-                    <ChevronUp className="size-3.5" />
-                  </button>
-                  <button
-                    onClick={() => moveLocal(local.id, 1)}
-                    disabled={i === data.locais.length - 1}
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                    title="Mover pra baixo"
-                  >
-                    <ChevronDown className="size-3.5" />
-                  </button>
-                  {data.locais.length > 1 && (
-                    <button onClick={() => removeLocal(local.id)} className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="size-3.5" />
+          {data.ordem.map((token, i) => {
+            const podeSubir = i > 0;
+            const podeDescer = i < data.ordem.length - 1;
+
+            if (token.startsWith("titulo:")) {
+              const slide = data.slidesTitulo.find((s) => `titulo:${s.id}` === token);
+              if (!slide) return null;
+              return (
+                <div key={token} className="flex items-center gap-1">
+                  <div className="flex flex-col shrink-0">
+                    <button
+                      onClick={() => moveOrdem(token, -1)}
+                      disabled={!podeSubir}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                    >
+                      <ChevronUp className="size-3.5" />
                     </button>
-                  )}
-                </div>
-              </div>
-
-              <FieldTextarea
-                label="Local de veiculação"
-                value={local.localVeiculacao}
-                onChange={(v) => updateLocal(local.id, { localVeiculacao: v })}
-              />
-              <FieldInput
-                label="Formato"
-                value={local.formato}
-                onChange={(v) => updateLocal(local.id, { formato: v })}
-                placeholder="Painel de LED"
-              />
-              <FieldInput
-                label="Fluxo de passantes/dia"
-                value={local.fluxoPassantes}
-                onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
-                placeholder="18.387"
-              />
-
-              <div>
-                <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
-                <ImageDropZone
-                  label="Solte o print aqui"
-                  value={local.mapaImageDataUrl}
-                  onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
-                  aspect="aspect-[4/3]"
-                  position={local.mapaImagePosition}
-                  onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
-                  melhorada={local.mapaMelhorada}
-                  onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Fotos do outdoor</Label>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => addFoto(local.id)}>
-                    <Plus className="size-3" /> Foto
-                  </Button>
-                </div>
-                {local.fotos.map((foto, fotoIdx) => (
-                  <div key={foto.id} className="space-y-1.5 border-t border-border/50 pt-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">Foto {fotoIdx + 1}</span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => moveFoto(local.id, foto.id, -1)}
-                          disabled={fotoIdx === 0}
-                          className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                          title="Mover pra cima"
-                        >
-                          <ChevronUp className="size-3" />
-                        </button>
-                        <button
-                          onClick={() => moveFoto(local.id, foto.id, 1)}
-                          disabled={fotoIdx === local.fotos.length - 1}
-                          className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                          title="Mover pra baixo"
-                        >
-                          <ChevronDown className="size-3" />
-                        </button>
-                        <button
-                          onClick={() => removeFoto(local.id, foto.id)}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive"
-                          title="Remover esta foto"
-                        >
-                          <Trash2 className="size-3" /> Remover
-                        </button>
-                      </div>
-                    </div>
-                    <ImageDropZone
-                      label="Solte a foto do outdoor"
-                      value={foto.imageDataUrl}
-                      onChange={(v) => updateFoto(local.id, foto.id, { imageDataUrl: v })}
-                      aspect="aspect-video"
-                      position={foto.imagePosition}
-                      onPositionChange={(p) => updateFoto(local.id, foto.id, { imagePosition: p })}
-                      melhorada={foto.melhorada}
-                      onToggleMelhorada={() => updateFoto(local.id, foto.id, { melhorada: !foto.melhorada })}
-                    />
-                    <Input
-                      placeholder="Link do vídeo (opcional)"
-                      className="h-8 text-xs"
-                      value={foto.videoUrl ?? ""}
-                      onChange={(e) => updateFoto(local.id, foto.id, { videoUrl: e.target.value })}
-                    />
+                    <button
+                      onClick={() => moveOrdem(token, 1)}
+                      disabled={!podeDescer}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </button>
                   </div>
-                ))}
-                {!local.fotos.length && <p className="text-[11px] text-muted-foreground">Nenhuma foto adicionada ainda.</p>}
+                  <Input
+                    placeholder="Texto do slide (ex.: Painel LED)"
+                    value={slide.texto}
+                    onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
+                  />
+                  <button
+                    onClick={() => removeSlideTitulo(slide.id)}
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    title="Remover slide"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              );
+            }
+
+            const local = data.locais.find((l) => `local:${l.id}` === token);
+            if (!local) return null;
+            const localColapsado = colapsados.has(token);
+
+            return (
+              <div key={token} className="rounded-lg border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => toggleColapso(token)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
+                  >
+                    {localColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                    <span className="truncate">{local.localVeiculacao || "Local sem nome"}</span>
+                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => moveOrdem(token, -1)}
+                      disabled={!podeSubir}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                      title="Mover pra cima"
+                    >
+                      <ChevronUp className="size-3.5" />
+                    </button>
+                    <button
+                      onClick={() => moveOrdem(token, 1)}
+                      disabled={!podeDescer}
+                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                      title="Mover pra baixo"
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </button>
+                    {data.locais.length > 1 && (
+                      <button onClick={() => removeLocal(local.id)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!localColapsado && (
+                  <>
+                    <FieldTextarea
+                      label="Local de veiculação"
+                      value={local.localVeiculacao}
+                      onChange={(v) => updateLocal(local.id, { localVeiculacao: v })}
+                    />
+                    <FieldInput
+                      label="Formato"
+                      value={local.formato}
+                      onChange={(v) => updateLocal(local.id, { formato: v })}
+                      placeholder="Painel de LED"
+                    />
+                    <FieldInput
+                      label="Fluxo de passantes/dia"
+                      value={local.fluxoPassantes}
+                      onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
+                      placeholder="18.387"
+                    />
+
+                    <div>
+                      <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
+                      <ImageDropZone
+                        label="Solte o print aqui"
+                        value={local.mapaImageDataUrl}
+                        onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
+                        aspect="aspect-[4/3]"
+                        position={local.mapaImagePosition}
+                        onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
+                        melhorada={local.mapaMelhorada}
+                        onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs">Fotos do outdoor</Label>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => addFoto(local.id)}>
+                          <Plus className="size-3" /> Foto
+                        </Button>
+                      </div>
+                      {local.fotos.map((foto, fotoIdx) => (
+                        <div key={foto.id} className="space-y-1.5 border-t border-border/50 pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-muted-foreground">Foto {fotoIdx + 1}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => moveFoto(local.id, foto.id, -1)}
+                                disabled={fotoIdx === 0}
+                                className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                                title="Mover pra cima"
+                              >
+                                <ChevronUp className="size-3" />
+                              </button>
+                              <button
+                                onClick={() => moveFoto(local.id, foto.id, 1)}
+                                disabled={fotoIdx === local.fotos.length - 1}
+                                className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                                title="Mover pra baixo"
+                              >
+                                <ChevronDown className="size-3" />
+                              </button>
+                              <button
+                                onClick={() => removeFoto(local.id, foto.id)}
+                                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive"
+                                title="Remover esta foto"
+                              >
+                                <Trash2 className="size-3" /> Remover
+                              </button>
+                            </div>
+                          </div>
+                          <ImageDropZone
+                            label="Solte a foto do outdoor"
+                            value={foto.imageDataUrl}
+                            onChange={(v) => updateFoto(local.id, foto.id, { imageDataUrl: v })}
+                            aspect="aspect-video"
+                            position={foto.imagePosition}
+                            onPositionChange={(p) => updateFoto(local.id, foto.id, { imagePosition: p })}
+                            melhorada={foto.melhorada}
+                            onToggleMelhorada={() => updateFoto(local.id, foto.id, { melhorada: !foto.melhorada })}
+                          />
+                          <Input
+                            placeholder="Link do vídeo (opcional)"
+                            className="h-8 text-xs"
+                            value={foto.videoUrl ?? ""}
+                            onChange={(e) => updateFoto(local.id, foto.id, { videoUrl: e.target.value })}
+                          />
+                        </div>
+                      ))}
+                      {!local.fotos.length && (
+                        <p className="text-[11px] text-muted-foreground">Nenhuma foto adicionada ainda.</p>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="flex gap-2">

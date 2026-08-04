@@ -22,6 +22,10 @@ export interface CheckingTituloSlide {
   texto: string;
 }
 
+// Token de ordem: "titulo:<id>" ou "local:<id>" — define a sequência real das páginas,
+// permitindo mover um Slide de Título pra qualquer posição entre os Locais (não só entre si).
+export type CheckingOrdemToken = `titulo:${string}` | `local:${string}`;
+
 export interface CheckingData {
   cliente: string;
   campanha: string;
@@ -35,6 +39,7 @@ export interface CheckingData {
   capaMelhorada?: boolean;
   slidesTitulo: CheckingTituloSlide[];
   locais: CheckingLocal[];
+  ordem: CheckingOrdemToken[];
 }
 
 function novoId(): string {
@@ -60,6 +65,7 @@ export function novoSlideTitulo(): CheckingTituloSlide {
 }
 
 export function checkingVazio(): CheckingData {
+  const local = novoLocal();
   return {
     cliente: "",
     campanha: "",
@@ -69,6 +75,21 @@ export function checkingVazio(): CheckingData {
     temAgencia: false,
     agencia: "",
     slidesTitulo: [],
-    locais: [novoLocal()],
+    locais: [local],
+    ordem: [`local:${local.id}`],
   };
+}
+
+// Preenche campos que podem faltar em checkings salvos antes de existirem (ex.: ordem).
+export function normalizarChecking(data: CheckingData): CheckingData {
+  const slidesTitulo = data.slidesTitulo ?? [];
+  const locais = data.locais ?? [];
+  const ordem =
+    data.ordem?.length
+      ? data.ordem
+      : [
+          ...slidesTitulo.map((s) => `titulo:${s.id}` as CheckingOrdemToken),
+          ...locais.map((l) => `local:${l.id}` as CheckingOrdemToken),
+        ];
+  return { ...data, slidesTitulo, locais, ordem };
 }
