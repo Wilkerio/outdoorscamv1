@@ -51,7 +51,7 @@ export function novoLocal(): CheckingLocal {
     localVeiculacao: "",
     formato: "",
     fluxoPassantes: "",
-    fotos: [novaFoto()],
+    fotos: [],
   };
 }
 

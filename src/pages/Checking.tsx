@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import "@/components/checking/checking-fonts.css";
-import { ChevronDown, ChevronUp, Download, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,8 @@ import { RegistroFotograficoSlide } from "@/components/checking/slides/RegistroF
 import { TituloSlide } from "@/components/checking/slides/TituloSlide";
 import { ImageDropZone } from "@/components/checking/ImageDropZone";
 import { SLIDE_H, SLIDE_W } from "@/components/checking/slideTokens";
-import { exportSlidesToPdf } from "@/lib/checking/exportPdf";
-import { carregarChecking, salvarChecking } from "@/lib/checking/persistence";
+import { buildPdfBlob, exportSlidesToPdf } from "@/lib/checking/exportPdf";
+import { carregarChecking, gerarLinkPdf, salvarChecking } from "@/lib/checking/persistence";
 import {
   checkingVazio,
   novaFoto,
@@ -26,6 +26,7 @@ import {
 } from "@/lib/checking/types";
 
 const PREVIEW_SCALE = 0.2;
+const DRAFT_KEY = "checking:draft:v1";
 
 function moveItem<T>(arr: T[], index: number, dir: -1 | 1): T[] {
   const target = index + dir;
@@ -38,9 +39,17 @@ function moveItem<T>(arr: T[], index: number, dir: -1 | 1): T[] {
 export default function Checking() {
   const [searchParams, setSearchParams] = useSearchParams();
   const checkingId = searchParams.get("id");
-  const [data, setData] = useState<CheckingData>(checkingVazio());
+  const [data, setData] = useState<CheckingData>(() => {
+    if (searchParams.get("id")) return checkingVazio();
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) return { ...checkingVazio(), ...JSON.parse(raw) };
+    } catch {}
+    return checkingVazio();
+  });
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [gerandoLink, setGerandoLink] = useState(false);
   const [carregando, setCarregando] = useState(!!checkingId);
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -53,6 +62,15 @@ export default function Checking() {
       .finally(() => setCarregando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkingId]);
+
+  // Rascunho local — só pra checking novo (ainda não salvo no banco), pra não perder
+  // o que foi digitado se fechar a aba sem clicar em "Salvar".
+  useEffect(() => {
+    if (checkingId) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    } catch {}
+  }, [data, checkingId]);
 
   const updateField = (patch: Partial<CheckingData>) => setData((d) => ({ ...d, ...patch }));
 
@@ -154,11 +172,30 @@ export default function Checking() {
     try {
       const id = await salvarChecking(checkingId, nome, data);
       if (!checkingId) setSearchParams({ id }, { replace: true });
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
       toast.success("Checking salvo. Você pode voltar e continuar editando depois em \"Meus Checkings\".");
     } catch (err: any) {
       toast.error(`Falha ao salvar: ${err.message}`);
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const gerarLink = async () => {
+    const elements = paginas.map((p) => slideRefs.current.get(p.key)).filter((el): el is HTMLDivElement => !!el);
+    if (!elements.length) return;
+    setGerandoLink(true);
+    try {
+      const blob = await buildPdfBlob(elements);
+      const url = await gerarLinkPdf(checkingId, blob, data.cliente || "checking");
+      await navigator.clipboard.writeText(url).catch(() => {});
+      toast.success("Link copiado! " + url, { duration: 10000 });
+    } catch (err: any) {
+      toast.error(`Falha ao gerar link: ${err.message}`);
+    } finally {
+      setGerandoLink(false);
     }
   };
 
@@ -277,6 +314,10 @@ export default function Checking() {
               <Plus className="size-3.5" /> Local
             </Button>
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Cada local gera 1 página "Potencial de Impacto" automática. "Registro Fotográfico" só aparece quando você
+            clica em "+ Foto" dentro do local — uma página por foto adicionada.
+          </p>
 
           {data.locais.map((local, i) => (
             <div key={local.id} className="rounded-lg border border-border p-3 space-y-3">
@@ -405,11 +446,15 @@ export default function Checking() {
             <Save className="size-4" />
             {salvando ? "Salvando…" : checkingId ? "Salvar alterações" : "Salvar"}
           </Button>
-          <Button className="flex-1" onClick={gerarPdf} disabled={gerando}>
-            <Download className="size-4" />
-            {gerando ? "Gerando…" : "Gerar PDF"}
+          <Button className="flex-1" variant="secondary" onClick={gerarLink} disabled={gerandoLink}>
+            <Link2 className="size-4" />
+            {gerandoLink ? "Gerando…" : "Gerar Link"}
           </Button>
         </div>
+        <Button className="w-full" onClick={gerarPdf} disabled={gerando}>
+          <Download className="size-4" />
+          {gerando ? "Gerando…" : "Baixar PDF"}
+        </Button>
       </div>
 
       <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-muted/30">

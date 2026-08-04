@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
+import { FolderOpen, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { excluirChecking, listarCheckings, type CheckingSalvo } from "@/lib/checking/persistence";
@@ -74,6 +74,19 @@ export default function MeusCheckings() {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {item.pdf_url && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      navigator.clipboard.writeText(item.pdf_url!).catch(() => {});
+                      toast.success("Link copiado.");
+                    }}
+                    title="Copiar link do PDF"
+                  >
+                    <Link2 className="size-3.5" />
+                  </Button>
+                )}
                 <Button size="sm" variant="secondary" asChild>
                   <Link to={`/checking?id=${item.id}`}>Abrir</Link>
                 </Button>

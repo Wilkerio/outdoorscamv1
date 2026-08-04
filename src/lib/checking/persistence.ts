@@ -3,6 +3,7 @@ import type { Json } from "@/integrations/supabase/types";
 import type { CheckingData } from "./types";
 
 const BUCKET = "checking-imagens";
+const PDF_BUCKET = "checking-pdfs";
 
 function isDataUrl(v?: string) {
   return !!v && v.startsWith("data:");
@@ -47,6 +48,7 @@ export interface CheckingSalvo {
   id: string;
   nome: string;
   updated_at: string;
+  pdf_url: string | null;
 }
 
 export async function salvarChecking(id: string | null, nome: string, data: CheckingData): Promise<string> {
@@ -68,10 +70,26 @@ export async function salvarChecking(id: string | null, nome: string, data: Chec
   return inserted.id;
 }
 
+// Sobe o PDF já gerado pro storage e retorna o link público — usado pra compartilhar sem
+// precisar reabrir o editor. Se o checking já estiver salvo, guarda o link junto do registro.
+export async function gerarLinkPdf(id: string | null, blob: Blob, nomeArquivo: string): Promise<string> {
+  const fileName = `pdfs/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${nomeArquivo}.pdf`;
+  const { error } = await supabase.storage.from(PDF_BUCKET).upload(fileName, blob, {
+    contentType: "application/pdf",
+    upsert: true,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from(PDF_BUCKET).getPublicUrl(fileName);
+  if (id) {
+    await supabase.from("checkings").update({ pdf_url: data.publicUrl }).eq("id", id);
+  }
+  return data.publicUrl;
+}
+
 export async function listarCheckings(): Promise<CheckingSalvo[]> {
   const { data, error } = await supabase
     .from("checkings")
-    .select("id, nome, updated_at")
+    .select("id, nome, updated_at, pdf_url")
     .order("updated_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
