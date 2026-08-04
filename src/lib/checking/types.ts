@@ -1,6 +1,8 @@
 export interface CheckingFoto {
   id: string;
   imageDataUrl: string;
+  imagePosition?: string;
+  melhorada?: boolean;
   videoUrl?: string;
 }
 
@@ -10,6 +12,8 @@ export interface CheckingLocal {
   formato: string;
   fluxoPassantes: string;
   mapaImageDataUrl?: string;
+  mapaImagePosition?: string;
+  mapaMelhorada?: boolean;
   fotos: CheckingFoto[];
 }
 
@@ -27,26 +31,32 @@ export interface CheckingData {
   temAgencia: boolean;
   agencia: string;
   capaImageDataUrl?: string;
+  capaImagePosition?: string;
+  capaMelhorada?: boolean;
   slidesTitulo: CheckingTituloSlide[];
   locais: CheckingLocal[];
 }
 
-export function novoLocal(): CheckingLocal {
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    localVeiculacao: "",
-    formato: "",
-    fluxoPassantes: "",
-    fotos: [],
-  };
+function novoId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function novaFoto(): CheckingFoto {
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, imageDataUrl: "" };
+  return { id: novoId(), imageDataUrl: "" };
+}
+
+export function novoLocal(): CheckingLocal {
+  return {
+    id: novoId(),
+    localVeiculacao: "",
+    formato: "",
+    fluxoPassantes: "",
+    fotos: [novaFoto()],
+  };
 }
 
 export function novoSlideTitulo(): CheckingTituloSlide {
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, texto: "" };
+  return { id: novoId(), texto: "" };
 }
 
 export function checkingVazio(): CheckingData {

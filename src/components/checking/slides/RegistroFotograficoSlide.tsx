@@ -1,6 +1,13 @@
 import { Play } from "lucide-react";
 import type { CheckingFoto, CheckingLocal } from "@/lib/checking/types";
-import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
+import {
+  CHECKING_COLORS as C,
+  CHECKING_ENHANCE_FILTER,
+  CHECKING_FONT_BODY,
+  CHECKING_FONT_DISPLAY,
+  SLIDE_H,
+  SLIDE_W,
+} from "../slideTokens";
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
 
 function Campo({ label, value }: { label: string; value: string }) {
@@ -77,7 +84,15 @@ export function RegistroFotograficoSlide({
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
         <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
           {foto.imageDataUrl ? (
-            <img src={foto.imageDataUrl} alt="Registro fotográfico" className="w-full h-full object-cover" />
+            <img
+              src={foto.imageDataUrl}
+              alt="Registro fotográfico"
+              className="w-full h-full object-cover"
+              style={{
+                objectPosition: foto.imagePosition ?? "50% 50%",
+                filter: foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined,
+              }}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-sm bg-white" style={{ color: C.grayText }}>
               Foto do outdoor instalado

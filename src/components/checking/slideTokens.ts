@@ -14,3 +14,6 @@ export const CHECKING_COLORS = {
 
 export const CHECKING_FONT_DISPLAY = "'Archivo Black', 'Montserrat', sans-serif";
 export const CHECKING_FONT_BODY = "'Montserrat', 'Inter', sans-serif";
+
+// Mesmo preset usado no "Ajustar Foto" do Processamento (brilho/contraste/saturação).
+export const CHECKING_ENHANCE_FILTER = "brightness(90%) contrast(136%) saturate(151%)";

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import "@/components/checking/checking-fonts.css";
-import { Download, Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,15 @@ import {
   type CheckingLocal,
 } from "@/lib/checking/types";
 
-const PREVIEW_SCALE = 0.42;
+const PREVIEW_SCALE = 0.2;
+
+function moveItem<T>(arr: T[], index: number, dir: -1 | 1): T[] {
+  const target = index + dir;
+  if (target < 0 || target >= arr.length) return arr;
+  const next = [...arr];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
 
 export default function Checking() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,6 +61,8 @@ export default function Checking() {
 
   const addLocal = () => setData((d) => ({ ...d, locais: [...d.locais, novoLocal()] }));
   const removeLocal = (id: string) => setData((d) => ({ ...d, locais: d.locais.filter((l) => l.id !== id) }));
+  const moveLocal = (id: string, dir: -1 | 1) =>
+    setData((d) => ({ ...d, locais: moveItem(d.locais, d.locais.findIndex((l) => l.id === id), dir) }));
 
   const addFoto = (localId: string) =>
     setData((d) => ({
@@ -74,31 +84,52 @@ export default function Checking() {
       locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
     }));
 
+  const moveFoto = (localId: string, fotoId: string, dir: -1 | 1) =>
+    setData((d) => ({
+      ...d,
+      locais: d.locais.map((l) =>
+        l.id === localId ? { ...l, fotos: moveItem(l.fotos, l.fotos.findIndex((f) => f.id === fotoId), dir) } : l,
+      ),
+    }));
+
   const addSlideTitulo = () => setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novoSlideTitulo()] }));
   const updateSlideTitulo = (id: string, texto: string) =>
     setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, texto } : s)) }));
   const removeSlideTitulo = (id: string) =>
     setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.filter((s) => s.id !== id) }));
+  const moveSlideTitulo = (id: string, dir: -1 | 1) =>
+    setData((d) => ({
+      ...d,
+      slidesTitulo: moveItem(d.slidesTitulo, d.slidesTitulo.findIndex((s) => s.id === id), dir),
+    }));
 
   // Ordem das páginas do PDF: capa, slides de título (contracapas), locais
   // [potencial de impacto, 1 registro fotográfico por foto], e sempre um "Obrigado!" no final.
   const paginas = useMemo(() => {
-    const pgs: { key: string; node: ReactNode }[] = [{ key: "capa", node: <CapaSlide data={data} /> }];
-    for (const slide of data.slidesTitulo) {
-      pgs.push({ key: `titulo-${slide.id}`, node: <TituloSlide texto={slide.texto} /> });
-    }
-    for (const local of data.locais) {
-      pgs.push({ key: `${local.id}-potencial`, node: <PotencialImpactoSlide local={local} /> });
+    const pgs: { key: string; label: string; node: ReactNode }[] = [
+      { key: "capa", label: "Capa", node: <CapaSlide data={data} /> },
+    ];
+    data.slidesTitulo.forEach((slide) => {
+      pgs.push({ key: `titulo-${slide.id}`, label: slide.texto || "Slide de título", node: <TituloSlide texto={slide.texto} /> });
+    });
+    data.locais.forEach((local, li) => {
+      const nomeLocal = local.localVeiculacao || `Local ${li + 1}`;
+      pgs.push({
+        key: `${local.id}-potencial`,
+        label: `Potencial de Impacto — ${nomeLocal}`,
+        node: <PotencialImpactoSlide local={local} />,
+      });
       local.fotos.forEach((foto, idx) => {
         pgs.push({
           key: `${local.id}-foto-${foto.id}`,
+          label: `Registro Fotográfico${local.fotos.length > 1 ? `.${idx + 1}` : ""} — ${nomeLocal}`,
           node: (
             <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1 ? idx + 1 : undefined} />
           ),
         });
       });
-    }
-    pgs.push({ key: "obrigado", node: <TituloSlide texto="OBRIGADO!" /> });
+    });
+    pgs.push({ key: "obrigado", label: "Obrigado!", node: <TituloSlide texto="OBRIGADO!" /> });
     return pgs;
   }, [data]);
 
@@ -154,6 +185,10 @@ export default function Checking() {
             value={data.capaImageDataUrl}
             onChange={(v) => updateField({ capaImageDataUrl: v })}
             aspect="aspect-video"
+            position={data.capaImagePosition}
+            onPositionChange={(p) => updateField({ capaImagePosition: p })}
+            melhorada={data.capaMelhorada}
+            onToggleMelhorada={() => updateField({ capaMelhorada: !data.capaMelhorada })}
           />
           <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
 
@@ -201,8 +236,24 @@ export default function Checking() {
             Página preta de destaque (tipo "PAINEL LED") — entram entre a capa e os locais, na ordem que adicionar. Um
             slide "Obrigado!" já é incluído automático no final de todo PDF.
           </p>
-          {data.slidesTitulo.map((slide) => (
-            <div key={slide.id} className="flex items-center gap-2">
+          {data.slidesTitulo.map((slide, i) => (
+            <div key={slide.id} className="flex items-center gap-1">
+              <div className="flex flex-col shrink-0">
+                <button
+                  onClick={() => moveSlideTitulo(slide.id, -1)}
+                  disabled={i === 0}
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                >
+                  <ChevronUp className="size-3.5" />
+                </button>
+                <button
+                  onClick={() => moveSlideTitulo(slide.id, 1)}
+                  disabled={i === data.slidesTitulo.length - 1}
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                >
+                  <ChevronDown className="size-3.5" />
+                </button>
+              </div>
               <Input
                 placeholder="Texto do slide (ex.: Painel LED)"
                 value={slide.texto}
@@ -231,11 +282,29 @@ export default function Checking() {
             <div key={local.id} className="rounded-lg border border-border p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-muted-foreground">Local {i + 1}</span>
-                {data.locais.length > 1 && (
-                  <button onClick={() => removeLocal(local.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="size-3.5" />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => moveLocal(local.id, -1)}
+                    disabled={i === 0}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                    title="Mover pra cima"
+                  >
+                    <ChevronUp className="size-3.5" />
                   </button>
-                )}
+                  <button
+                    onClick={() => moveLocal(local.id, 1)}
+                    disabled={i === data.locais.length - 1}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                    title="Mover pra baixo"
+                  >
+                    <ChevronDown className="size-3.5" />
+                  </button>
+                  {data.locais.length > 1 && (
+                    <button onClick={() => removeLocal(local.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <FieldTextarea
@@ -263,6 +332,10 @@ export default function Checking() {
                   value={local.mapaImageDataUrl}
                   onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
                   aspect="aspect-[4/3]"
+                  position={local.mapaImagePosition}
+                  onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
+                  melhorada={local.mapaMelhorada}
+                  onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
                 />
               </div>
 
@@ -277,19 +350,41 @@ export default function Checking() {
                   <div key={foto.id} className="space-y-1.5 border-t border-border/50 pt-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-muted-foreground">Foto {fotoIdx + 1}</span>
-                      <button
-                        onClick={() => removeFoto(local.id, foto.id)}
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive"
-                        title="Remover esta foto"
-                      >
-                        <Trash2 className="size-3" /> Remover foto
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => moveFoto(local.id, foto.id, -1)}
+                          disabled={fotoIdx === 0}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                          title="Mover pra cima"
+                        >
+                          <ChevronUp className="size-3" />
+                        </button>
+                        <button
+                          onClick={() => moveFoto(local.id, foto.id, 1)}
+                          disabled={fotoIdx === local.fotos.length - 1}
+                          className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                          title="Mover pra baixo"
+                        >
+                          <ChevronDown className="size-3" />
+                        </button>
+                        <button
+                          onClick={() => removeFoto(local.id, foto.id)}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive"
+                          title="Remover esta foto"
+                        >
+                          <Trash2 className="size-3" /> Remover
+                        </button>
+                      </div>
                     </div>
                     <ImageDropZone
                       label="Solte a foto do outdoor"
                       value={foto.imageDataUrl}
                       onChange={(v) => updateFoto(local.id, foto.id, { imageDataUrl: v })}
                       aspect="aspect-video"
+                      position={foto.imagePosition}
+                      onPositionChange={(p) => updateFoto(local.id, foto.id, { imagePosition: p })}
+                      melhorada={foto.melhorada}
+                      onToggleMelhorada={() => updateFoto(local.id, foto.id, { melhorada: !foto.melhorada })}
                     />
                     <Input
                       placeholder="Link do vídeo (opcional)"
@@ -318,21 +413,26 @@ export default function Checking() {
       </div>
 
       <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-muted/30">
-        <div className="flex flex-col items-center gap-6">
-          {paginas.map((p) => (
-            <div
-              key={p.key}
-              style={{ width: SLIDE_W * PREVIEW_SCALE, height: SLIDE_H * PREVIEW_SCALE }}
-              className="shadow-md rounded-md overflow-hidden bg-white"
-            >
+        <div className="text-xs text-muted-foreground mb-3">{paginas.length} página(s) no PDF</div>
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${SLIDE_W * PREVIEW_SCALE}px, 1fr))` }}>
+          {paginas.map((p, i) => (
+            <div key={p.key} className="space-y-1">
               <div
-                ref={(el) => {
-                  if (el) slideRefs.current.set(p.key, el);
-                  else slideRefs.current.delete(p.key);
-                }}
-                style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left" }}
+                style={{ width: SLIDE_W * PREVIEW_SCALE, height: SLIDE_H * PREVIEW_SCALE }}
+                className="shadow-md rounded-md overflow-hidden bg-white"
               >
-                {p.node}
+                <div
+                  ref={(el) => {
+                    if (el) slideRefs.current.set(p.key, el);
+                    else slideRefs.current.delete(p.key);
+                  }}
+                  style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left" }}
+                >
+                  {p.node}
+                </div>
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {i + 1}. {p.label}
               </div>
             </div>
           ))}

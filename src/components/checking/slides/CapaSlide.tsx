@@ -26,7 +26,10 @@ export function CapaSlide({ data }: { data: CheckingData }) {
           src={data.capaImageDataUrl}
           alt="Capa"
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: "grayscale(1) contrast(1.05)" }}
+          style={{
+            objectPosition: data.capaImagePosition ?? "50% 50%",
+            filter: data.capaMelhorada ? "grayscale(1) contrast(1.15) brightness(95%)" : "grayscale(1) contrast(1.05)",
+          }}
         />
       ) : (
         <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,#d9d9d9,#a8a8a8)" }} />

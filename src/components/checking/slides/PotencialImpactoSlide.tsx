@@ -1,6 +1,13 @@
 import { MapPin } from "lucide-react";
 import type { CheckingLocal } from "@/lib/checking/types";
-import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
+import {
+  CHECKING_COLORS as C,
+  CHECKING_ENHANCE_FILTER,
+  CHECKING_FONT_BODY,
+  CHECKING_FONT_DISPLAY,
+  SLIDE_H,
+  SLIDE_W,
+} from "../slideTokens";
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
 
 export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
@@ -22,7 +29,15 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
             style={{ border: `3px solid ${C.navy}`, background: "#EDEDED" }}
           >
             {local.mapaImageDataUrl ? (
-              <img src={local.mapaImageDataUrl} alt="Mapa de impacto" className="w-full h-full object-cover" />
+              <img
+                src={local.mapaImageDataUrl}
+                alt="Mapa de impacto"
+                className="w-full h-full object-cover"
+                style={{
+                  objectPosition: local.mapaImagePosition ?? "50% 50%",
+                  filter: local.mapaMelhorada ? CHECKING_ENHANCE_FILTER : undefined,
+                }}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-sm" style={{ color: C.grayText }}>
                 Print do mapa de fluxo (Economapas)
