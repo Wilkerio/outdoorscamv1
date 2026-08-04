@@ -8,10 +8,11 @@ export async function buildPdfBlob(elements: HTMLElement[]): Promise<Blob> {
   const doc = new jsPDF({ orientation: "landscape", unit: "px", format: [SLIDE_W, SLIDE_H], compress: true });
 
   for (let i = 0; i < elements.length; i++) {
-    const canvas = await html2canvas(elements[i], { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/jpeg", 0.92);
+    // scale 3 + PNG (sem perda) — mesma nitidez da prévia na tela, sem os artefatos do JPEG.
+    const canvas = await html2canvas(elements[i], { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
     if (i > 0) doc.addPage([SLIDE_W, SLIDE_H], "landscape");
-    doc.addImage(imgData, "JPEG", 0, 0, SLIDE_W, SLIDE_H);
+    doc.addImage(imgData, "PNG", 0, 0, SLIDE_W, SLIDE_H);
   }
 
   return doc.output("blob");

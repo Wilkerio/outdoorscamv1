@@ -331,36 +331,50 @@ export default function Checking() {
             if (token.startsWith("titulo:")) {
               const slide = data.slidesTitulo.find((s) => `titulo:${s.id}` === token);
               if (!slide) return null;
+              const tituloColapsado = colapsados.has(token);
               return (
-                <div key={token} className="flex items-center gap-1">
-                  <div className="flex flex-col shrink-0">
+                <div key={token} className="rounded-lg border border-border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
                     <button
-                      onClick={() => moveOrdem(token, -1)}
-                      disabled={!podeSubir}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                      onClick={() => toggleColapso(token)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                     >
-                      <ChevronUp className="size-3.5" />
+                      {tituloColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                      <span className="truncate">{slide.texto || "Slide de título"}</span>
                     </button>
-                    <button
-                      onClick={() => moveOrdem(token, 1)}
-                      disabled={!podeDescer}
-                      className="text-muted-foreground hover:text-foreground disabled:opacity-25"
-                    >
-                      <ChevronDown className="size-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => moveOrdem(token, -1)}
+                        disabled={!podeSubir}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                        title="Mover pra cima"
+                      >
+                        <ChevronUp className="size-3.5" />
+                      </button>
+                      <button
+                        onClick={() => moveOrdem(token, 1)}
+                        disabled={!podeDescer}
+                        className="text-muted-foreground hover:text-foreground disabled:opacity-25"
+                        title="Mover pra baixo"
+                      >
+                        <ChevronDown className="size-3.5" />
+                      </button>
+                      <button
+                        onClick={() => removeSlideTitulo(slide.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                        title="Remover slide"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <Input
-                    placeholder="Texto do slide (ex.: Painel LED)"
-                    value={slide.texto}
-                    onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
-                  />
-                  <button
-                    onClick={() => removeSlideTitulo(slide.id)}
-                    className="text-muted-foreground hover:text-destructive shrink-0"
-                    title="Remover slide"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  {!tituloColapsado && (
+                    <Input
+                      placeholder="Texto do slide (ex.: Painel LED)"
+                      value={slide.texto}
+                      onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
+                    />
+                  )}
                 </div>
               );
             }
