@@ -9,7 +9,14 @@ export async function buildPdfBlob(elements: HTMLElement[]): Promise<Blob> {
 
   for (let i = 0; i < elements.length; i++) {
     // scale 3 + PNG (sem perda) — mesma nitidez da prévia na tela, sem os artefatos do JPEG.
-    const canvas = await html2canvas(elements[i], { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
+    // foreignObjectRendering: delega pro motor do navegador — sem isso, o html2canvas
+    // ignora/erra o object-position usado pelos sliders "Mover ↔/↕", desalinhando o crop.
+    const canvas = await html2canvas(elements[i], {
+      scale: 3,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      foreignObjectRendering: true,
+    });
     const imgData = canvas.toDataURL("image/png");
     if (i > 0) doc.addPage([SLIDE_W, SLIDE_H], "landscape");
     doc.addImage(imgData, "PNG", 0, 0, SLIDE_W, SLIDE_H);

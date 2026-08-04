@@ -543,13 +543,7 @@ export default function Checking() {
                 style={{ width: SLIDE_W * PREVIEW_SCALE, height: SLIDE_H * PREVIEW_SCALE }}
                 className="shadow-md rounded-md overflow-hidden bg-white"
               >
-                <div
-                  ref={(el) => {
-                    if (el) slideRefs.current.set(p.key, el);
-                    else slideRefs.current.delete(p.key);
-                  }}
-                  style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left" }}
-                >
+                <div style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${PREVIEW_SCALE})`, transformOrigin: "top left" }}>
                   {p.node}
                 </div>
               </div>
@@ -559,6 +553,24 @@ export default function Checking() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Cópia oculta em tamanho real (sem transform/escala) — é daqui que o PDF é capturado.
+          Renderizar direto da prévia (que tem transform: scale) deixa o html2canvas confuso
+          sobre a resolução real, gerando PDF borrado. */}
+      <div aria-hidden style={{ position: "fixed", top: 0, left: -99999, width: SLIDE_W, height: 0, overflow: "visible" }}>
+        {paginas.map((p) => (
+          <div
+            key={p.key}
+            ref={(el) => {
+              if (el) slideRefs.current.set(p.key, el);
+              else slideRefs.current.delete(p.key);
+            }}
+            style={{ width: SLIDE_W, height: SLIDE_H }}
+          >
+            {p.node}
+          </div>
+        ))}
       </div>
     </div>
   );
