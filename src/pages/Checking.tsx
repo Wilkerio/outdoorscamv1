@@ -310,7 +310,7 @@ export default function Checking() {
               <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Esse material tem agência?</Label>
+                <Label className="text-xs">Esse checking tem agência?</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"

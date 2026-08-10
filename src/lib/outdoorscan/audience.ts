@@ -13,20 +13,22 @@ interface PoiHit extends PoiCount {
 // Raio de captação a pé considerado relevante pra quem passa perto de um outdoor.
 const RADIUS_M = 300;
 // Fluxo base de qualquer ponto na rua, mesmo sem POI relevante perto.
-const BASE_DAILY_FLOW = 1500;
+// Recalibrado: comparação com Economapas real (42.807/dia) mostrou que o valor antigo
+// (1500 base) deixava a estimativa ~10x abaixo do fluxo urbano real — pesos e base subiram.
+const BASE_DAILY_FLOW = 6000;
 // Evita que um POI com dezenas de resultados (ex.: vários bancos na mesma quadra) domine a conta.
 const MAX_COUNT_PER_TYPE = 3;
 
 // peopleImpact = pessoas/dia adicionais estimadas por unidade desse tipo de POI dentro do raio,
 // calibrado por ordem de grandeza de geração de fluxo de pedestres (hospital/shopping/metrô > escola/banco).
 const POI_TYPES: { type: string; label: string; peopleImpact: number }[] = [
-  { type: "hospital", label: "Hospital", peopleImpact: 900 },
-  { type: "shopping_mall", label: "Shopping", peopleImpact: 800 },
-  { type: "subway_station", label: "Metrô", peopleImpact: 950 },
-  { type: "bus_station", label: "Terminal/Ponto de ônibus", peopleImpact: 500 },
-  { type: "supermarket", label: "Mercado", peopleImpact: 450 },
-  { type: "university", label: "Universidade", peopleImpact: 400 },
-  { type: "school", label: "Escola", peopleImpact: 300 },
+  { type: "hospital", label: "Hospital", peopleImpact: 5500 },
+  { type: "shopping_mall", label: "Shopping", peopleImpact: 5000 },
+  { type: "subway_station", label: "Metrô", peopleImpact: 6000 },
+  { type: "bus_station", label: "Terminal/Ponto de ônibus", peopleImpact: 3200 },
+  { type: "supermarket", label: "Mercado", peopleImpact: 2800 },
+  { type: "university", label: "Universidade", peopleImpact: 2600 },
+  { type: "school", label: "Escola", peopleImpact: 2000 },
 ];
 
 // Hash determinístico da coordenada — mesmo ponto sempre gera o mesmo "ruído",
