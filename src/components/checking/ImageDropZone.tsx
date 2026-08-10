@@ -11,9 +11,11 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+// Posição = deslocamento livre em % (não mais "âncora dentro da área visível" do object-fit:cover) —
+// dá pra mover mesmo sem zoom, cortando a imagem, já que a moldura recorta o que sair mesmo.
 function parsePosition(pos?: string): { x: number; y: number } {
-  const [x, y] = (pos ?? "50% 50%").split(" ").map((v) => parseInt(v, 10));
-  return { x: Number.isFinite(x) ? x : 50, y: Number.isFinite(y) ? y : 50 };
+  const [x, y] = (pos ?? "0% 0%").split(" ").map((v) => parseInt(v, 10));
+  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
 }
 
 export function ImageDropZone({
@@ -23,8 +25,11 @@ export function ImageDropZone({
   aspect = "aspect-video",
   position,
   onPositionChange,
+  zoom,
+  onZoomChange,
   melhorada,
   onToggleMelhorada,
+  guiaCapa,
 }: {
   value?: string;
   onChange: (dataUrl: string) => void;
@@ -32,8 +37,12 @@ export function ImageDropZone({
   aspect?: string;
   position?: string;
   onPositionChange?: (pos: string) => void;
+  zoom?: number;
+  onZoomChange?: (zoom: number) => void;
   melhorada?: boolean;
   onToggleMelhorada?: () => void;
+  // Mostra por cima da prévia onde o painel preto diagonal da capa vai cobrir a foto.
+  guiaCapa?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -51,6 +60,8 @@ export function ImageDropZone({
 
   if (value) {
     const { x, y } = parsePosition(position);
+    // Nunca abaixo de 130% — mesmo com rascunho antigo salvo com zoom 100%, garante margem pra mover sem brecha.
+    const z = Math.max(zoom ?? 130, 130);
     return (
       <div className="space-y-1.5">
         <div className={`relative ${aspect} rounded-lg overflow-hidden border border-border bg-muted group`}>
@@ -58,8 +69,21 @@ export function ImageDropZone({
             src={value}
             alt={label}
             className="w-full h-full object-cover"
-            style={{ objectPosition: `${x}% ${y}%`, filter: melhorada ? CHECKING_ENHANCE_FILTER : undefined }}
+            style={{
+              transform: `translate(${x}%, ${y}%) scale(${z / 100})`,
+              filter: melhorada ? CHECKING_ENHANCE_FILTER : undefined,
+            }}
           />
+          {guiaCapa && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              <polygon points="0,0 47,0 37.6,100 0,100" fill="black" fillOpacity={0.55} />
+              <polyline points="47,0 37.6,100" stroke="#F5B400" strokeWidth={0.8} vectorEffect="non-scaling-stroke" />
+            </svg>
+          )}
           <button
             type="button"
             onClick={() => onChange("")}
@@ -69,6 +93,11 @@ export function ImageDropZone({
             <X className="size-3.5" />
           </button>
         </div>
+        {guiaCapa && (
+          <p className="text-[10px] text-muted-foreground">
+            A área escurecida é coberta pelo painel preto da capa — só o lado claro aparece.
+          </p>
+        )}
 
         {onPositionChange && (
           <div className="grid grid-cols-2 gap-2">
@@ -76,8 +105,8 @@ export function ImageDropZone({
               Mover ↔
               <input
                 type="range"
-                min={0}
-                max={100}
+                min={-50}
+                max={50}
                 value={x}
                 onChange={(e) => onPositionChange(`${e.target.value}% ${y}%`)}
               />
@@ -86,13 +115,26 @@ export function ImageDropZone({
               Mover ↕
               <input
                 type="range"
-                min={0}
-                max={100}
+                min={-50}
+                max={50}
                 value={y}
                 onChange={(e) => onPositionChange(`${x}% ${e.target.value}%`)}
               />
             </label>
           </div>
+        )}
+
+        {onZoomChange && (
+          <label className="text-[10px] text-muted-foreground flex flex-col gap-0.5">
+            Zoom — {z}%
+            <input
+              type="range"
+              min={130}
+              max={250}
+              value={z}
+              onChange={(e) => onZoomChange(Number(e.target.value))}
+            />
+          </label>
         )}
 
         {onToggleMelhorada && (

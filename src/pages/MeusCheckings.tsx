@@ -44,7 +44,7 @@ export default function MeusCheckings() {
           <p className="text-sm text-muted-foreground mt-1">Checkings salvos — abre pra continuar editando.</p>
         </div>
         <Button asChild>
-          <Link to="/checking">
+          <Link to="/checking/novo">
             <Plus className="size-4" /> Novo Checking
           </Link>
         </Button>

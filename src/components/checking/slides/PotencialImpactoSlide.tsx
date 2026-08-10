@@ -7,10 +7,14 @@ import {
   CHECKING_FONT_DISPLAY,
   SLIDE_H,
   SLIDE_W,
+  imagePanZoomTransform,
 } from "../slideTokens";
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
+import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
 export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
+  const mapaFiltrado = useFilteredImage(local.mapaImageDataUrl, local.mapaMelhorada ? CHECKING_ENHANCE_FILTER : undefined);
+
   return (
     <div
       style={{ width: SLIDE_W, height: SLIDE_H, fontFamily: CHECKING_FONT_BODY, background: C.white }}
@@ -28,15 +32,12 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
             className="flex-1 rounded-md overflow-hidden"
             style={{ border: `3px solid ${C.navy}`, background: "#EDEDED" }}
           >
-            {local.mapaImageDataUrl ? (
+            {mapaFiltrado ? (
               <img
-                src={local.mapaImageDataUrl}
+                src={mapaFiltrado}
                 alt="Mapa de impacto"
                 className="w-full h-full object-cover"
-                style={{
-                  objectPosition: local.mapaImagePosition ?? "50% 50%",
-                  filter: local.mapaMelhorada ? CHECKING_ENHANCE_FILTER : undefined,
-                }}
+                style={{ transform: imagePanZoomTransform(local.mapaImagePosition, local.mapaImageZoom) }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-sm" style={{ color: C.grayText }}>

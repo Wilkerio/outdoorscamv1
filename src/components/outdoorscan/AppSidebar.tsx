@@ -17,7 +17,7 @@ export function AppSidebar() {
   const items = [
     { to: "/", label: "Processamento", icon: ListChecks },
     { to: "/converter-books", label: "Converter Books", icon: BookOpen },
-    { to: "/checking", label: "Criar Checking", icon: FileImage },
+    { to: "/checking/novo", label: "Criar Checking", icon: FileImage },
     { to: "/meus-checkings", label: "Meus Checkings", icon: FolderOpen },
   ];
 

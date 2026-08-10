@@ -8,14 +8,12 @@ export async function buildPdfBlob(elements: HTMLElement[]): Promise<Blob> {
   const doc = new jsPDF({ orientation: "landscape", unit: "px", format: [SLIDE_W, SLIDE_H], compress: true });
 
   for (let i = 0; i < elements.length; i++) {
-    // scale 3 + PNG (sem perda) — mesma nitidez da prévia na tela, sem os artefatos do JPEG.
-    // foreignObjectRendering: delega pro motor do navegador — sem isso, o html2canvas
-    // ignora/erra o object-position usado pelos sliders "Mover ↔/↕", desalinhando o crop.
+    // Prioridade é qualidade, não tamanho de arquivo — scale 4 + PNG sem perda nenhuma.
     const canvas = await html2canvas(elements[i], {
-      scale: 3,
+      scale: 4,
       useCORS: true,
       backgroundColor: "#ffffff",
-      foreignObjectRendering: true,
+      imageTimeout: 15000,
     });
     const imgData = canvas.toDataURL("image/png");
     if (i > 0) doc.addPage([SLIDE_W, SLIDE_H], "landscape");

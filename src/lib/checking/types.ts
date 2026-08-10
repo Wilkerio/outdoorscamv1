@@ -2,23 +2,28 @@ export interface CheckingFoto {
   id: string;
   imageDataUrl: string;
   imagePosition?: string;
+  imageZoom?: number;
   melhorada?: boolean;
   videoUrl?: string;
 }
 
 export interface CheckingLocal {
   id: string;
+  nome?: string;
   localVeiculacao: string;
   formato: string;
   fluxoPassantes: string;
+  linhas?: string[];
   mapaImageDataUrl?: string;
   mapaImagePosition?: string;
+  mapaImageZoom?: number;
   mapaMelhorada?: boolean;
   fotos: CheckingFoto[];
 }
 
 export interface CheckingTituloSlide {
   id: string;
+  nome?: string;
   texto: string;
 }
 
@@ -26,7 +31,10 @@ export interface CheckingTituloSlide {
 // permitindo mover um Slide de Título pra qualquer posição entre os Locais (não só entre si).
 export type CheckingOrdemToken = `titulo:${string}` | `local:${string}`;
 
+export type CheckingTipo = "outdoor" | "onibus";
+
 export interface CheckingData {
+  tipo: CheckingTipo;
   cliente: string;
   campanha: string;
   praca: string;
@@ -36,6 +44,7 @@ export interface CheckingData {
   agencia: string;
   capaImageDataUrl?: string;
   capaImagePosition?: string;
+  capaImageZoom?: number;
   capaMelhorada?: boolean;
   slidesTitulo: CheckingTituloSlide[];
   locais: CheckingLocal[];
@@ -64,9 +73,10 @@ export function novoSlideTitulo(): CheckingTituloSlide {
   return { id: novoId(), texto: "" };
 }
 
-export function checkingVazio(): CheckingData {
+export function checkingVazio(tipo: CheckingTipo = "outdoor"): CheckingData {
   const local = novoLocal();
   return {
+    tipo,
     cliente: "",
     campanha: "",
     praca: "",
@@ -80,7 +90,7 @@ export function checkingVazio(): CheckingData {
   };
 }
 
-// Preenche campos que podem faltar em checkings salvos antes de existirem (ex.: ordem).
+// Preenche campos que podem faltar em checkings salvos antes de existirem (ex.: ordem, tipo).
 export function normalizarChecking(data: CheckingData): CheckingData {
   const slidesTitulo = data.slidesTitulo ?? [];
   const locais = data.locais ?? [];
@@ -91,5 +101,5 @@ export function normalizarChecking(data: CheckingData): CheckingData {
           ...slidesTitulo.map((s) => `titulo:${s.id}` as CheckingOrdemToken),
           ...locais.map((l) => `local:${l.id}` as CheckingOrdemToken),
         ];
-  return { ...data, slidesTitulo, locais, ordem };
+  return { ...data, tipo: data.tipo ?? "outdoor", slidesTitulo, locais, ordem };
 }

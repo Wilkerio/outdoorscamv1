@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { CapaSlide } from "@/components/checking/slides/CapaSlide";
 import { PotencialImpactoSlide } from "@/components/checking/slides/PotencialImpactoSlide";
 import { RegistroFotograficoSlide } from "@/components/checking/slides/RegistroFotograficoSlide";
+import { RegistroBusdoorSlide } from "@/components/checking/slides/RegistroBusdoorSlide";
+import { GaleriaOnibusSlide } from "@/components/checking/slides/GaleriaOnibusSlide";
 import { TituloSlide } from "@/components/checking/slides/TituloSlide";
 import { ImageDropZone } from "@/components/checking/ImageDropZone";
 import { SLIDE_H, SLIDE_W } from "@/components/checking/slideTokens";
@@ -24,6 +26,7 @@ import {
   type CheckingData,
   type CheckingFoto,
   type CheckingLocal,
+  type CheckingTituloSlide,
 } from "@/lib/checking/types";
 
 const PREVIEW_SCALE = 0.2;
@@ -41,18 +44,25 @@ export default function Checking() {
   const [searchParams, setSearchParams] = useSearchParams();
   const checkingId = searchParams.get("id");
   const [data, setData] = useState<CheckingData>(() => {
-    if (searchParams.get("id")) return checkingVazio();
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) return normalizarChecking({ ...checkingVazio(), ...JSON.parse(raw) });
-    } catch {}
-    return checkingVazio();
+    const tipoParam = searchParams.get("tipo");
+    const tipo = tipoParam === "onibus" ? "onibus" : "outdoor";
+    if (searchParams.get("id")) return checkingVazio(tipo);
+    // ?tipo= na URL = veio do seletor "Criar Checking" → é um checking NOVO de propósito,
+    // não deve misturar com rascunho antigo salvo (senão herda dados de outra sessão).
+    if (!tipoParam) {
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (raw) return normalizarChecking({ ...checkingVazio(tipo), ...JSON.parse(raw) });
+      } catch {}
+    }
+    return checkingVazio(tipo);
   });
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [gerandoLink, setGerandoLink] = useState(false);
   const [carregando, setCarregando] = useState(!!checkingId);
-  const [colapsados, setColapsados] = useState<Set<string>>(new Set());
+  // Todo Local/Slide já nasce recolhido — inclusive o(s) que vêm padrão ao abrir a página.
+  const [colapsados, setColapsados] = useState<Set<string>>(() => new Set(data.ordem));
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const toggleColapso = (key: string) =>
@@ -67,7 +77,11 @@ export default function Checking() {
     if (!checkingId) return;
     setCarregando(true);
     carregarChecking(checkingId)
-      .then((loaded) => setData(normalizarChecking(loaded)))
+      .then((loaded) => {
+        const normalizado = normalizarChecking(loaded);
+        setData(normalizado);
+        setColapsados(new Set(normalizado.ordem));
+      })
       .catch((err: any) => toast.error(`Falha ao carregar checking: ${err.message}`))
       .finally(() => setCarregando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,6 +104,7 @@ export default function Checking() {
   const addLocal = () => {
     const novo = novoLocal();
     setData((d) => ({ ...d, locais: [...d.locais, novo], ordem: [...d.ordem, `local:${novo.id}`] }));
+    setColapsados((s) => new Set(s).add(`local:${novo.id}`));
   };
   const removeLocal = (id: string) =>
     setData((d) => ({
@@ -129,9 +144,11 @@ export default function Checking() {
   const addSlideTitulo = () => {
     const novo = novoSlideTitulo();
     setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novo], ordem: [...d.ordem, `titulo:${novo.id}`] }));
+    // Novo slide já nasce recolhido — evita poluir a lista quando tem muitos.
+    setColapsados((s) => new Set(s).add(`titulo:${novo.id}`));
   };
-  const updateSlideTitulo = (id: string, texto: string) =>
-    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, texto } : s)) }));
+  const updateSlideTitulo = (id: string, patch: Partial<CheckingTituloSlide>) =>
+    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
   const removeSlideTitulo = (id: string) =>
     setData((d) => ({
       ...d,
@@ -156,14 +173,32 @@ export default function Checking() {
         if (!slide) return;
         pgs.push({
           key: `titulo-${slide.id}`,
-          label: slide.texto || "Slide de título",
+          label: slide.nome || slide.texto || "Slide de título",
           node: <TituloSlide texto={slide.texto} />,
         });
         return;
       }
       const local = data.locais.find((l) => `local:${l.id}` === token);
       if (!local) return;
-      const nomeLocal = local.localVeiculacao || "Local";
+      const nomeLocal = local.nome || local.localVeiculacao || "Local";
+
+      if (data.tipo === "onibus") {
+        pgs.push({
+          key: `${local.id}-registro-onibus`,
+          label: `Registro Fotográfico — ${nomeLocal}`,
+          node: <RegistroBusdoorSlide local={local} foto={local.fotos[0]} />,
+        });
+        for (let idx = 0; idx < local.fotos.length; idx += 2) {
+          const par = local.fotos.slice(idx, idx + 2);
+          pgs.push({
+            key: `${local.id}-galeria-${idx}`,
+            label: `Galeria Ônibus — ${nomeLocal} (${idx + 1}${par.length > 1 ? `-${idx + 2}` : ""})`,
+            node: <GaleriaOnibusSlide fotos={par} />,
+          });
+        }
+        return;
+      }
+
       pgs.push({
         key: `${local.id}-potencial`,
         label: `Potencial de Impacto — ${nomeLocal}`,
@@ -266,8 +301,11 @@ export default function Checking() {
                 aspect="aspect-video"
                 position={data.capaImagePosition}
                 onPositionChange={(p) => updateField({ capaImagePosition: p })}
+                zoom={data.capaImageZoom}
+                onZoomChange={(z) => updateField({ capaImageZoom: z })}
                 melhorada={data.capaMelhorada}
                 onToggleMelhorada={() => updateField({ capaMelhorada: !data.capaMelhorada })}
+                guiaCapa
               />
               <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
 
@@ -311,17 +349,34 @@ export default function Checking() {
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Conteúdo</div>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={addSlideTitulo}>
-                <Plus className="size-3.5" /> Slide
+                <Plus className="size-3.5" /> Slide de Título
               </Button>
               <Button size="sm" variant="secondary" onClick={addLocal}>
                 <Plus className="size-3.5" /> Local
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!data.locais.length}
+                onClick={() => {
+                  const ultimo = data.locais[data.locais.length - 1];
+                  if (!ultimo) return;
+                  addFoto(ultimo.id);
+                  setColapsados((s) => {
+                    const next = new Set(s);
+                    next.delete(`local:${ultimo.id}`);
+                    return next;
+                  });
+                }}
+              >
+                <Plus className="size-3.5" /> Foto
               </Button>
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
             Slides de título e Locais aparecem nessa ordem — usa ▲▼ pra mover qualquer um pra qualquer posição, mesmo
-            entre categorias diferentes. Cada Local sempre gera 1 "Potencial de Impacto"; "Registro Fotográfico" só
-            aparece com "+ Foto" dentro dele. Um "Obrigado!" já é incluído automático no final de todo PDF.
+            entre categorias diferentes. "+ Foto" aqui em cima adiciona no último Local da lista. Um "Obrigado!" já é
+            incluído automático no final de todo PDF.
           </p>
 
           {data.ordem.map((token, i) => {
@@ -340,7 +395,9 @@ export default function Checking() {
                       className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                     >
                       {tituloColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
-                      <span className="truncate">{slide.texto || "Slide de título"}</span>
+                      <span className="truncate">
+                        {i + 1}. {slide.nome || slide.texto || "Slide de título"}
+                      </span>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
@@ -369,11 +426,19 @@ export default function Checking() {
                     </div>
                   </div>
                   {!tituloColapsado && (
-                    <Input
-                      placeholder="Texto do slide (ex.: Painel LED)"
-                      value={slide.texto}
-                      onChange={(e) => updateSlideTitulo(slide.id, e.target.value)}
-                    />
+                    <>
+                      <FieldInput
+                        label="Nome (só de organização, não aparece no PDF)"
+                        value={slide.nome ?? ""}
+                        onChange={(v) => updateSlideTitulo(slide.id, { nome: v })}
+                        placeholder={`Slide ${i + 1}`}
+                      />
+                      <Input
+                        placeholder="Texto do slide (ex.: Painel LED)"
+                        value={slide.texto}
+                        onChange={(e) => updateSlideTitulo(slide.id, { texto: e.target.value })}
+                      />
+                    </>
                   )}
                 </div>
               );
@@ -391,7 +456,9 @@ export default function Checking() {
                     className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                   >
                     {localColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
-                    <span className="truncate">{local.localVeiculacao || "Local sem nome"}</span>
+                    <span className="truncate">
+                      {i + 1}. {local.nome || local.localVeiculacao || "Local sem nome"}
+                    </span>
                   </button>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
@@ -420,6 +487,12 @@ export default function Checking() {
 
                 {!localColapsado && (
                   <>
+                    <FieldInput
+                      label="Nome (só de organização, não aparece no PDF)"
+                      value={local.nome ?? ""}
+                      onChange={(v) => updateLocal(local.id, { nome: v })}
+                      placeholder={`Local ${i + 1}`}
+                    />
                     <FieldTextarea
                       label="Local de veiculação"
                       value={local.localVeiculacao}
@@ -429,28 +502,75 @@ export default function Checking() {
                       label="Formato"
                       value={local.formato}
                       onChange={(v) => updateLocal(local.id, { formato: v })}
-                      placeholder="Painel de LED"
-                    />
-                    <FieldInput
-                      label="Fluxo de passantes/dia"
-                      value={local.fluxoPassantes}
-                      onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
-                      placeholder="18.387"
+                      placeholder={data.tipo === "onibus" ? "Busdoor" : "Painel de LED"}
                     />
 
-                    <div>
-                      <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
-                      <ImageDropZone
-                        label="Solte o print aqui"
-                        value={local.mapaImageDataUrl}
-                        onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
-                        aspect="aspect-[4/3]"
-                        position={local.mapaImagePosition}
-                        onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
-                        melhorada={local.mapaMelhorada}
-                        onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
-                      />
-                    </div>
+                    {data.tipo === "onibus" ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Linhas (carro — linha)</Label>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-[11px]"
+                            onClick={() =>
+                              updateLocal(local.id, { linhas: [...(local.linhas ?? []), ""] })
+                            }
+                          >
+                            <Plus className="size-3" /> Linha
+                          </Button>
+                        </div>
+                        {(local.linhas ?? []).map((linha, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5">
+                            <Input
+                              placeholder="Carro 608 – Linha B19"
+                              value={linha}
+                              onChange={(e) => {
+                                const linhas = [...(local.linhas ?? [])];
+                                linhas[idx] = e.target.value;
+                                updateLocal(local.id, { linhas });
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                const linhas = (local.linhas ?? []).filter((_, li) => li !== idx);
+                                updateLocal(local.id, { linhas });
+                              }}
+                              className="text-muted-foreground hover:text-destructive shrink-0"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {!(local.linhas ?? []).length && (
+                          <p className="text-[11px] text-muted-foreground">Nenhuma linha adicionada ainda.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <FieldInput
+                          label="Fluxo de passantes/dia"
+                          value={local.fluxoPassantes}
+                          onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
+                          placeholder="18.387"
+                        />
+                        <div>
+                          <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
+                          <ImageDropZone
+                            label="Solte o print aqui"
+                            value={local.mapaImageDataUrl}
+                            onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
+                            aspect="aspect-[4/3]"
+                            position={local.mapaImagePosition}
+                            onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
+                            zoom={local.mapaImageZoom}
+                            onZoomChange={(z) => updateLocal(local.id, { mapaImageZoom: z })}
+                            melhorada={local.mapaMelhorada}
+                            onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
+                          />
+                        </div>
+                      </>
+                    )}
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
@@ -496,6 +616,8 @@ export default function Checking() {
                             aspect="aspect-video"
                             position={foto.imagePosition}
                             onPositionChange={(p) => updateFoto(local.id, foto.id, { imagePosition: p })}
+                            zoom={foto.imageZoom}
+                            onZoomChange={(z) => updateFoto(local.id, foto.id, { imageZoom: z })}
                             melhorada={foto.melhorada}
                             onToggleMelhorada={() => updateFoto(local.id, foto.id, { melhorada: !foto.melhorada })}
                           />

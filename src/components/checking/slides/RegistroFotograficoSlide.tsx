@@ -7,8 +7,10 @@ import {
   CHECKING_FONT_DISPLAY,
   SLIDE_H,
   SLIDE_W,
+  imagePanZoomTransform,
 } from "../slideTokens";
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
+import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
 function Campo({ label, value }: { label: string; value: string }) {
   return (
@@ -40,6 +42,8 @@ export function RegistroFotograficoSlide({
   foto: CheckingFoto;
   sufixo?: number;
 }) {
+  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
+
   return (
     <div
       style={{ width: SLIDE_W, height: SLIDE_H, fontFamily: CHECKING_FONT_BODY, background: C.cream }}
@@ -83,15 +87,12 @@ export function RegistroFotograficoSlide({
 
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
         <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
-          {foto.imageDataUrl ? (
+          {fotoFiltrada ? (
             <img
-              src={foto.imageDataUrl}
+              src={fotoFiltrada}
               alt="Registro fotográfico"
               className="w-full h-full object-cover"
-              style={{
-                objectPosition: foto.imagePosition ?? "50% 50%",
-                filter: foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined,
-              }}
+              style={{ transform: imagePanZoomTransform(foto.imagePosition, foto.imageZoom) }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-sm bg-white" style={{ color: C.grayText }}>
