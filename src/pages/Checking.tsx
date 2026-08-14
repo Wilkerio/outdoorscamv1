@@ -168,7 +168,7 @@ export default function Checking() {
     setData((d) => ({ ...d, ordem: moveItem(d.ordem, d.ordem.indexOf(token as any), dir) }));
 
   const processandoPdf = gerando || gerandoLink;
-  const modoProcessamento = gerandoLink  ?                    link" : "pdf";
+  const modoProcessamento = gerandoLink ? ?                    link" : "pdf";
 
   useEffect(() => {
     if (!processandoPdf) {
@@ -216,7 +216,7 @@ export default function Checking() {
           const par = local.fotos.slice(idx, idx + 2);
           pgs.push({
             key: `${local.id}-galeria-${idx}`,
-            label: `Galeria Ã”nibus â€” ${nomeLocal} (${idx + 1}${par.length > 1  ?                    -${idx + 2}` : ""})`,
+            label: `Galeria Ã”nibus â€” ${nomeLocal} (${idx + 1}${par.length > 1 ? ?                    -${idx + 2}` : ""})`,
             node: <GaleriaOnibusSlide fotos={par} />,
           });
         }
@@ -231,7 +231,7 @@ export default function Checking() {
       local.fotos.forEach((foto, idx) => {
         pgs.push({
           key: `${local.id}-foto-${foto.id}`,
-          label: `Registro FotogrÃ¡fico${local.fotos.length > 1  ?                    .${idx + 1}` : ""} â€” ${nomeLocal}`,
+          label: `Registro FotogrÃ¡fico${local.fotos.length > 1 ? ?                    .${idx + 1}` : ""} â€” ${nomeLocal}`,
           node: (
             <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1 ? idx + 1 : undefined} />
           ),
@@ -313,7 +313,7 @@ export default function Checking() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">
-                  {modoProcessamento === "link"  ?                    Gerando link compartilhável" : "Gerando PDF"}
+                  {modoProcessamento === "link" ? ?                    Gerando link compartilhável" : "Gerando PDF"}
                 </div>
                 <p className="mt-1 text-sm text-white/70">
                   Estamos montando tudo em alta resolução. Isso demora um pouco porque cada página é renderizada com
@@ -330,10 +330,10 @@ export default function Checking() {
                   <div key={step} className="flex items-start gap-3">
                     <div
                       className={`mt-0.5 size-2.5 rounded-full ${
-                        active  ?                    bg-cyan-300 animate-pulse" : done  "bg-emerald-400" : "bg-white/20"
+                        active ? ?                    bg-cyan-300 animate-pulse" : done ? "bg-emerald-400" : "bg-white/20"
                       }`}
                     />
-                    <div className={`text-sm ${active  ?                    text-white" : done  "text-white/85" : "text-white/50"}`}>
+                    <div className={`text-sm ${active ? ?                    text-white" : done ? "text-white/85" : "text-white/50"}`}>
                       {step}
                     </div>
                   </div>
@@ -721,16 +721,16 @@ export default function Checking() {
         <div className="flex gap-2">
           <Button className="flex-1" variant="secondary" onClick={salvar} disabled={salvando || processandoPdf}>
             <Save className="size-4" />
-            {salvando  ?                    Salvandoâ€¦" : checkingId  "Salvar alteraÃ§Ãµes" : "Salvar"}
+            {salvando ? ?                    Salvandoâ€¦" : checkingId ? "Salvar alteraÃ§Ãµes" : "Salvar"}
           </Button>
           <Button className="flex-1" variant="secondary" onClick={gerarLink} disabled={gerandoLink || gerando}>
             <Link2 className="size-4" />
-            {gerandoLink  ?                    Gerandoâ€¦" : "Gerar Link"}
+            {gerandoLink ? ?                    Gerandoâ€¦" : "Gerar Link"}
           </Button>
         </div>
         <Button className="w-full" onClick={gerarPdf} disabled={gerando || gerandoLink}>
           <Download className="size-4" />
-          {gerando  ?                    Gerandoâ€¦" : "Baixar PDF"}
+          {gerando ? ?                    Gerandoâ€¦" : "Baixar PDF"}
         </Button>
       </div>
 
@@ -803,4 +803,3 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: strin
     </div>
   );
 }
-

@@ -61,7 +61,7 @@ export function ImageDropZone({
   if (value) {
     const { x, y } = parsePosition(position);
     // Nunca abaixo de 130% — mesmo com rascunho antigo salvo com zoom 100%, garante margem pra mover sem brecha.
-    const z = Math.max(zoom  ?? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 00, 80);
+    const z = Math.max(zoom ?? ?? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 00, 80);
     return (
       <div className="space-y-1.5">
         <div className={`relative ${aspect} rounded-lg overflow-hidden border border-border bg-muted group`}>

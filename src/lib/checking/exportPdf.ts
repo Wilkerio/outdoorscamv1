@@ -45,7 +45,7 @@ function coletarLinks(elemento: HTMLElement): LinkAnnotation[] {
   const slideRect = elemento.getBoundingClientRect();
   return Array.from(elemento.querySelectorAll<HTMLAnchorElement>("a[href]"))
     .map((anchor) => {
-      const href = normalizarHref(anchor.getAttribute("href")  ?? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? nchor.href);
+      const href = normalizarHref(anchor.getAttribute("href") ?? ?? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? nchor.href);
       if (!href) return null;
       const rect = anchor.getBoundingClientRect();
       const x = rect.left - slideRect.left;
