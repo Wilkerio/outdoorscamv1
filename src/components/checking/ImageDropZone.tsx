@@ -13,9 +13,9 @@ function fileToDataUrl(file: File): Promise<string> {
 
 // Posição = deslocamento livre em % (não mais "âncora dentro da área visível" do object-fit:cover) —
 // dá pra mover mesmo sem zoom, cortando a imagem, já que a moldura recorta o que sair mesmo.
-function parsePosition(pos?: string): { x: number; y: number } {
-  const [x, y] = (pos ?? "0% 0%").split(" ").map((v) => parseInt(v, 10));
-  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
+function parsePosition(pos: string): { x: number; y: number } {
+  const [x, y] = (pos  "0% 0%").split(" ").map((v) => parseInt(v, 10));
+  return { x: Number.isFinite(x)  x : 0, y: Number.isFinite(y)  y : 0 };
 }
 
 export function ImageDropZone({
@@ -31,23 +31,23 @@ export function ImageDropZone({
   onToggleMelhorada,
   guiaCapa,
 }: {
-  value?: string;
+  value: string;
   onChange: (dataUrl: string) => void;
   label: string;
-  aspect?: string;
-  position?: string;
-  onPositionChange?: (pos: string) => void;
-  zoom?: number;
-  onZoomChange?: (zoom: number) => void;
-  melhorada?: boolean;
-  onToggleMelhorada?: () => void;
+  aspect: string;
+  position: string;
+  onPositionChange: (pos: string) => void;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
+  melhorada: boolean;
+  onToggleMelhorada: () => void;
   // Mostra por cima da prévia onde o painel preto diagonal da capa vai cobrir a foto.
-  guiaCapa?: boolean;
+  guiaCapa: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const handleFile = async (file?: File) => {
+  const handleFile = async (file: File) => {
     if (!file || !file.type.startsWith("image/")) return;
     onChange(await fileToDataUrl(file));
   };
@@ -55,13 +55,13 @@ export function ImageDropZone({
   const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
-    await handleFile(e.dataTransfer.files?.[0]);
+    await handleFile(e.dataTransfer.files.[0]);
   };
 
   if (value) {
     const { x, y } = parsePosition(position);
     // Nunca abaixo de 130% — mesmo com rascunho antigo salvo com zoom 100%, garante margem pra mover sem brecha.
-    const z = Math.max(zoom ?? 130, 130);
+    const z = Math.max(zoom  100, 80);
     return (
       <div className="space-y-1.5">
         <div className={`relative ${aspect} rounded-lg overflow-hidden border border-border bg-muted group`}>
@@ -71,7 +71,7 @@ export function ImageDropZone({
             className="w-full h-full object-cover"
             style={{
               transform: `translate(${x}%, ${y}%) scale(${z / 100})`,
-              filter: melhorada ? CHECKING_ENHANCE_FILTER : undefined,
+              filter: melhorada  CHECKING_ENHANCE_FILTER : undefined,
             }}
           />
           {guiaCapa && (
@@ -129,7 +129,7 @@ export function ImageDropZone({
             Zoom — {z}%
             <input
               type="range"
-              min={130}
+              min={80}
               max={250}
               value={z}
               onChange={(e) => onZoomChange(Number(e.target.value))}
@@ -143,12 +143,12 @@ export function ImageDropZone({
             onClick={onToggleMelhorada}
             className={`w-full flex items-center justify-center gap-1.5 text-xs h-7 rounded-md border transition-colors ${
               melhorada
-                ? "bg-primary/15 text-primary border-primary/30"
+                 "bg-primary/15 text-primary border-primary/30"
                 : "text-muted-foreground border-border hover:bg-accent"
             }`}
           >
             <Sparkles className="size-3.5" />
-            {melhorada ? "Foto melhorada" : "Melhorar foto"}
+            {melhorada  "Foto melhorada" : "Melhorar foto"}
           </button>
         )}
       </div>
@@ -158,9 +158,9 @@ export function ImageDropZone({
   return (
     <div
       className={`${aspect} rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors text-center px-3 ${
-        dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent"
+        dragOver  "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-accent"
       }`}
-      onClick={() => inputRef.current?.click()}
+      onClick={() => inputRef.current.click()}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
@@ -175,7 +175,7 @@ export function ImageDropZone({
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
+        onChange={(e) => handleFile(e.target.files.[0])}
       />
     </div>
   );

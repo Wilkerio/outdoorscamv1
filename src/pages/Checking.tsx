@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import "@/components/checking/checking-fonts.css";
 import { ChevronDown, ChevronRight, ChevronUp, Download, Link2, Plus, Save, Trash2 } from "lucide-react";
@@ -31,6 +31,12 @@ import {
 
 const PREVIEW_SCALE = 0.2;
 const DRAFT_KEY = "checking:draft:v1";
+const PDF_STEPS = [
+  "Montando as páginas em alta resolução",
+  "Baixando imagens e fontes para renderização",
+  "Aplicando filtros e conferindo os links clicáveis",
+  "Compactando o arquivo final",
+];
 
 function moveItem<T>(arr: T[], index: number, dir: -1 | 1): T[] {
   const target = index + dir;
@@ -45,10 +51,10 @@ export default function Checking() {
   const checkingId = searchParams.get("id");
   const [data, setData] = useState<CheckingData>(() => {
     const tipoParam = searchParams.get("tipo");
-    const tipo = tipoParam === "onibus" ? "onibus" : "outdoor";
+    const tipo = tipoParam === "onibus"  "onibus" : "outdoor";
     if (searchParams.get("id")) return checkingVazio(tipo);
-    // ?tipo= na URL = veio do seletor "Criar Checking" → é um checking NOVO de propósito,
-    // não deve misturar com rascunho antigo salvo (senão herda dados de outra sessão).
+    // tipo= na URL = veio do seletor "Criar Checking" â†’ Ã© um checking NOVO de propÃ³sito,
+    // nÃ£o deve misturar com rascunho antigo salvo (senÃ£o herda dados de outra sessÃ£o).
     if (!tipoParam) {
       try {
         const raw = localStorage.getItem(DRAFT_KEY);
@@ -60,8 +66,9 @@ export default function Checking() {
   const [gerando, setGerando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [gerandoLink, setGerandoLink] = useState(false);
+  const [etapaPdf, setEtapaPdf] = useState(0);
   const [carregando, setCarregando] = useState(!!checkingId);
-  // Todo Local/Slide já nasce recolhido — inclusive o(s) que vêm padrão ao abrir a página.
+  // Todo Local/Slide jÃ¡ nasce recolhido â€” inclusive o(s) que vÃªm padrÃ£o ao abrir a pÃ¡gina.
   const [colapsados, setColapsados] = useState<Set<string>>(() => new Set(data.ordem));
   const slideRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -87,7 +94,7 @@ export default function Checking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkingId]);
 
-  // Rascunho local — só pra checking novo (ainda não salvo no banco), pra não perder
+  // Rascunho local â€” sÃ³ pra checking novo (ainda nÃ£o salvo no banco), pra nÃ£o perder
   // o que foi digitado se fechar a aba sem clicar em "Salvar".
   useEffect(() => {
     if (checkingId) return;
@@ -99,7 +106,7 @@ export default function Checking() {
   const updateField = (patch: Partial<CheckingData>) => setData((d) => ({ ...d, ...patch }));
 
   const updateLocal = (id: string, patch: Partial<CheckingLocal>) =>
-    setData((d) => ({ ...d, locais: d.locais.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
+    setData((d) => ({ ...d, locais: d.locais.map((l) => (l.id === id  { ...l, ...patch } : l)) }));
 
   const addLocal = () => {
     const novo = novoLocal();
@@ -116,39 +123,39 @@ export default function Checking() {
   const addFoto = (localId: string) =>
     setData((d) => ({
       ...d,
-      locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: [...l.fotos, novaFoto()] } : l)),
+      locais: d.locais.map((l) => (l.id === localId  { ...l, fotos: [...l.fotos, novaFoto()] } : l)),
     }));
 
   const updateFoto = (localId: string, fotoId: string, patch: Partial<CheckingFoto>) =>
     setData((d) => ({
       ...d,
       locais: d.locais.map((l) =>
-        l.id === localId ? { ...l, fotos: l.fotos.map((f) => (f.id === fotoId ? { ...f, ...patch } : f)) } : l,
+        l.id === localId  { ...l, fotos: l.fotos.map((f) => (f.id === fotoId  { ...f, ...patch } : f)) } : l,
       ),
     }));
 
   const removeFoto = (localId: string, fotoId: string) =>
     setData((d) => ({
       ...d,
-      locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
+      locais: d.locais.map((l) => (l.id === localId  { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
     }));
 
   const moveFoto = (localId: string, fotoId: string, dir: -1 | 1) =>
     setData((d) => ({
       ...d,
       locais: d.locais.map((l) =>
-        l.id === localId ? { ...l, fotos: moveItem(l.fotos, l.fotos.findIndex((f) => f.id === fotoId), dir) } : l,
+        l.id === localId  { ...l, fotos: moveItem(l.fotos, l.fotos.findIndex((f) => f.id === fotoId), dir) } : l,
       ),
     }));
 
   const addSlideTitulo = () => {
     const novo = novoSlideTitulo();
     setData((d) => ({ ...d, slidesTitulo: [...d.slidesTitulo, novo], ordem: [...d.ordem, `titulo:${novo.id}`] }));
-    // Novo slide já nasce recolhido — evita poluir a lista quando tem muitos.
+    // Novo slide jÃ¡ nasce recolhido â€” evita poluir a lista quando tem muitos.
     setColapsados((s) => new Set(s).add(`titulo:${novo.id}`));
   };
   const updateSlideTitulo = (id: string, patch: Partial<CheckingTituloSlide>) =>
-    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
+    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id  { ...s, ...patch } : s)) }));
   const removeSlideTitulo = (id: string) =>
     setData((d) => ({
       ...d,
@@ -156,12 +163,29 @@ export default function Checking() {
       ordem: d.ordem.filter((t) => t !== `titulo:${id}`),
     }));
 
-  // Move um item (slide de título OU local) pra qualquer posição — mesma lista, cruza categorias.
+  // Move um item (slide de tÃ­tulo OU local) pra qualquer posiÃ§Ã£o â€” mesma lista, cruza categorias.
   const moveOrdem = (token: string, dir: -1 | 1) =>
     setData((d) => ({ ...d, ordem: moveItem(d.ordem, d.ordem.indexOf(token as any), dir) }));
 
-  // Ordem das páginas do PDF: capa, depois segue data.ordem (slides de título e locais
-  // intercalados como o usuário organizou — cada local expande em [potencial, registros]),
+  const processandoPdf = gerando || gerandoLink;
+  const modoProcessamento = gerandoLink  "link" : "pdf";
+
+  useEffect(() => {
+    if (!processandoPdf) {
+      setEtapaPdf(0);
+      return;
+    }
+
+    setEtapaPdf(0);
+    const interval = window.setInterval(() => {
+      setEtapaPdf((current) => (current + 1) % PDF_STEPS.length);
+    }, 1400);
+
+    return () => window.clearInterval(interval);
+  }, [processandoPdf]);
+
+  // Ordem das pÃ¡ginas do PDF: capa, depois segue data.ordem (slides de tÃ­tulo e locais
+  // intercalados como o usuÃ¡rio organizou â€” cada local expande em [potencial, registros]),
   // e sempre um "Obrigado!" no final.
   const paginas = useMemo(() => {
     const pgs: { key: string; label: string; node: ReactNode }[] = [
@@ -173,7 +197,7 @@ export default function Checking() {
         if (!slide) return;
         pgs.push({
           key: `titulo-${slide.id}`,
-          label: slide.nome || slide.texto || "Slide de título",
+          label: slide.nome || slide.texto || "Slide de tÃ­tulo",
           node: <TituloSlide texto={slide.texto} />,
         });
         return;
@@ -185,14 +209,14 @@ export default function Checking() {
       if (data.tipo === "onibus") {
         pgs.push({
           key: `${local.id}-registro-onibus`,
-          label: `Registro Fotográfico — ${nomeLocal}`,
+          label: `Registro FotogrÃ¡fico â€” ${nomeLocal}`,
           node: <RegistroBusdoorSlide local={local} foto={local.fotos[0]} />,
         });
         for (let idx = 0; idx < local.fotos.length; idx += 2) {
           const par = local.fotos.slice(idx, idx + 2);
           pgs.push({
             key: `${local.id}-galeria-${idx}`,
-            label: `Galeria Ônibus — ${nomeLocal} (${idx + 1}${par.length > 1 ? `-${idx + 2}` : ""})`,
+            label: `Galeria Ã”nibus â€” ${nomeLocal} (${idx + 1}${par.length > 1  `-${idx + 2}` : ""})`,
             node: <GaleriaOnibusSlide fotos={par} />,
           });
         }
@@ -201,15 +225,15 @@ export default function Checking() {
 
       pgs.push({
         key: `${local.id}-potencial`,
-        label: `Potencial de Impacto — ${nomeLocal}`,
+        label: `Potencial de Impacto â€” ${nomeLocal}`,
         node: <PotencialImpactoSlide local={local} />,
       });
       local.fotos.forEach((foto, idx) => {
         pgs.push({
           key: `${local.id}-foto-${foto.id}`,
-          label: `Registro Fotográfico${local.fotos.length > 1 ? `.${idx + 1}` : ""} — ${nomeLocal}`,
+          label: `Registro FotogrÃ¡fico${local.fotos.length > 1  `.${idx + 1}` : ""} â€” ${nomeLocal}`,
           node: (
-            <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1 ? idx + 1 : undefined} />
+            <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1  idx + 1 : undefined} />
           ),
         });
       });
@@ -242,7 +266,7 @@ export default function Checking() {
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
-      toast.success("Checking salvo. Você pode voltar e continuar editando depois em \"Meus Checkings\".");
+      toast.success("Checking salvo. VocÃª pode voltar e continuar editando depois em \"Meus Checkings\".");
     } catch (err: any) {
       toast.error(`Falha ao salvar: ${err.message}`);
     } finally {
@@ -269,7 +293,7 @@ export default function Checking() {
   if (carregando) {
     return (
       <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-        Carregando checking…
+        Carregando checkingâ€¦
       </div>
     );
   }
@@ -278,10 +302,64 @@ export default function Checking() {
 
   return (
     <div className="flex flex-col lg:flex-row h-full">
+      {processandoPdf && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0E1324] p-6 text-white shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className="relative flex size-12 shrink-0 items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-white/15" />
+                <div className="absolute inset-0 rounded-full border-2 border-l-transparent border-t-transparent border-white/80 animate-spin" />
+                <Download className="size-5 text-cyan-200" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-semibold">
+                  {modoProcessamento === "link"  "Gerando link compartilhável" : "Gerando PDF"}
+                </div>
+                <p className="mt-1 text-sm text-white/70">
+                  Estamos montando tudo em alta resolução. Isso demora um pouco porque cada página é renderizada com
+                  imagens, filtros e links prontos para abrir no arquivo final.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {PDF_STEPS.map((step, index) => {
+                const active = index === etapaPdf;
+                const done = index < etapaPdf;
+                return (
+                  <div key={step} className="flex items-start gap-3">
+                    <div
+                      className={`mt-0.5 size-2.5 rounded-full ${
+                        active  "bg-cyan-300 animate-pulse" : done  "bg-emerald-400" : "bg-white/20"
+                      }`}
+                    />
+                    <div className={`text-sm ${active  "text-white" : done  "text-white/85" : "text-white/50"}`}>
+                      {step}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between text-xs text-white/70">
+                <span>Processando</span>
+                <span className="font-medium text-white/90">{PDF_STEPS[etapaPdf]}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-400 to-emerald-400 transition-all duration-500 ease-out"
+                  style={{ width: `${Math.max(18, ((etapaPdf + 1) / PDF_STEPS.length) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-full lg:w-[420px] lg:shrink-0 border-r border-border p-5 space-y-6 overflow-y-auto">
         <div>
           <h1 className="text-xl font-semibold">Criar Checking</h1>
-          <p className="text-sm text-muted-foreground mt-1">Preenche os dados — a prévia atualiza ao lado.</p>
+          <p className="text-sm text-muted-foreground mt-1">Preenche os dados â€” a prÃ©via atualiza ao lado.</p>
         </div>
 
         <div className="space-y-3">
@@ -289,7 +367,7 @@ export default function Checking() {
             onClick={() => toggleColapso("capa")}
             className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
-            {capaColapsada ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {capaColapsada  <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
             Capa
           </button>
           {!capaColapsada && (
@@ -310,12 +388,12 @@ export default function Checking() {
               <FieldInput label="Cliente" value={data.cliente} onChange={(v) => updateField({ cliente: v })} />
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Esse checking tem agência?</Label>
+                <Label className="text-xs">Esse checking tem agÃªncia</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant={data.temAgencia ? "default" : "secondary"}
+                    variant={data.temAgencia  "default" : "secondary"}
                     className="flex-1"
                     onClick={() => updateField({ temAgencia: true })}
                   >
@@ -324,21 +402,21 @@ export default function Checking() {
                   <Button
                     type="button"
                     size="sm"
-                    variant={!data.temAgencia ? "default" : "secondary"}
+                    variant={!data.temAgencia  "default" : "secondary"}
                     className="flex-1"
                     onClick={() => updateField({ temAgencia: false, agencia: "" })}
                   >
-                    Não
+                    NÃ£o
                   </Button>
                 </div>
                 {data.temAgencia && (
-                  <FieldInput label="Nome da agência" value={data.agencia} onChange={(v) => updateField({ agencia: v })} />
+                  <FieldInput label="Nome da agÃªncia" value={data.agencia} onChange={(v) => updateField({ agencia: v })} />
                 )}
               </div>
 
               <FieldInput label="Campanha" value={data.campanha} onChange={(v) => updateField({ campanha: v })} />
-              <FieldInput label="Praça" value={data.praca} onChange={(v) => updateField({ praca: v })} />
-              <FieldInput label="Período" value={data.periodo} onChange={(v) => updateField({ periodo: v })} />
+              <FieldInput label="PraÃ§a" value={data.praca} onChange={(v) => updateField({ praca: v })} />
+              <FieldInput label="PerÃ­odo" value={data.periodo} onChange={(v) => updateField({ periodo: v })} />
               <FieldInput label="Ativo(s)" value={data.ativo} onChange={(v) => updateField({ ativo: v })} placeholder="Painel de LED" />
             </>
           )}
@@ -346,10 +424,10 @@ export default function Checking() {
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Conteúdo</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">ConteÃºdo</div>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={addSlideTitulo}>
-                <Plus className="size-3.5" /> Slide de Título
+                <Plus className="size-3.5" /> Slide de TÃ­tulo
               </Button>
               <Button size="sm" variant="secondary" onClick={addLocal}>
                 <Plus className="size-3.5" /> Local
@@ -374,9 +452,9 @@ export default function Checking() {
             </div>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Slides de título e Locais aparecem nessa ordem — usa ▲▼ pra mover qualquer um pra qualquer posição, mesmo
-            entre categorias diferentes. "+ Foto" aqui em cima adiciona no último Local da lista. Um "Obrigado!" já é
-            incluído automático no final de todo PDF.
+            Slides de tÃ­tulo e Locais aparecem nessa ordem â€” usa â–²â–¼ pra mover qualquer um pra qualquer posiÃ§Ã£o, mesmo
+            entre categorias diferentes. "+ Foto" aqui em cima adiciona no Ãºltimo Local da lista. Um "Obrigado!" jÃ¡ Ã©
+            incluÃ­do automÃ¡tico no final de todo PDF.
           </p>
 
           {data.ordem.map((token, i) => {
@@ -394,9 +472,9 @@ export default function Checking() {
                       onClick={() => toggleColapso(token)}
                       className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                     >
-                      {tituloColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                      {tituloColapsado  <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
                       <span className="truncate">
-                        {i + 1}. {slide.nome || slide.texto || "Slide de título"}
+                        {i + 1}. {slide.nome || slide.texto || "Slide de tÃ­tulo"}
                       </span>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
@@ -428,8 +506,8 @@ export default function Checking() {
                   {!tituloColapsado && (
                     <>
                       <FieldInput
-                        label="Nome (só de organização, não aparece no PDF)"
-                        value={slide.nome ?? ""}
+                        label="Nome (sÃ³ de organizaÃ§Ã£o, nÃ£o aparece no PDF)"
+                        value={slide.nome  ""}
                         onChange={(v) => updateSlideTitulo(slide.id, { nome: v })}
                         placeholder={`Slide ${i + 1}`}
                       />
@@ -455,7 +533,7 @@ export default function Checking() {
                     onClick={() => toggleColapso(token)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                   >
-                    {localColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                    {localColapsado  <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
                     <span className="truncate">
                       {i + 1}. {local.nome || local.localVeiculacao || "Local sem nome"}
                     </span>
@@ -488,13 +566,13 @@ export default function Checking() {
                 {!localColapsado && (
                   <>
                     <FieldInput
-                      label="Nome (só de organização, não aparece no PDF)"
-                      value={local.nome ?? ""}
+                      label="Nome (sÃ³ de organizaÃ§Ã£o, nÃ£o aparece no PDF)"
+                      value={local.nome  ""}
                       onChange={(v) => updateLocal(local.id, { nome: v })}
                       placeholder={`Local ${i + 1}`}
                     />
                     <FieldTextarea
-                      label="Local de veiculação"
+                      label="Local de veiculaÃ§Ã£o"
                       value={local.localVeiculacao}
                       onChange={(v) => updateLocal(local.id, { localVeiculacao: v })}
                     />
@@ -502,38 +580,38 @@ export default function Checking() {
                       label="Formato"
                       value={local.formato}
                       onChange={(v) => updateLocal(local.id, { formato: v })}
-                      placeholder={data.tipo === "onibus" ? "Busdoor" : "Painel de LED"}
+                      placeholder={data.tipo === "onibus"  "Busdoor" : "Painel de LED"}
                     />
 
-                    {data.tipo === "onibus" ? (
+                    {data.tipo === "onibus"  (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <Label className="text-xs">Linhas (carro — linha)</Label>
+                          <Label className="text-xs">Linhas (carro â€” linha)</Label>
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-6 text-[11px]"
                             onClick={() =>
-                              updateLocal(local.id, { linhas: [...(local.linhas ?? []), ""] })
+                              updateLocal(local.id, { linhas: [...(local.linhas  []), ""] })
                             }
                           >
                             <Plus className="size-3" /> Linha
                           </Button>
                         </div>
-                        {(local.linhas ?? []).map((linha, idx) => (
+                        {(local.linhas  []).map((linha, idx) => (
                           <div key={idx} className="flex items-center gap-1.5">
                             <Input
-                              placeholder="Carro 608 – Linha B19"
+                              placeholder="Carro 608 â€“ Linha B19"
                               value={linha}
                               onChange={(e) => {
-                                const linhas = [...(local.linhas ?? [])];
+                                const linhas = [...(local.linhas  [])];
                                 linhas[idx] = e.target.value;
                                 updateLocal(local.id, { linhas });
                               }}
                             />
                             <button
                               onClick={() => {
-                                const linhas = (local.linhas ?? []).filter((_, li) => li !== idx);
+                                const linhas = (local.linhas  []).filter((_, li) => li !== idx);
                                 updateLocal(local.id, { linhas });
                               }}
                               className="text-muted-foreground hover:text-destructive shrink-0"
@@ -542,7 +620,7 @@ export default function Checking() {
                             </button>
                           </div>
                         ))}
-                        {!(local.linhas ?? []).length && (
+                        {!(local.linhas  []).length && (
                           <p className="text-[11px] text-muted-foreground">Nenhuma linha adicionada ainda.</p>
                         )}
                       </div>
@@ -622,9 +700,9 @@ export default function Checking() {
                             onToggleMelhorada={() => updateFoto(local.id, foto.id, { melhorada: !foto.melhorada })}
                           />
                           <Input
-                            placeholder="Link do vídeo (opcional)"
+                            placeholder="Link do vÃ­deo (opcional)"
                             className="h-8 text-xs"
-                            value={foto.videoUrl ?? ""}
+                            value={foto.videoUrl  ""}
                             onChange={(e) => updateFoto(local.id, foto.id, { videoUrl: e.target.value })}
                           />
                         </div>
@@ -641,23 +719,23 @@ export default function Checking() {
         </div>
 
         <div className="flex gap-2">
-          <Button className="flex-1" variant="secondary" onClick={salvar} disabled={salvando}>
+          <Button className="flex-1" variant="secondary" onClick={salvar} disabled={salvando || processandoPdf}>
             <Save className="size-4" />
-            {salvando ? "Salvando…" : checkingId ? "Salvar alterações" : "Salvar"}
+            {salvando  "Salvandoâ€¦" : checkingId  "Salvar alteraÃ§Ãµes" : "Salvar"}
           </Button>
-          <Button className="flex-1" variant="secondary" onClick={gerarLink} disabled={gerandoLink}>
+          <Button className="flex-1" variant="secondary" onClick={gerarLink} disabled={gerandoLink || gerando}>
             <Link2 className="size-4" />
-            {gerandoLink ? "Gerando…" : "Gerar Link"}
+            {gerandoLink  "Gerandoâ€¦" : "Gerar Link"}
           </Button>
         </div>
-        <Button className="w-full" onClick={gerarPdf} disabled={gerando}>
+        <Button className="w-full" onClick={gerarPdf} disabled={gerando || gerandoLink}>
           <Download className="size-4" />
-          {gerando ? "Gerando…" : "Baixar PDF"}
+          {gerando  "Gerandoâ€¦" : "Baixar PDF"}
         </Button>
       </div>
 
       <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-muted/30">
-        <div className="text-xs text-muted-foreground mb-3">{paginas.length} página(s) no PDF</div>
+        <div className="text-xs text-muted-foreground mb-3">{paginas.length} pÃ¡gina(s) no PDF</div>
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${SLIDE_W * PREVIEW_SCALE}px, 1fr))` }}>
           {paginas.map((p, i) => (
             <div key={p.key} className="space-y-1">
@@ -677,9 +755,9 @@ export default function Checking() {
         </div>
       </div>
 
-      {/* Cópia oculta em tamanho real (sem transform/escala) — é daqui que o PDF é capturado.
-          Renderizar direto da prévia (que tem transform: scale) deixa o html2canvas confuso
-          sobre a resolução real, gerando PDF borrado. */}
+      {/* CÃ³pia oculta em tamanho real (sem transform/escala) â€” Ã© daqui que o PDF Ã© capturado.
+          Renderizar direto da prÃ©via (que tem transform: scale) deixa o html2canvas confuso
+          sobre a resoluÃ§Ã£o real, gerando PDF borrado. */}
       <div aria-hidden style={{ position: "fixed", top: 0, left: -99999, width: SLIDE_W, height: 0, overflow: "visible" }}>
         {paginas.map((p) => (
           <div
@@ -707,7 +785,7 @@ function FieldInput({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  placeholder?: string;
+  placeholder: string;
 }) {
   return (
     <div className="space-y-1">
@@ -725,3 +803,5 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: strin
     </div>
   );
 }
+
+

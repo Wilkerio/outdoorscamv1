@@ -11,9 +11,9 @@ import {
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
 import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
-export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; foto?: CheckingFoto }) {
-  const fotoFiltrada = useFilteredImage(foto?.imageDataUrl, foto?.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
-  const linhas = (local.linhas ?? []).filter(Boolean);
+export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; foto: CheckingFoto }) {
+  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada  CHECKING_ENHANCE_FILTER : undefined);
+  const linhas = (local.linhas  []).filter(Boolean);
 
   return (
     <div
@@ -62,7 +62,7 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
             LINHAS
           </span>
           <div style={{ marginTop: 8 }}>
-            {linhas.length ? (
+            {linhas.length  (
               linhas.map((linha, idx) => (
                 <div key={idx} style={{ color: C.black, fontSize: 13, fontWeight: 600, lineHeight: 1.7 }}>
                   {linha}
@@ -81,12 +81,12 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
 
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
         <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
-          {fotoFiltrada ? (
+          {fotoFiltrada  (
             <img
               src={fotoFiltrada}
               alt="Registro fotográfico"
               className="w-full h-full object-cover"
-              style={{ transform: imagePanZoomTransform(foto?.imagePosition, foto?.imageZoom) }}
+              style={{ transform: imagePanZoomTransform(foto.imagePosition, foto.imageZoom) }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-sm bg-white" style={{ color: C.grayText }}>

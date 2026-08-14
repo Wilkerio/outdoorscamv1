@@ -25,17 +25,17 @@ export default function ConverterBooks() {
     }
   }, []);
 
-  const loadPath = useCallback(async (path: string, requestInit?: RequestInit) => {
+  const loadPath = useCallback(async (path: string, requestInit: RequestInit) => {
     const cookieHeader = Object.entries(cookieJarRef.current)
       .map(([name, value]) => `${name}=${value}`)
       .join("; ");
 
-    const response = await fetch(`${proxyBase}?path=${encodeURIComponent(path)}`, {
+    const response = await fetch(`${proxyBase}path=${encodeURIComponent(path)}`, {
       redirect: "manual",
       ...requestInit,
       headers: {
-        ...(requestInit?.headers || {}),
-        ...(cookieHeader ? { "x-proxy-cookie": cookieHeader } : {}),
+        ...(requestInit.headers || {}),
+        ...(cookieHeader  { "x-proxy-cookie": cookieHeader } : {}),
       },
     });
 
@@ -57,7 +57,7 @@ export default function ConverterBooks() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type !== "converter-books:navigate" && event.data?.type !== "converter-books:submit") return;
+      if (event.data.type !== "converter-books:navigate" && event.data.type !== "converter-books:submit") return;
       const target = String(event.data.url || "/login");
       const nextUrl = new URL(target, proxyBase);
       const nextPath = nextUrl.searchParams.get("path") || target;

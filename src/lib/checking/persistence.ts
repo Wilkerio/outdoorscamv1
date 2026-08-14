@@ -5,7 +5,7 @@ import type { CheckingData } from "./types";
 const BUCKET = "checking-imagens";
 const PDF_BUCKET = "checking-pdfs";
 
-function isDataUrl(v?: string) {
+function isDataUrl(v: string) {
   return !!v && v.startsWith("data:");
 }
 
@@ -36,7 +36,7 @@ async function prepararParaSalvar(data: CheckingData): Promise<CheckingData> {
       fotos: await Promise.all(
         local.fotos.map(async (foto) => ({
           ...foto,
-          imageDataUrl: (await uploadImagemSeNecessario(foto.imageDataUrl, "fotos")) ?? "",
+          imageDataUrl: (await uploadImagemSeNecessario(foto.imageDataUrl, "fotos"))  "",
         })),
       ),
     })),
@@ -92,7 +92,7 @@ export async function listarCheckings(): Promise<CheckingSalvo[]> {
     .select("id, nome, updated_at, pdf_url")
     .order("updated_at", { ascending: false });
   if (error) throw error;
-  return data ?? [];
+  return data  [];
 }
 
 export async function carregarChecking(id: string): Promise<CheckingData> {

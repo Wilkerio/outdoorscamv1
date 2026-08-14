@@ -11,7 +11,7 @@ export default function NovoChecking() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
-          to="/checking?tipo=outdoor"
+          to="/checkingtipo=outdoor"
           className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3 text-center hover:border-primary/50 hover:bg-accent transition-colors"
         >
           <div className="size-12 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
@@ -24,7 +24,7 @@ export default function NovoChecking() {
         </Link>
 
         <Link
-          to="/checking?tipo=onibus"
+          to="/checkingtipo=onibus"
           className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3 text-center hover:border-primary/50 hover:bg-accent transition-colors"
         >
           <div className="size-12 rounded-lg bg-primary/15 text-primary flex items-center justify-center">

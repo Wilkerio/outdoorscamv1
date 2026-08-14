@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+﻿import { Play } from "lucide-react";
 import type { CheckingFoto, CheckingLocal } from "@/lib/checking/types";
 import {
   CHECKING_COLORS as C,
@@ -33,6 +33,13 @@ function Campo({ label, value }: { label: string; value: string }) {
   );
 }
 
+function normalizarVideoUrl(url: string): string | undefined {
+  const valor = url.trim();
+  if (!valor) return undefined;
+  if (/^(https:|mailto:|tel:)/i.test(valor)) return valor;
+  return `https://${valor}`;
+}
+
 export function RegistroFotograficoSlide({
   local,
   foto,
@@ -40,9 +47,10 @@ export function RegistroFotograficoSlide({
 }: {
   local: CheckingLocal;
   foto: CheckingFoto;
-  sufixo?: number;
+  sufixo: number;
 }) {
-  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
+  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada  CHECKING_ENHANCE_FILTER : undefined);
+  const videoUrl = normalizarVideoUrl(foto.videoUrl);
 
   return (
     <div
@@ -56,27 +64,38 @@ export function RegistroFotograficoSlide({
           REGISTRO
         </div>
         <div style={{ fontFamily: CHECKING_FONT_DISPLAY, color: C.yellow, fontSize: 30, lineHeight: 1.08 }}>
-          FOTOGRÁFICO{sufixo ? `.${sufixo}` : ""}
+          FOTOGRÁFICO{sufixo  `.${sufixo}` : ""}
         </div>
 
         <div style={{ marginTop: 32 }}>
           <Campo label="Formato" value={local.formato} />
           <Campo label="Local de Veiculação" value={local.localVeiculacao} />
-          <Campo label="Fluxo de Passantes" value={local.fluxoPassantes ? `${local.fluxoPassantes}/dia` : ""} />
+          <Campo label="Fluxo de Passantes" value={local.fluxoPassantes  `${local.fluxoPassantes}/dia` : ""} />
         </div>
 
-        {foto.videoUrl && (
+        {videoUrl && (
           <div style={{ marginTop: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.black, marginBottom: 8 }}>
               COMPROVAÇÃO EM VÍDEO
             </div>
-            <div
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noreferrer noopener"
               className="inline-flex items-center gap-2"
-              style={{ background: C.yellow, color: C.black, padding: "8px 16px", borderRadius: 20, fontWeight: 800, fontSize: 13 }}
+              style={{
+                background: C.yellow,
+                color: C.black,
+                padding: "8px 16px",
+                borderRadius: 20,
+                fontWeight: 800,
+                fontSize: 13,
+              }}
+              title="Abrir vídeo"
             >
               <Play size={14} fill={C.black} />
               Abrir Vídeo
-            </div>
+            </a>
           </div>
         )}
 
@@ -87,7 +106,7 @@ export function RegistroFotograficoSlide({
 
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
         <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
-          {fotoFiltrada ? (
+          {fotoFiltrada  (
             <img
               src={fotoFiltrada}
               alt="Registro fotográfico"

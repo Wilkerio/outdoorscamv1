@@ -1,29 +1,29 @@
 export interface CheckingFoto {
   id: string;
   imageDataUrl: string;
-  imagePosition?: string;
-  imageZoom?: number;
-  melhorada?: boolean;
-  videoUrl?: string;
+  imagePosition: string;
+  imageZoom: number;
+  melhorada: boolean;
+  videoUrl: string;
 }
 
 export interface CheckingLocal {
   id: string;
-  nome?: string;
+  nome: string;
   localVeiculacao: string;
   formato: string;
   fluxoPassantes: string;
-  linhas?: string[];
-  mapaImageDataUrl?: string;
-  mapaImagePosition?: string;
-  mapaImageZoom?: number;
-  mapaMelhorada?: boolean;
+  linhas: string[];
+  mapaImageDataUrl: string;
+  mapaImagePosition: string;
+  mapaImageZoom: number;
+  mapaMelhorada: boolean;
   fotos: CheckingFoto[];
 }
 
 export interface CheckingTituloSlide {
   id: string;
-  nome?: string;
+  nome: string;
   texto: string;
 }
 
@@ -42,10 +42,10 @@ export interface CheckingData {
   ativo: string;
   temAgencia: boolean;
   agencia: string;
-  capaImageDataUrl?: string;
-  capaImagePosition?: string;
-  capaImageZoom?: number;
-  capaMelhorada?: boolean;
+  capaImageDataUrl: string;
+  capaImagePosition: string;
+  capaImageZoom: number;
+  capaMelhorada: boolean;
   slidesTitulo: CheckingTituloSlide[];
   locais: CheckingLocal[];
   ordem: CheckingOrdemToken[];
@@ -92,14 +92,14 @@ export function checkingVazio(tipo: CheckingTipo = "outdoor"): CheckingData {
 
 // Preenche campos que podem faltar em checkings salvos antes de existirem (ex.: ordem, tipo).
 export function normalizarChecking(data: CheckingData): CheckingData {
-  const slidesTitulo = data.slidesTitulo ?? [];
-  const locais = data.locais ?? [];
+  const slidesTitulo = data.slidesTitulo  [];
+  const locais = data.locais  [];
   const ordem =
-    data.ordem?.length
-      ? data.ordem
+    data.ordem.length
+       data.ordem
       : [
           ...slidesTitulo.map((s) => `titulo:${s.id}` as CheckingOrdemToken),
           ...locais.map((l) => `local:${l.id}` as CheckingOrdemToken),
         ];
-  return { ...data, tipo: data.tipo ?? "outdoor", slidesTitulo, locais, ordem };
+  return { ...data, tipo: data.tipo  "outdoor", slidesTitulo, locais, ordem };
 }

@@ -30,8 +30,8 @@ const STATUS_LABEL: Record<Point["status"], string> = {
   SEM_OUTDOOR_VISIVEL: "SEM OUTDOOR VISÍVEL",
 };
 
-function isValidOriginalPhoto(value?: string) {
-  const photo = (value ?? "").trim();
+function isValidOriginalPhoto(value: string) {
+  const photo = (value  "").trim();
   return !!photo && !photo.toLowerCase().includes("not found") && photo !== "link da imagem nao localizado";
 }
 
@@ -52,8 +52,8 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
     setFailed(false);
     setLoaded(false);
     setImgSrc("");
-    const heading = point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0;
-    const pitch = point.adjustedPhoto?.pitch ?? 0;
+    const heading = point.headingSalvo  point.adjustedPhoto.heading  0;
+    const pitch = point.adjustedPhoto.pitch  0;
 
     const loadPreview = async () => {
       // Usar invoke em vez de <img src> direto: a função protegida precisa dos
@@ -61,24 +61,24 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
       // apareciam como "Street View indisponível". radius=300 faz a Street View
       // Static API buscar cobertura próxima quando o ponto exato não tem imagem,
       // em vez de falhar.
-      const apiUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80&radius=300&return_error_code=true`;
+      const apiUrl = `https://maps.googleapis.com/maps/api/streetviewsize=640x320&scale=2&location=${point.lat},${point.lng}&heading=${heading}&pitch=${pitch}&fov=80&radius=300&return_error_code=true`;
       const { data, error } = await supabase.functions.invoke("google-proxy", {
         body: { url: apiUrl },
       });
       if (cancelled) return;
-      if (error || !data?.image) {
+      if (error || !data.image) {
         setFailed(true);
         onReadyRef.current("failed");
         return;
       }
-      setImgSrc(`data:${data.contentType ?? "image/jpeg"};base64,${data.image}`);
+      setImgSrc(`data:${data.contentType  "image/jpeg"};base64,${data.image}`);
     };
 
     loadPreview();
     return () => {
       cancelled = true;
     };
-  }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto?.heading, point.adjustedPhoto?.pitch]);
+  }, [point.id, point.lat, point.lng, point.headingSalvo, point.adjustedPhoto.heading, point.adjustedPhoto.pitch]);
 
   return (
     <>
@@ -121,7 +121,7 @@ function StreetViewPreview({ point, onReady }: { point: Point; onReady: (result:
   );
 }
 
-export function PointCard({ point, onReady }: { point: Point; onReady?: (id: string) => void }) {
+export function PointCard({ point, onReady }: { point: Point; onReady: (id: string) => void }) {
   const { points, toggleExcluido, editarPonto, corrigirComIA } = useSession();
   const [substituindo, setSubstituindo] = useState(false);
   const [open, setOpen] = useState(false);
@@ -141,28 +141,28 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
   const notifyReady = () => {
     if (readyFiredRef.current) return;
     readyFiredRef.current = true;
-    onReadyRef.current?.(point.id);
+    onReadyRef.current.(point.id);
   };
   const [form, setForm] = useState({
-    cod: point.cod ?? "",
-    endereco: point.endereco ?? "",
-    bairro: point.bairro ?? "",
-    cidade: point.cidade ?? "",
-    lat: String(point.lat ?? ""),
-    lng: String(point.lng ?? ""),
-    formato: point.formato ?? "",
-    empresa: point.empresa ?? "",
+    cod: point.cod  "",
+    endereco: point.endereco  "",
+    bairro: point.bairro  "",
+    cidade: point.cidade  "",
+    lat: String(point.lat  ""),
+    lng: String(point.lng  ""),
+    formato: point.formato  "",
+    empresa: point.empresa  "",
   });
 
   const validCoords = Number.isFinite(point.lat) && Number.isFinite(point.lng);
   const hasOriginalPhoto = isValidOriginalPhoto(point.foto) && !originalBroken;
   const showingOriginal = showOriginal && hasOriginalPhoto;
-  const savedPhotoUrl = point.foto_url && !savedPhotoBroken ? point.foto_url : "";
+  const savedPhotoUrl = point.foto_url && !savedPhotoBroken  point.foto_url : "";
   const useStreetView = validCoords && !showingOriginal && !savedPhotoUrl;
   const needsQueue = useStreetView;
   const [thumbReady, setThumbReady] = useState(!needsQueue);
   const releaseSlotRef = useRef<null | (() => void)>(null);
-  const modalPoint = points.find((p) => p.id === modalPointId) ?? point;
+  const modalPoint = points.find((p) => p.id === modalPointId)  point;
   const modalIndex = points.findIndex((p) => p.id === modalPointId);
 
   useEffect(() => {
@@ -175,21 +175,21 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
   useEffect(() => {
     if (editOpen) {
       setForm({
-        cod: point.cod ?? "",
-        endereco: point.endereco ?? "",
-        bairro: point.bairro ?? "",
-        cidade: point.cidade ?? "",
-        lat: String(point.lat ?? ""),
-        lng: String(point.lng ?? ""),
-        formato: point.formato ?? "",
-        empresa: point.empresa ?? "",
+        cod: point.cod  "",
+        endereco: point.endereco  "",
+        bairro: point.bairro  "",
+        cidade: point.cidade  "",
+        lat: String(point.lat  ""),
+        lng: String(point.lng  ""),
+        formato: point.formato  "",
+        empresa: point.empresa  "",
       });
     }
   }, [editOpen, point]);
 
   useEffect(() => {
-    if (point.adjustedPhoto?.url) setShowOriginal(false);
-  }, [point.adjustedPhoto?.url]);
+    if (point.adjustedPhoto.url) setShowOriginal(false);
+  }, [point.adjustedPhoto.url]);
 
   useEffect(() => {
     setSavedPhotoBroken(false);
@@ -226,7 +226,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
 
   const finishSlot = () => {
     notifyReady();
-    const release = releaseSlotRef.current ?? releaseSlot;
+    const release = releaseSlotRef.current  releaseSlot;
     if (!release) return;
     release();
     releaseSlotRef.current = null;
@@ -234,7 +234,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
   };
 
   const releaseThumbSlot = () => {
-    const release = releaseSlotRef.current ?? releaseSlot;
+    const release = releaseSlotRef.current  releaseSlot;
     if (!release) return;
     release();
     releaseSlotRef.current = null;
@@ -285,7 +285,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
   };
 
   return (
-    <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido ? "opacity-40 grayscale" : ""}`}>
+    <div className={`rounded-xl border border-border bg-card overflow-hidden flex flex-col group relative transition-opacity ${point.excluido  "opacity-40 grayscale" : ""}`}>
       {point.excluido && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 pointer-events-none">
           <span className="text-xs font-bold text-white bg-black/60 px-2 py-1 rounded">EXCLUÍDO</span>
@@ -293,9 +293,9 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
       )}
 
       <div className="relative aspect-[2/1] bg-muted">
-        {validCoords ? (
-          thumbReady ? (
-            useStreetView ? (
+        {validCoords  (
+          thumbReady  (
+            useStreetView  (
               <>
                 {!streetViewLoaded && !streetViewUnavailable && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground">
@@ -303,7 +303,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
                     <span className="text-[10px]">Carregando Street View…</span>
                   </div>
                 )}
-                <div className={`h-full w-full transition-opacity duration-300 ${streetViewLoaded || streetViewUnavailable ? "opacity-100" : "opacity-0"}`}>
+                <div className={`h-full w-full transition-opacity duration-300 ${streetViewLoaded || streetViewUnavailable  "opacity-100" : "opacity-0"}`}>
                   <StreetViewPreview
                     point={point}
                     onReady={(result) => {
@@ -320,7 +320,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
               </>
             ) : (
               <img
-                src={showingOriginal ? point.foto : savedPhotoUrl}
+                src={showingOriginal  point.foto : savedPhotoUrl}
                 alt={point.endereco}
                 className="w-full h-full object-cover transition-opacity duration-300"
                 loading="lazy"
@@ -366,10 +366,10 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
             <button
               onClick={() => setShowOriginal(!showOriginal)}
               className={`text-[10px] font-semibold tracking-wider px-2 py-1 rounded-md transition-colors ${
-                showOriginal ? "bg-primary text-primary-foreground" : "bg-black/50 text-white hover:bg-black/70"
+                showOriginal  "bg-primary text-primary-foreground" : "bg-black/50 text-white hover:bg-black/70"
               }`}
             >
-              {showOriginal ? "VER STREET VIEW" : "VER ORIGINAL"}
+              {showOriginal  "VER STREET VIEW" : "VER ORIGINAL"}
             </button>
           )}
         </div>
@@ -377,12 +377,12 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
         <button
           onClick={() => {
             toggleExcluido(point.id);
-            toast.success(point.excluido ? "Ponto restaurado." : "Ponto excluído da exportação.");
+            toast.success(point.excluido  "Ponto restaurado." : "Ponto excluído da exportação.");
           }}
           className={`absolute top-2 right-2 p-1.5 rounded-md transition-colors z-20 ${
-            point.excluido ? "bg-success/80 text-white hover:bg-success" : "bg-black/50 text-white hover:bg-destructive"
+            point.excluido  "bg-success/80 text-white hover:bg-success" : "bg-black/50 text-white hover:bg-destructive"
           }`}
-          title={point.excluido ? "Restaurar ponto" : "Excluir ponto da exportação"}
+          title={point.excluido  "Restaurar ponto" : "Excluir ponto da exportação"}
         >
           <Trash2 className="size-3.5" />
         </button>
@@ -458,8 +458,8 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
             }}
             title="Buscar e usar a foto do Street View no lugar da original"
           >
-            {substituindo ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Camera className="size-3.5 mr-1" />}
-            {substituindo ? "Substituindo…" : "Substituir por Street View"}
+            {substituindo  <Loader2 className="size-3.5 mr-1 animate-spin" /> : <Camera className="size-3.5 mr-1" />}
+            {substituindo  "Substituindo…" : "Substituir por Street View"}
           </Button>
         )}
 
@@ -469,7 +469,7 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
               <LinkIcon className="size-3.5 mr-1" /> Link Original
             </Button>
           )}
-          {(point.foto_url || point.adjustedPhoto?.url) && (
+          {(point.foto_url || point.adjustedPhoto.url) && (
             <Button
               size="sm"
               variant="ghost"
@@ -489,9 +489,9 @@ export function PointCard({ point, onReady }: { point: Point; onReady?: (id: str
           if (v) setModalPointId(point.id);
         }}
         point={modalPoint}
-        onPrev={modalIndex > 0 ? goPrev : undefined}
-        onNext={modalIndex >= 0 && modalIndex < points.length - 1 ? goNext : undefined}
-        position={modalIndex >= 0 ? { current: modalIndex + 1, total: points.length } : undefined}
+        onPrev={modalIndex > 0  goPrev : undefined}
+        onNext={modalIndex >= 0 && modalIndex < points.length - 1  goNext : undefined}
+        position={modalIndex >= 0  { current: modalIndex + 1, total: points.length } : undefined}
       />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

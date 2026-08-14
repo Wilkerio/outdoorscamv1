@@ -12,13 +12,13 @@ import { toast } from "sonner";
 
 function loadGoogleMapsApi(apiKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if ((window as any).google?.maps?.StreetViewPanorama) {
+    if ((window as any).google.maps.StreetViewPanorama) {
       resolve();
       return;
     }
     if (document.getElementById('gmaps-js')) {
       const interval = setInterval(() => {
-        if ((window as any).google?.maps?.StreetViewPanorama) {
+        if ((window as any).google.maps.StreetViewPanorama) {
           clearInterval(interval);
           resolve();
         }
@@ -27,7 +27,7 @@ function loadGoogleMapsApi(apiKey: string): Promise<void> {
     }
     const script = document.createElement('script');
     script.id = 'gmaps-js';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
+    script.src = `https://maps.googleapis.com/maps/api/jskey=${apiKey}`;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('Falha ao carregar Maps API'));
@@ -83,9 +83,9 @@ export function StreetViewAdjustModal({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   point: Point;
-  onPrev?: () => void;
-  onNext?: () => void;
-  position?: { current: number; total: number };
+  onPrev: () => void;
+  onNext: () => void;
+  position: { current: number; total: number };
 }) {
   const { setAdjustedPhoto, salvarFotoSupabase, log } = useSession();
   const [saving, setSaving] = useState(false);
@@ -113,9 +113,9 @@ export function StreetViewAdjustModal({
     );
     onOpenChange(false);
   };
-  const [heading, setHeading] = useState(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-  const [pitch, setPitch] = useState(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-  const [fov, setFov] = useState(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+  const [heading, setHeading] = useState(point.headingSalvo  point.adjustedPhoto.heading  0);
+  const [pitch, setPitch] = useState(point.pitchSalvo  point.adjustedPhoto.pitch  0);
+  const [fov, setFov] = useState(point.fovSalvo  point.adjustedPhoto.fov  80);
 
   // Filtros de imagem
   const [brilho, setBrilho] = useState(90);
@@ -136,9 +136,9 @@ export function StreetViewAdjustModal({
 
   useEffect(() => {
     if (open) {
-      setHeading(point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0);
-      setPitch(point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0);
-      setFov(point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80);
+      setHeading(point.headingSalvo  point.adjustedPhoto.heading  0);
+      setPitch(point.pitchSalvo  point.adjustedPhoto.pitch  0);
+      setFov(point.fovSalvo  point.adjustedPhoto.fov  80);
     }
   }, [open, point.id, point.headingSalvo, point.pitchSalvo, point.fovSalvo]);
 
@@ -178,8 +178,8 @@ export function StreetViewAdjustModal({
           const loadHistory = (panoId: string) => {
             svService.getPanorama({ pano: panoId }, (data: any, status: any) => {
               if (cancelled) return;
-              console.log("[StreetView] status:", status, "time:", data?.time, "data:", data);
-              const timeArr = data?.time ?? data?.tiles?.time ?? [];
+              console.log("[StreetView] status:", status, "time:", data.time, "data:", data);
+              const timeArr = data.time  data.tiles.time  [];
               if (status === "OK" && timeArr.length) {
                 // Cada entry pode ter formato variado. Vasculhamos por Date e por panoId.
                 const extract = (t: any): { year: number; panoId: string; date: string } | null => {
@@ -219,9 +219,9 @@ export function StreetViewAdjustModal({
                 });
                 console.log("[StreetView] anos encontrados:", unique);
                 setAvailableYears(unique);
-                const current = pano.getPano?.();
+                const current = pano.getPano.();
                 const found = unique.find((y: any) => y.panoId === current);
-                setSelectedYear(found ? found.year : (unique[0]?.year ?? null));
+                setSelectedYear(found  found.year : (unique[0].year  null));
               } else {
                 console.warn("[StreetView] Nenhum histórico de anos disponível neste ponto.");
               }
@@ -233,7 +233,7 @@ export function StreetViewAdjustModal({
             { location: { lat: point.lat, lng: point.lng }, radius: 50 },
             (data: any, status: any) => {
               if (cancelled) return;
-              const pid = data?.location?.pano;
+              const pid = data.location.pano;
               if (status === "OK" && pid) {
                 loadHistory(pid);
               } else {
@@ -244,7 +244,7 @@ export function StreetViewAdjustModal({
 
           // Também atualizar quando o usuário navegar para outro pano
           (window as any).google.maps.event.addListener(pano, "pano_changed", () => {
-            const pid = pano.getPano?.();
+            const pid = pano.getPano.();
             if (pid) loadHistory(pid);
           });
         })
@@ -266,8 +266,8 @@ export function StreetViewAdjustModal({
     const pano = panoramaRef.current;
     if (!entry || !pano) return;
     setSelectedYear(year);
-    const currentPov = pano.getPov?.() ?? { heading, pitch };
-    const currentZoom = pano.getZoom?.() ?? fovToZoom(fov);
+    const currentPov = pano.getPov.()  { heading, pitch };
+    const currentZoom = pano.getZoom.()  fovToZoom(fov);
     pano.setPano(entry.panoId);
     // Restaurar POV/zoom após troca de pano
     setTimeout(() => {
@@ -281,17 +281,17 @@ export function StreetViewAdjustModal({
     // Captura tudo do panorama/container ANTES de fechar o modal,
     // já que o container é desmontado ao fechar.
     const pano = panoramaRef.current;
-    const pov = pano?.getPov();
-    const zoom = pano?.getZoom() ?? fovToZoom(fov);
-    const realHeading = pov?.heading ?? heading;
-    const realPitch = pov?.pitch ?? pitch;
+    const pov = pano.getPov();
+    const zoom = pano.getZoom()  fovToZoom(fov);
+    const realHeading = pov.heading  heading;
+    const realPitch = pov.pitch  pitch;
     const realFov = zoomToFov(zoom);
-    const realPos = pano?.getPosition?.();
-    const realLat = realPos?.lat?.() ?? point.lat;
-    const realLng = realPos?.lng?.() ?? point.lng;
-    const realPanoId: string | undefined = pano?.getPano?.() || undefined;
-    const offsetWidth = containerRef.current?.offsetWidth ?? 1280;
-    const offsetHeight = containerRef.current?.offsetHeight ?? 720;
+    const realPos = pano.getPosition.();
+    const realLat = realPos.lat.()  point.lat;
+    const realLng = realPos.lng.()  point.lng;
+    const realPanoId: string | undefined = pano.getPano.() || undefined;
+    const offsetWidth = containerRef.current.offsetWidth  1280;
+    const offsetHeight = containerRef.current.offsetHeight  720;
     const brilhoSnap = brilho;
     const contrasteSnap = contraste;
     const saturacaoSnap = saturacao;
@@ -328,8 +328,8 @@ export function StreetViewAdjustModal({
           else reject(new Error("Falha ao obter metadados do panorama: " + status));
         });
       });
-      const tileSize = Number(meta?.tiles?.tileSize?.width ?? 512);
-      const originHeadingDeg = Number(meta?.tiles?.originHeading ?? 0) || 0;
+      const tileSize = Number(meta.tiles.tileSize.width  512);
+      const originHeadingDeg = Number(meta.tiles.originHeading  0) || 0;
       // O preview do Google já entrega o pitch em coordenada visual real.
       // Aplicar originPitch aqui desloca a captura verticalmente, fazendo a foto
       // salva sair mais para cima/baixo do que a área ajustada pelo usuário.
@@ -340,8 +340,8 @@ export function StreetViewAdjustModal({
       // mantendo o ângulo correto sem precisar montar o panorama inteiro na memória.
       // Saída em resolução máxima (10K) para qualidade premium
       const MAX_OUT = QUALIDADE;
-      const targetOutW = aspect >= 1 ? MAX_OUT : Math.round(MAX_OUT * aspect);
-      const targetOutH = aspect >= 1 ? Math.round(MAX_OUT / aspect) : MAX_OUT;
+      const targetOutW = aspect >= 1  MAX_OUT : Math.round(MAX_OUT * aspect);
+      const targetOutH = aspect >= 1  Math.round(MAX_OUT / aspect) : MAX_OUT;
 
       const fovRad = (realFov * Math.PI) / 180;
       const verticalFovDeg = (2 * Math.atan(Math.tan(fovRad / 2) * (targetOutH / targetOutW)) * 180) / Math.PI;
@@ -392,12 +392,12 @@ export function StreetViewAdjustModal({
 
         xs.forEach((tx) => ys.forEach((ty) => {
           const tileUrl =
-            `https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile` +
+            `https://streetviewpixels-pa.googleapis.com/v1/tilecb_client=maps_sv.tactile` +
             `&panoid=${encodeURIComponent(realPanoId)}&x=${tx}&y=${ty}&zoom=${zoom}&nbt=1&fover=2`;
           tasks.push((async () => {
             try {
               const { data, error } = await supabase.functions.invoke("google-proxy", { body: { url: tileUrl } });
-              if (error || !data?.image) return;
+              if (error || !data.image) return;
               const img = new Image();
               img.crossOrigin = "anonymous";
               img.src = `data:image/jpeg;base64,${data.image}`;
@@ -418,7 +418,7 @@ export function StreetViewAdjustModal({
           const safeY = Math.max(0, Math.min(panoH - 1, Math.floor(py)));
           const tx = Math.floor(safeX / tileSize);
           const ty = Math.floor(safeY / tileSize);
-          const data = tileData.get(`${tx},${ty}`)?.data;
+          const data = tileData.get(`${tx},${ty}`).data;
           if (!data) return null;
           const lx = safeX - tx * tileSize;
           const ly = safeY - ty * tileSize;
@@ -468,8 +468,8 @@ export function StreetViewAdjustModal({
       // deixa a foto grande, mas visualmente embaçada.
       const nativeMaxW = Math.floor((sampler.panoW * realFov) / 360);
       const realMaxOut = Math.max(2048, Math.min(MAX_OUT, Math.floor(nativeMaxW * 1.08)));
-      const outW = aspect >= 1 ? realMaxOut : Math.round(realMaxOut * aspect);
-      const outH = aspect >= 1 ? Math.round(realMaxOut / aspect) : realMaxOut;
+      const outW = aspect >= 1  realMaxOut : Math.round(realMaxOut * aspect);
+      const outH = aspect >= 1  Math.round(realMaxOut / aspect) : realMaxOut;
       if (realMaxOut < MAX_OUT) {
         log("info", `${codSnap} — Limitado para ${outW}x${outH}px reais para evitar imagem embaçada.`);
       }
@@ -592,9 +592,9 @@ export function StreetViewAdjustModal({
           r = lum + (r - lum) * satBoost;
           g = lum + (g - lum) * satBoost;
           b = lum + (b - lum) * satBoost;
-          toned[i] = r < 0 ? 0 : r > 255 ? 255 : r;
-          toned[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
-          toned[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+          toned[i] = r < 0  0 : r > 255  255 : r;
+          toned[i + 1] = g < 0  0 : g > 255  255 : g;
+          toned[i + 2] = b < 0  0 : b > 255  255 : b;
           toned[i + 3] = src[i + 3];
         }
 
@@ -648,8 +648,8 @@ export function StreetViewAdjustModal({
             const orig = toned[i + c];
             const blur = blurred[i + c];
             const diff = orig - blur;
-            const v = Math.abs(diff) > threshold ? orig + diff * amount : orig;
-            out[i + c] = v < 0 ? 0 : v > 255 ? 255 : v;
+            const v = Math.abs(diff) > threshold  orig + diff * amount : orig;
+            out[i + c] = v < 0  0 : v > 255  255 : v;
           }
           out[i + 3] = toned[i + 3];
         }
@@ -692,7 +692,7 @@ export function StreetViewAdjustModal({
 
       log("success", `✅ ${codSnap} — Foto salva com filtros aplicados!`);
       toast.success(`✅ Foto do item ${codSnap} salva!`, {
-        id: toastIdRef.current ?? undefined,
+        id: toastIdRef.current  undefined,
         duration: 4000,
       });
       // Só fecha sozinho se o usuário não pediu pra minimizar — nesse caso
@@ -702,7 +702,7 @@ export function StreetViewAdjustModal({
       console.error(err);
       log("error", `❌ Erro ao salvar foto ${codSnap}: ${err.message}`);
       toast.error(`❌ Erro ao salvar ${codRef.current}: ${err.message}`, {
-        id: toastIdRef.current ?? undefined,
+        id: toastIdRef.current  undefined,
         duration: 6000,
       });
     } finally {
@@ -749,7 +749,7 @@ export function StreetViewAdjustModal({
                       className="text-primary transition-all duration-300 ease-out"
                     />
                   </svg>
-                  {saveProgress >= 100 ? (
+                  {saveProgress >= 100  (
                     <Check className="absolute size-6 text-primary" />
                   ) : (
                     <span className="absolute text-xs font-semibold tabular-nums">{saveProgress}%</span>
@@ -791,8 +791,8 @@ export function StreetViewAdjustModal({
 
         <div className="relative w-full aspect-video max-h-[55vh] sm:max-h-[72vh] rounded-lg overflow-hidden border border-border bg-muted group">
           {/* Foto Original */}
-          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-0' : '-translate-x-full'}`}>
-            {hasOriginalPhoto ? (
+          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal  'translate-x-0' : '-translate-x-full'}`}>
+            {hasOriginalPhoto  (
 
               <img 
                 src={point.foto} 
@@ -819,7 +819,7 @@ export function StreetViewAdjustModal({
           </div>
 
           {/* Nova Foto (Street View) */}
-          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal ? 'translate-x-full' : 'translate-x-0'}`}>
+          <div className={`absolute inset-0 transition-transform duration-500 ease-in-out ${showOriginal  'translate-x-full' : 'translate-x-0'}`}>
             <div 
               ref={containerRef} 
               className="w-full h-full" 
@@ -838,13 +838,13 @@ export function StreetViewAdjustModal({
             <>
               <button 
                 onClick={() => setShowOriginal(true)}
-                className={`absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${showOriginal ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                className={`absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${showOriginal  'opacity-0 pointer-events-none' : 'opacity-100'}`}
               >
                 <ChevronLeft className="size-8" />
               </button>
               <button 
                 onClick={() => setShowOriginal(false)}
-                className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${!showOriginal ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-opacity ${!showOriginal  'opacity-0 pointer-events-none' : 'opacity-100'}`}
               >
                 <ChevronRight className="size-8" />
               </button>
@@ -857,11 +857,11 @@ export function StreetViewAdjustModal({
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               <button 
                 onClick={() => setShowOriginal(true)}
-                className={`size-2 rounded-full transition-all ${showOriginal ? 'bg-white w-4' : 'bg-white/50'}`} 
+                className={`size-2 rounded-full transition-all ${showOriginal  'bg-white w-4' : 'bg-white/50'}`} 
               />
               <button 
                 onClick={() => setShowOriginal(false)}
-                className={`size-2 rounded-full transition-all ${!showOriginal ? 'bg-white w-4' : 'bg-white/50'}`} 
+                className={`size-2 rounded-full transition-all ${!showOriginal  'bg-white w-4' : 'bg-white/50'}`} 
               />
             </div>
           )}
@@ -873,7 +873,7 @@ export function StreetViewAdjustModal({
             {availableYears.map((y) => (
               <Button
                 key={y.panoId}
-                variant={selectedYear === y.year ? "default" : "outline"}
+                variant={selectedYear === y.year  "default" : "outline"}
                 size="sm"
                 className="h-7 text-xs px-3 shrink-0"
                 onClick={() => handleYearChange(y.year)}
@@ -953,9 +953,9 @@ export function StreetViewAdjustModal({
               variant="outline" 
               onClick={() => {
                 setAdjustedPhoto(point.id, {
-                  heading: point.headingSalvo ?? point.adjustedPhoto?.heading ?? 0,
-                  pitch: point.pitchSalvo ?? point.adjustedPhoto?.pitch ?? 0,
-                  fov: point.fovSalvo ?? point.adjustedPhoto?.fov ?? 80,
+                  heading: point.headingSalvo  point.adjustedPhoto.heading  0,
+                  pitch: point.pitchSalvo  point.adjustedPhoto.pitch  0,
+                  fov: point.fovSalvo  point.adjustedPhoto.fov  80,
                   url: point.foto
                 });
                 log("success", `✅ ${point.cod} — Foto original da planilha mantida.`);
@@ -967,7 +967,7 @@ export function StreetViewAdjustModal({
             </Button>
           )}
           <Button onClick={save} disabled={saving} className="bg-primary gap-2">
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {saving  <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Usar Nova Foto
           </Button>
         </DialogFooter>
@@ -989,7 +989,7 @@ function SliderRow({
   min: number;
   max: number;
   onChange: (n: number) => void;
-  suffix?: string;
+  suffix: string;
 }) {
   return (
     <div>

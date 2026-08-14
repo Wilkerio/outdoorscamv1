@@ -14,8 +14,8 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       const missing = [
-        ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-        ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+        ...(!SUPABASE_URL  ['SUPABASE_URL'] : []),
+        ...(!SUPABASE_PUBLISHABLE_KEY  ['SUPABASE_PUBLISHABLE_KEY'] : []),
       ];
       const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
       console.error(`[Supabase] ${message}`);
@@ -24,7 +24,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     
     const request = getRequest();
 
-    if (!request?.headers) {
+    if (!request.headers) {
       throw new Error('Unauthorized: No request headers available');
     }
 
@@ -61,7 +61,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     );
 
     const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
+    if (error || !data.claims) {
       throw new Error('Unauthorized: Invalid token');
     }
 

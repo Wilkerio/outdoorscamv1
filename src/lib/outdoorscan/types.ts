@@ -25,21 +25,21 @@ export interface Point {
   foto: string;
   empresa: string;
   status: PointStatus;
-  rawLat?: any;
-  rawLng?: any;
-  adjustedPhoto?: PhotoAdjustment;
-  foto_url?: string;
-  fotoSalva?: boolean;
-  excluido?: boolean;
-  headingSalvo?: number;
-  pitchSalvo?: number;
-  fovSalvo?: number;
-  error?: string;
-  originalData?: any;
-  poi?: PoiCount[];
-  audienceEstimate?: number;
-  audienceCalculated?: boolean;
-  audienceLoading?: boolean;
+  rawLat: any;
+  rawLng: any;
+  adjustedPhoto: PhotoAdjustment;
+  foto_url: string;
+  fotoSalva: boolean;
+  excluido: boolean;
+  headingSalvo: number;
+  pitchSalvo: number;
+  fovSalvo: number;
+  error: string;
+  originalData: any;
+  poi: PoiCount[];
+  audienceEstimate: number;
+  audienceCalculated: boolean;
+  audienceLoading: boolean;
 }
 
 export interface LogEntry {

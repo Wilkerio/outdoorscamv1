@@ -13,7 +13,7 @@ import { CheckingFooterLogos } from "../CheckingFooterLogos";
 import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
 export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
-  const mapaFiltrado = useFilteredImage(local.mapaImageDataUrl, local.mapaMelhorada ? CHECKING_ENHANCE_FILTER : undefined);
+  const mapaFiltrado = useFilteredImage(local.mapaImageDataUrl, local.mapaMelhorada  CHECKING_ENHANCE_FILTER : undefined);
 
   return (
     <div
@@ -32,7 +32,7 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
             className="flex-1 rounded-md overflow-hidden"
             style={{ border: `3px solid ${C.navy}`, background: "#EDEDED" }}
           >
-            {mapaFiltrado ? (
+            {mapaFiltrado  (
               <img
                 src={mapaFiltrado}
                 alt="Mapa de impacto"
