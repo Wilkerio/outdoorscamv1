@@ -33,7 +33,7 @@ function Campo({ label, value }: { label: string; value: string }) {
   );
 }
 
-function normalizarVideoUrl(url: string): string | undefined {
+function normalizarVideoUrl(url: string | undefined): string | undefined {
   const valor = url.trim();
   if (!valor) return undefined;
   if (/^(https:|mailto:|tel:)/i.test(valor)) return valor;
