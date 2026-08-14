@@ -15,15 +15,15 @@ async function geocodeEndereco(
       body: { geocode: { address: query } },
     });
     if (error) return null;
-    if (data.status !== "OK" || !data.results.[0]) return null;
+    if (data.status !== "OK" || !data.results?.[0]) return null;
     const result = data.results[0];
     const loc = result.geometry.location;
     const bairroResolvido =
-      result.address_components.find((c: any) =>
+      result.address_components?.find((c: any) =>
         c.types.includes("sublocality") ||
         c.types.includes("sublocality_level_1") ||
         c.types.includes("neighborhood")
-      ).long_name  "";
+      )?.long_name ?? "";
     return { lat: loc.lat, lng: loc.lng, bairroResolvido };
   } catch {
     return null;
@@ -36,13 +36,13 @@ async function reverseGeocodeLatLng(lat: number, lng: number): Promise<string> {
       body: { geocode: { latlng: `${lat},${lng}` } },
     });
     if (error) return "";
-    if (data.status !== "OK" || !data.results.[0]) return "";
+    if (data.status !== "OK" || !data.results?.[0]) return "";
     const bairro =
-      data.results[0].address_components.find((c: any) =>
+      data.results[0].address_components?.find((c: any) =>
         c.types.includes("sublocality") ||
         c.types.includes("sublocality_level_1") ||
         c.types.includes("neighborhood")
-      ).long_name  "";
+      )?.long_name ?? "";
     return bairro;
   } catch {
     return "";
@@ -59,7 +59,7 @@ export function UploadDropzone() {
         type="file"
         accept=".xlsx"
         onChange={async (e) => {
-          const file = e.target.files.[0];
+          const file = e.target.files?.[0];
           if (!file) return;
           log("info", `Lendo: ${file.name}`);
           const buf = await file.arrayBuffer();
@@ -67,12 +67,12 @@ export function UploadDropzone() {
           const sheetName = wb.SheetNames[0];
           const ws = wb.Sheets[sheetName];
           const rows = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
-          const colunasOriginais = rows.length > 0  Object.keys(rows[0]) : [];
+          const colunasOriginais = rows.length > 0 ? Object.keys(rows[0]) : [];
           
           let invalidos = 0;
           const norm: Point[] = rows.map((r, i) => {
             const n: any = {};
-            Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string"  r[k].trim() : r[k]));
+            Object.keys(r).forEach((k) => (n[k.trim()] = typeof r[k] === "string" ? r[k].trim() : r[k]));
 
             const lat = normalizeCoord(n["Latitude"], "lat");
             const lng = normalizeCoord(n["Longitude"], "lng");
@@ -88,9 +88,9 @@ export function UploadDropzone() {
             return {
               id: `${Date.now()}-${i}`,
               cod,
-              lat: latOk  (lat as number) : NaN,
-              lng: lngOk  (lng as number) : NaN,
-              status: latOk && lngOk  "AGUARDANDO" : "ERRO",
+              lat: latOk ? (lat as number) : NaN,
+              lng: lngOk ? (lng as number) : NaN,
+              status: latOk && lngOk ? "AGUARDANDO" : "ERRO",
               endereco: n["Endereço"] || "",
               bairro: n["Bairro"] || "",
               cidade: n["Cidade"] || "",
@@ -166,7 +166,7 @@ export function UploadDropzone() {
           setPoints(semDuplicatas, sheetName, colunasOriginais);
           log(
             "success",
-            `✅ ${semDuplicatas.length} pontos carregados${invalidos  ` (${invalidos} com coordenadas inválidas)` : ""}${duplicados  ` — ${duplicados} duplicata(s) removida(s)` : ""}`
+            `✅ ${semDuplicatas.length} pontos carregados${invalidos ? ` (${invalidos} com coordenadas inválidas)` : ""}${duplicados ? ` — ${duplicados} duplicata(s) removida(s)` : ""}`
           );
         }}
       />

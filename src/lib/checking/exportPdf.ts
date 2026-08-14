@@ -45,7 +45,7 @@ function coletarLinks(elemento: HTMLElement): LinkAnnotation[] {
   const slideRect = elemento.getBoundingClientRect();
   return Array.from(elemento.querySelectorAll<HTMLAnchorElement>("a[href]"))
     .map((anchor) => {
-      const href = normalizarHref(anchor.getAttribute("href")  anchor.href);
+      const href = normalizarHref(anchor.getAttribute("href") ?? anchor.href);
       if (!href) return null;
       const rect = anchor.getBoundingClientRect();
       const x = rect.left - slideRect.left;
@@ -90,7 +90,7 @@ export async function exportSlidesToPdf(elements: HTMLElement[], filename: strin
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename.endsWith(".pdf")  filename : `${filename}.pdf`;
+  a.download = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
   a.click();
   URL.revokeObjectURL(url);
 }

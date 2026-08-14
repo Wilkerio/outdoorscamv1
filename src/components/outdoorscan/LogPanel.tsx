@@ -13,7 +13,7 @@ export function LogPanel() {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    ref.current.scrollTo({ top: ref.current.scrollHeight });
+    ref.current?.scrollTo({ top: ref.current.scrollHeight });
   }, [logs.length]);
 
   return (

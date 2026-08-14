@@ -12,7 +12,7 @@ export function AppSidebar() {
    const { stats } = useSession();
    const [open, setOpen] = useState(false);
 
-  const pct = (n: number) => (stats.total  Math.round((n / stats.total) * 100) : 0);
+  const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
 
   const items = [
     { to: "/", label: "Processamento", icon: ListChecks },
@@ -48,7 +48,7 @@ export function AppSidebar() {
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-border bg-sidebar-bg flex flex-col transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:shrink-0 lg:translate-x-0 ${
-          open  "translate-x-0" : "-translate-x-full"
+          open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="px-5 py-5 flex items-center gap-2 border-b border-border">
@@ -78,7 +78,7 @@ export function AppSidebar() {
                 onClick={() => setOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                   active
-                     "bg-primary/15 text-primary"
+                    ? "bg-primary/15 text-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >

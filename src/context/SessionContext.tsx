@@ -15,10 +15,10 @@ const STORAGE_KEY = "outdoorscan:session:v1";
   phase: Phase;
    currentIndex: number;
    log: (level: LogEntry["level"], message: string) => void;
-    salvarFotoSupabase: (cod: string, url: string, applyFilter: boolean) => Promise<string>;
+    salvarFotoSupabase: (cod: string, url: string, applyFilter?: boolean) => Promise<string>;
     corrigirComIA: (ponto: Point) => Promise<void>;
     calcularAudiencia: (ponto: Point) => Promise<void>;
-  setPoints: (p: Point[], sheetName: string, colunasOriginais: string[]) => void;
+  setPoints: (p: Point[], sheetName?: string, colunasOriginais?: string[]) => void;
   exportarExcel: () => Promise<void>;
    start: () => void;
    pause: () => void;
@@ -74,7 +74,7 @@ const Ctx = createContext<SessionState | null>(null);
         if (Array.isArray(saved.points)) {
           // Pontos que estavam "PROCESSANDO" voltam a "AGUARDANDO"
           const restored = saved.points.map((p: Point) =>
-            p.status === "PROCESSANDO"  { ...p, status: "AGUARDANDO" as PointStatus } : p,
+            p.status === "PROCESSANDO" ? { ...p, status: "AGUARDANDO" as PointStatus } : p,
           );
           setPointsState(restored);
           if (saved.sheetName) setSheetName(saved.sheetName);
@@ -139,11 +139,11 @@ const Ctx = createContext<SessionState | null>(null);
   }, []);
 
     const updatePoint = useCallback((id: string, patch: Partial<Point>) => {
-    setPointsState((arr) => arr.map((p) => (p.id === id  { ...p, ...patch } : p)));
+    setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }, []);
 
   const toggleExcluido = useCallback((id: string) => {
-    setPointsState((arr) => arr.map((p) => (p.id === id  { ...p, excluido: !p.excluido } : p)));
+    setPointsState((arr) => arr.map((p) => (p.id === id ? { ...p, excluido: !p.excluido } : p)));
   }, []);
 
   const editarPonto = useCallback((id: string, patch: Partial<Point>) => {
@@ -152,7 +152,7 @@ const Ctx = createContext<SessionState | null>(null);
         if (p.id !== id) return p;
         const next: Point = { ...p, ...patch };
         // Sincronizar originalData (usado na exportação Excel)
-        const od = { ...(p.originalData  {}) };
+        const od = { ...(p.originalData ?? {}) };
         if (patch.cod !== undefined) od["Cod."] = patch.cod;
         if (patch.endereco !== undefined) od["Endereço"] = patch.endereco;
         if (patch.bairro !== undefined) od["Bairro"] = patch.bairro;
@@ -182,7 +182,7 @@ const Ctx = createContext<SessionState | null>(null);
     );
   }, []);
 
-   const setPoints = useCallback((p: Point[], name: string, cols: string[]) => {
+   const setPoints = useCallback((p: Point[], name?: string, cols?: string[]) => {
      setPointsState(p);
      if (name) setSheetName(name);
      if (cols) setColunasOriginais(cols);
@@ -238,29 +238,29 @@ const Ctx = createContext<SessionState | null>(null);
     // Adicionar dados
     pontosAtivos.forEach((ponto, idx) => {
       const row = ws.addRow({
-        cod: ponto.originalData.["Cod."]  ponto.cod  "",
-        endereco: ponto.originalData.["Endereço"]  ponto.endereco  "",
-        bairro: (ponto.bairro || ponto.originalData.["Bairro"])  "",
+        cod: ponto.originalData?.["Cod."] ?? ponto.cod ?? "",
+        endereco: ponto.originalData?.["Endereço"] ?? ponto.endereco ?? "",
+        bairro: (ponto.bairro || ponto.originalData?.["Bairro"]) ?? "",
         cidade:
-          ponto.originalData.["Cidade"] 
-          ponto.originalData.["Cidade "] 
-          ponto.cidade 
+          ponto.originalData?.["Cidade"] ??
+          ponto.originalData?.["Cidade "] ??
+          ponto.cidade ??
           "",
         lat: Number.isFinite(ponto.lat)
-           String(ponto.lat).replace(",", ".")
-          : String(ponto.originalData.["Latitude"]  "").replace(",", "."),
+          ? String(ponto.lat).replace(",", ".")
+          : String(ponto.originalData?.["Latitude"] ?? "").replace(",", "."),
         lng: Number.isFinite(ponto.lng)
-           String(ponto.lng).replace(",", ".")
-          : String(ponto.originalData.["Longitude"]  "").replace(",", "."),
-        formato: ponto.originalData.["Formato"]  ponto.formato  "",
-        foto: ponto.foto_url || ponto.originalData.["Foto"] || ponto.foto || "",
-        empresa: ponto.originalData.["Empresa"]  ponto.empresa  "",
-        poi: (ponto.poi  []).map((p) => `${p.label} (${p.count})`).join(", "),
-        audiencia: ponto.audienceEstimate  "",
+          ? String(ponto.lng).replace(",", ".")
+          : String(ponto.originalData?.["Longitude"] ?? "").replace(",", "."),
+        formato: ponto.originalData?.["Formato"] ?? ponto.formato ?? "",
+        foto: ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "",
+        empresa: ponto.originalData?.["Empresa"] ?? ponto.empresa ?? "",
+        poi: (ponto.poi ?? []).map((p) => `${p.label} (${p.count})`).join(", "),
+        audiencia: ponto.audienceEstimate ?? "",
       });
 
       // Cor alternada nas linhas
-      const bgColor = idx % 2 === 0  "FFF5F8FF" : "FFFFFFFF";
+      const bgColor = idx % 2 === 0 ? "FFF5F8FF" : "FFFFFFFF";
       row.eachCell((cell) => {
         cell.fill = {
           type: "pattern",
@@ -278,7 +278,7 @@ const Ctx = createContext<SessionState | null>(null);
 
       // Coluna Foto com URL direta
       const fotoCell = row.getCell("foto");
-      fotoCell.value = ponto.foto_url || ponto.originalData.["Foto"] || ponto.foto || "";
+      fotoCell.value = ponto.foto_url || ponto.originalData?.["Foto"] || ponto.foto || "";
       fotoCell.font = { color: { argb: "FF0563C1" }, underline: true };
 
       row.height = 20;
@@ -307,13 +307,13 @@ const Ctx = createContext<SessionState | null>(null);
      const { data, error } = await supabase.functions.invoke("google-proxy", {
        body: { url },
      });
-     if (error || data.error) throw new Error(error.message || data.error);
+     if (error || data?.error) throw new Error(error?.message || data?.error);
 
      // Mesmo preset padrão usado no modal "Ajustar foto" (brilho/contraste/
      // saturação), aplicado automaticamente nas fotos do processamento em lote
      // pra não depender de ajuste manual ponto a ponto.
      const blob = applyFilter
-        await aplicarFiltroPadrao(data.image)
+       ? await aplicarFiltroPadrao(data.image)
        : (() => {
            const byteString = atob(data.image);
            const ab = new ArrayBuffer(byteString.length);
@@ -352,13 +352,13 @@ const Ctx = createContext<SessionState | null>(null);
     [updatePoint, log],
   );
 
-  const temFotoOriginal = (foto: string) => {
-    const f = (foto  "").trim();
+  const temFotoOriginal = (foto?: string) => {
+    const f = (foto ?? "").trim();
     return !!f && !f.toLowerCase().includes("not found") && f !== "link da imagem nao localizado";
   };
 
   const processarPonto = useCallback(
-    async (p: Point, forceProcess: boolean) => {
+    async (p: Point, forceProcess?: boolean) => {
       if (!forceProcess && p.fotoSalva && p.status === "SUCESSO") {
         log("info", `Pulando ${p.cod} (já processado com sucesso)`);
         return;
@@ -401,7 +401,7 @@ const Ctx = createContext<SessionState | null>(null);
 
         if (meta.status !== "OK") {
           log("warn", `${cod} — ⚠️ Sem cobertura Street View`);
-          const staticUrl = `https://maps.googleapis.com/maps/api/staticmapcenter=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
+          const staticUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=640x480&markers=${lat},${lng}&key=${key}`;
           const urlPublica = await salvarFotoSupabase(cod, staticUrl);
           updatePoint(id, { status: "SEM_COBERTURA", foto_url: urlPublica, fotoSalva: true });
           return;
@@ -411,7 +411,7 @@ const Ctx = createContext<SessionState | null>(null);
         const finalHeading = 0;
         const finalPitch = 0;
         const finalFov = 90;
-        const fotoFinalUrl = `https://maps.googleapis.com/maps/api/streetviewsize=640x480&location=${lat},${lng}&heading=${finalHeading}&pitch=${finalPitch}&fov=${finalFov}&key=${key}`;
+        const fotoFinalUrl = `https://maps.googleapis.com/maps/api/streetview?size=640x480&location=${lat},${lng}&heading=${finalHeading}&pitch=${finalPitch}&fov=${finalFov}&key=${key}`;
 
         log("success", `✅ ${cod} — Salvo`);
 

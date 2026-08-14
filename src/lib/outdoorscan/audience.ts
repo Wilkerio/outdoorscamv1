@@ -58,15 +58,15 @@ export async function fetchNearbyPois(lat: number, lng: number): Promise<PoiHit[
       const { data, error } = await supabase.functions.invoke("google-proxy", {
         body: { nearby: { lat, lng, radius: RADIUS_M, type: poi.type } },
       });
-      const items = !error && Array.isArray(data.results)  data.results : [];
+      const items = !error && Array.isArray(data?.results) ? data.results : [];
       const dists = items.map((r: any) =>
-        haversineMeters(lat, lng, r.geometry.location.lat, r.geometry.location.lng),
+        haversineMeters(lat, lng, r.geometry?.location?.lat, r.geometry?.location?.lng),
       );
       return {
         type: poi.type,
         label: poi.label,
         count: items.length,
-        avgDist: dists.length  dists.reduce((a: number, b: number) => a + b, 0) / dists.length : RADIUS_M,
+        avgDist: dists.length ? dists.reduce((a: number, b: number) => a + b, 0) / dists.length : RADIUS_M,
       };
     }),
   );

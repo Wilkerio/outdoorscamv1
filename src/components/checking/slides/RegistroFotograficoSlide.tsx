@@ -33,8 +33,8 @@ function Campo({ label, value }: { label: string; value: string }) {
   );
 }
 
-function normalizarVideoUrl(url: string): string | undefined {
-  const valor = url.trim();
+function normalizarVideoUrl(url: string | undefined): string | undefined {
+  const valor = (url ?? "").trim();
   if (!valor) return undefined;
   if (/^(https:|mailto:|tel:)/i.test(valor)) return valor;
   return `https://${valor}`;
@@ -47,9 +47,9 @@ export function RegistroFotograficoSlide({
 }: {
   local: CheckingLocal;
   foto: CheckingFoto;
-  sufixo: number;
+  sufixo?: number;
 }) {
-  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada  CHECKING_ENHANCE_FILTER : undefined);
+  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
   const videoUrl = normalizarVideoUrl(foto.videoUrl);
 
   return (
@@ -64,13 +64,13 @@ export function RegistroFotograficoSlide({
           REGISTRO
         </div>
         <div style={{ fontFamily: CHECKING_FONT_DISPLAY, color: C.yellow, fontSize: 30, lineHeight: 1.08 }}>
-          FOTOGRÁFICO{sufixo  `.${sufixo}` : ""}
+          FOTOGRÁFICO{sufixo ? `.${sufixo}` : ""}
         </div>
 
         <div style={{ marginTop: 32 }}>
           <Campo label="Formato" value={local.formato} />
           <Campo label="Local de Veiculação" value={local.localVeiculacao} />
-          <Campo label="Fluxo de Passantes" value={local.fluxoPassantes  `${local.fluxoPassantes}/dia` : ""} />
+          <Campo label="Fluxo de Passantes" value={local.fluxoPassantes ? `${local.fluxoPassantes}/dia` : ""} />
         </div>
 
         {videoUrl && (
@@ -106,7 +106,7 @@ export function RegistroFotograficoSlide({
 
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
         <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
-          {fotoFiltrada  (
+          {fotoFiltrada ? (
             <img
               src={fotoFiltrada}
               alt="Registro fotográfico"
