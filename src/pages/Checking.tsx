@@ -51,7 +51,7 @@ export default function Checking() {
   const checkingId = searchParams.get("id");
   const [data, setData] = useState<CheckingData>(() => {
     const tipoParam = searchParams.get("tipo");
-    const tipo = tipoParam === "onibus"  "onibus" : "outdoor";
+    const tipo = tipoParam === "onibus" ? "onibus" : "outdoor";
     if (searchParams.get("id")) return checkingVazio(tipo);
     // tipo= na URL = veio do seletor "Criar Checking" â†’ Ã© um checking NOVO de propÃ³sito,
     // nÃ£o deve misturar com rascunho antigo salvo (senÃ£o herda dados de outra sessÃ£o).
@@ -106,7 +106,7 @@ export default function Checking() {
   const updateField = (patch: Partial<CheckingData>) => setData((d) => ({ ...d, ...patch }));
 
   const updateLocal = (id: string, patch: Partial<CheckingLocal>) =>
-    setData((d) => ({ ...d, locais: d.locais.map((l) => (l.id === id  { ...l, ...patch } : l)) }));
+    setData((d) => ({ ...d, locais: d.locais.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
 
   const addLocal = () => {
     const novo = novoLocal();
@@ -123,28 +123,28 @@ export default function Checking() {
   const addFoto = (localId: string) =>
     setData((d) => ({
       ...d,
-      locais: d.locais.map((l) => (l.id === localId  { ...l, fotos: [...l.fotos, novaFoto()] } : l)),
+      locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: [...l.fotos, novaFoto()] } : l)),
     }));
 
   const updateFoto = (localId: string, fotoId: string, patch: Partial<CheckingFoto>) =>
     setData((d) => ({
       ...d,
       locais: d.locais.map((l) =>
-        l.id === localId  { ...l, fotos: l.fotos.map((f) => (f.id === fotoId  { ...f, ...patch } : f)) } : l,
+        l.id === localId ? { ...l, fotos: l.fotos.map((f) => (f.id === fotoId ? { ...f, ...patch } : f)) } : l,
       ),
     }));
 
   const removeFoto = (localId: string, fotoId: string) =>
     setData((d) => ({
       ...d,
-      locais: d.locais.map((l) => (l.id === localId  { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
+      locais: d.locais.map((l) => (l.id === localId ? { ...l, fotos: l.fotos.filter((f) => f.id !== fotoId) } : l)),
     }));
 
   const moveFoto = (localId: string, fotoId: string, dir: -1 | 1) =>
     setData((d) => ({
       ...d,
       locais: d.locais.map((l) =>
-        l.id === localId  { ...l, fotos: moveItem(l.fotos, l.fotos.findIndex((f) => f.id === fotoId), dir) } : l,
+        l.id === localId ? { ...l, fotos: moveItem(l.fotos, l.fotos.findIndex((f) => f.id === fotoId), dir) } : l,
       ),
     }));
 
@@ -155,7 +155,7 @@ export default function Checking() {
     setColapsados((s) => new Set(s).add(`titulo:${novo.id}`));
   };
   const updateSlideTitulo = (id: string, patch: Partial<CheckingTituloSlide>) =>
-    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id  { ...s, ...patch } : s)) }));
+    setData((d) => ({ ...d, slidesTitulo: d.slidesTitulo.map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
   const removeSlideTitulo = (id: string) =>
     setData((d) => ({
       ...d,
@@ -168,7 +168,7 @@ export default function Checking() {
     setData((d) => ({ ...d, ordem: moveItem(d.ordem, d.ordem.indexOf(token as any), dir) }));
 
   const processandoPdf = gerando || gerandoLink;
-  const modoProcessamento = gerandoLink  "link" : "pdf";
+  const modoProcessamento = gerandoLink  ?                    link" : "pdf";
 
   useEffect(() => {
     if (!processandoPdf) {
@@ -216,7 +216,7 @@ export default function Checking() {
           const par = local.fotos.slice(idx, idx + 2);
           pgs.push({
             key: `${local.id}-galeria-${idx}`,
-            label: `Galeria Ã”nibus â€” ${nomeLocal} (${idx + 1}${par.length > 1  `-${idx + 2}` : ""})`,
+            label: `Galeria Ã”nibus â€” ${nomeLocal} (${idx + 1}${par.length > 1  ?                    -${idx + 2}` : ""})`,
             node: <GaleriaOnibusSlide fotos={par} />,
           });
         }
@@ -231,9 +231,9 @@ export default function Checking() {
       local.fotos.forEach((foto, idx) => {
         pgs.push({
           key: `${local.id}-foto-${foto.id}`,
-          label: `Registro FotogrÃ¡fico${local.fotos.length > 1  `.${idx + 1}` : ""} â€” ${nomeLocal}`,
+          label: `Registro FotogrÃ¡fico${local.fotos.length > 1  ?                    .${idx + 1}` : ""} â€” ${nomeLocal}`,
           node: (
-            <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1  idx + 1 : undefined} />
+            <RegistroFotograficoSlide local={local} foto={foto} sufixo={local.fotos.length > 1 ? idx + 1 : undefined} />
           ),
         });
       });
@@ -313,7 +313,7 @@ export default function Checking() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">
-                  {modoProcessamento === "link"  "Gerando link compartilhável" : "Gerando PDF"}
+                  {modoProcessamento === "link"  ?                    Gerando link compartilhável" : "Gerando PDF"}
                 </div>
                 <p className="mt-1 text-sm text-white/70">
                   Estamos montando tudo em alta resolução. Isso demora um pouco porque cada página é renderizada com
@@ -330,10 +330,10 @@ export default function Checking() {
                   <div key={step} className="flex items-start gap-3">
                     <div
                       className={`mt-0.5 size-2.5 rounded-full ${
-                        active  "bg-cyan-300 animate-pulse" : done  "bg-emerald-400" : "bg-white/20"
+                        active  ?                    bg-cyan-300 animate-pulse" : done  "bg-emerald-400" : "bg-white/20"
                       }`}
                     />
-                    <div className={`text-sm ${active  "text-white" : done  "text-white/85" : "text-white/50"}`}>
+                    <div className={`text-sm ${active  ?                    text-white" : done  "text-white/85" : "text-white/50"}`}>
                       {step}
                     </div>
                   </div>
@@ -367,7 +367,7 @@ export default function Checking() {
             onClick={() => toggleColapso("capa")}
             className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
           >
-            {capaColapsada  <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {capaColapsada ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
             Capa
           </button>
           {!capaColapsada && (
@@ -393,7 +393,7 @@ export default function Checking() {
                   <Button
                     type="button"
                     size="sm"
-                    variant={data.temAgencia  "default" : "secondary"}
+                    variant={data.temAgencia ? "default" : "secondary"}
                     className="flex-1"
                     onClick={() => updateField({ temAgencia: true })}
                   >
@@ -402,7 +402,7 @@ export default function Checking() {
                   <Button
                     type="button"
                     size="sm"
-                    variant={!data.temAgencia  "default" : "secondary"}
+                    variant={!data.temAgencia ? "default" : "secondary"}
                     className="flex-1"
                     onClick={() => updateField({ temAgencia: false, agencia: "" })}
                   >
@@ -472,7 +472,7 @@ export default function Checking() {
                       onClick={() => toggleColapso(token)}
                       className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                     >
-                      {tituloColapsado  <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                      {tituloColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
                       <span className="truncate">
                         {i + 1}. {slide.nome || slide.texto || "Slide de tÃ­tulo"}
                       </span>
@@ -507,7 +507,7 @@ export default function Checking() {
                     <>
                       <FieldInput
                         label="Nome (sÃ³ de organizaÃ§Ã£o, nÃ£o aparece no PDF)"
-                        value={slide.nome  ""}
+                        value={slide.nome ?? ""}
                         onChange={(v) => updateSlideTitulo(slide.id, { nome: v })}
                         placeholder={`Slide ${i + 1}`}
                       />
@@ -533,7 +533,7 @@ export default function Checking() {
                     onClick={() => toggleColapso(token)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground min-w-0"
                   >
-                    {localColapsado  <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
+                    {localColapsado ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
                     <span className="truncate">
                       {i + 1}. {local.nome || local.localVeiculacao || "Local sem nome"}
                     </span>
@@ -567,7 +567,7 @@ export default function Checking() {
                   <>
                     <FieldInput
                       label="Nome (sÃ³ de organizaÃ§Ã£o, nÃ£o aparece no PDF)"
-                      value={local.nome  ""}
+                      value={local.nome ?? ""}
                       onChange={(v) => updateLocal(local.id, { nome: v })}
                       placeholder={`Local ${i + 1}`}
                     />
@@ -580,10 +580,10 @@ export default function Checking() {
                       label="Formato"
                       value={local.formato}
                       onChange={(v) => updateLocal(local.id, { formato: v })}
-                      placeholder={data.tipo === "onibus"  "Busdoor" : "Painel de LED"}
+                      placeholder={data.tipo === "onibus" ? "Busdoor" : "Painel de LED"}
                     />
 
-                    {data.tipo === "onibus"  (
+                    {data.tipo === "onibus" ? (
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs">Linhas (carro â€” linha)</Label>
@@ -592,26 +592,26 @@ export default function Checking() {
                             variant="ghost"
                             className="h-6 text-[11px]"
                             onClick={() =>
-                              updateLocal(local.id, { linhas: [...(local.linhas  []), ""] })
+                              updateLocal(local.id, { linhas: [...(local.linhas ?? []), ""] })
                             }
                           >
                             <Plus className="size-3" /> Linha
                           </Button>
                         </div>
-                        {(local.linhas  []).map((linha, idx) => (
+                        {(local.linhas ?? []).map((linha, idx) => (
                           <div key={idx} className="flex items-center gap-1.5">
                             <Input
                               placeholder="Carro 608 â€“ Linha B19"
                               value={linha}
                               onChange={(e) => {
-                                const linhas = [...(local.linhas  [])];
+                                const linhas = [...(local.linhas ?? [])];
                                 linhas[idx] = e.target.value;
                                 updateLocal(local.id, { linhas });
                               }}
                             />
                             <button
                               onClick={() => {
-                                const linhas = (local.linhas  []).filter((_, li) => li !== idx);
+                                const linhas = (local.linhas ?? []).filter((_, li) => li !== idx);
                                 updateLocal(local.id, { linhas });
                               }}
                               className="text-muted-foreground hover:text-destructive shrink-0"
@@ -620,7 +620,7 @@ export default function Checking() {
                             </button>
                           </div>
                         ))}
-                        {!(local.linhas  []).length && (
+                        {!(local.linhas ?? []).length && (
                           <p className="text-[11px] text-muted-foreground">Nenhuma linha adicionada ainda.</p>
                         )}
                       </div>
@@ -702,7 +702,7 @@ export default function Checking() {
                           <Input
                             placeholder="Link do vÃ­deo (opcional)"
                             className="h-8 text-xs"
-                            value={foto.videoUrl  ""}
+                            value={foto.videoUrl ?? ""}
                             onChange={(e) => updateFoto(local.id, foto.id, { videoUrl: e.target.value })}
                           />
                         </div>
@@ -721,16 +721,16 @@ export default function Checking() {
         <div className="flex gap-2">
           <Button className="flex-1" variant="secondary" onClick={salvar} disabled={salvando || processandoPdf}>
             <Save className="size-4" />
-            {salvando  "Salvandoâ€¦" : checkingId  "Salvar alteraÃ§Ãµes" : "Salvar"}
+            {salvando  ?                    Salvandoâ€¦" : checkingId  "Salvar alteraÃ§Ãµes" : "Salvar"}
           </Button>
           <Button className="flex-1" variant="secondary" onClick={gerarLink} disabled={gerandoLink || gerando}>
             <Link2 className="size-4" />
-            {gerandoLink  "Gerandoâ€¦" : "Gerar Link"}
+            {gerandoLink  ?                    Gerandoâ€¦" : "Gerar Link"}
           </Button>
         </div>
         <Button className="w-full" onClick={gerarPdf} disabled={gerando || gerandoLink}>
           <Download className="size-4" />
-          {gerando  "Gerandoâ€¦" : "Baixar PDF"}
+          {gerando  ?                    Gerandoâ€¦" : "Baixar PDF"}
         </Button>
       </div>
 
@@ -785,7 +785,7 @@ function FieldInput({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  placeholder: string;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -803,5 +803,4 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: strin
     </div>
   );
 }
-
 
