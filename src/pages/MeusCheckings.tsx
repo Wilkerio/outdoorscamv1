@@ -23,7 +23,7 @@ export default function MeusCheckings() {
   }, []);
 
   const excluir = async (id: string) => {
-    if (!confirm("Excluir esse checking Não dá pra desfazer.")) return;
+    if (!confirm("Excluir esse checking? Não dá pra desfazer.")) return;
     setExcluindoId(id);
     try {
       await excluirChecking(id);
@@ -88,7 +88,7 @@ export default function MeusCheckings() {
                   </Button>
                 )}
                 <Button size="sm" variant="secondary" asChild>
-                  <Link to={`/checkingid=${item.id}`}>Abrir</Link>
+                  <Link to={`/checking?id=${item.id}`}>Abrir</Link>
                 </Button>
                 <Button
                   size="sm"

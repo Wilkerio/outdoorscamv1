@@ -16,12 +16,12 @@ const ROWS: { key: "cliente" | "campanha" | "praca" | "periodo" | "ativo"; label
 
 export function CapaSlide({ data }: { data: CheckingData }) {
   const rows = data.temAgencia && data.agencia
-     [ROWS[0], { key: "agencia" as const, label: "Agência", icon: Building2 }, ...ROWS.slice(1)]
+    ? [ROWS[0], { key: "agencia" as const, label: "Agência", icon: Building2 }, ...ROWS.slice(1)]
     : ROWS;
 
   const capaFiltrada = useFilteredImage(
     data.capaImageDataUrl,
-    data.capaMelhorada  "grayscale(1) contrast(1.15) brightness(95%)" : "grayscale(1) contrast(1.05)",
+    data.capaMelhorada ? "grayscale(1) contrast(1.15) brightness(95%)" : "grayscale(1) contrast(1.05)",
   );
 
   return (
@@ -29,7 +29,7 @@ export function CapaSlide({ data }: { data: CheckingData }) {
       style={{ width: SLIDE_W, height: SLIDE_H, fontFamily: CHECKING_FONT_BODY, background: C.white }}
       className="relative overflow-hidden"
     >
-      {capaFiltrada  (
+      {capaFiltrada ? (
         <img
           src={capaFiltrada}
           alt="Capa"

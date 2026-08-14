@@ -12,7 +12,7 @@ export default function Processamento() {
   const totalAtivos = ativos.length;
   const processed = ativos.filter((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO").length;
   const hasProcessed = ativos.some((p) => p.status !== "AGUARDANDO" && p.status !== "PROCESSANDO");
-  const progressPct = totalAtivos  Math.round((processed / totalAtivos) * 100) : 0;
+  const progressPct = totalAtivos ? Math.round((processed / totalAtivos) * 100) : 0;
   const excluidosCount = total - totalAtivos;
 
   const INITIAL_BATCH = 6;
@@ -35,7 +35,7 @@ export default function Processamento() {
   const visiblePoints = points.slice(0, visibleCount);
 
   const limparTudo = async () => {
-    if (!confirm("Limpar TUDO Isso vai apagar pontos, progresso e todo o cache do navegador (Street View, imagens, etc).")) return;
+    if (!confirm("Limpar TUDO? Isso vai apagar pontos, progresso e todo o cache do navegador (Street View, imagens, etc).")) return;
     try {
       // Reset session state
       reset();
@@ -49,9 +49,9 @@ export default function Processamento() {
       }
       // IndexedDB
       if (indexedDB && "databases" in indexedDB) {
-        const dbs = await (indexedDB as unknown as { databases: () => Promise<{ name: string }[]> }).databases();
+        const dbs = await (indexedDB as unknown as { databases: () => Promise<{ name?: string }[]> }).databases();
         await Promise.all(
-          (dbs || []).map((db: { name: string }) => db.name && new Promise((res) => {
+          (dbs || []).map((db: { name?: string }) => db.name && new Promise((res) => {
             const req = indexedDB.deleteDatabase(db.name!);
             req.onsuccess = req.onerror = req.onblocked = () => res(null);
           }))
@@ -72,11 +72,11 @@ export default function Processamento() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {phase === "running"  (
+          {phase === "running" ? (
             <Button onClick={pause} variant="secondary">
               <Pause className="size-4" /> Pausar
             </Button>
-          ) : phase === "paused"  (
+          ) : phase === "paused" ? (
             <Button onClick={resume}>
               <Play className="size-4" /> Retomar
             </Button>
@@ -89,7 +89,7 @@ export default function Processamento() {
             onClick={salvarProgresso}
             disabled={!total}
             variant="secondary"
-            title={ultimoSalvamento  `Último salvamento: ${new Date(ultimoSalvamento).toLocaleString()}` : "Salvar progresso no navegador"}
+            title={ultimoSalvamento ? `Último salvamento: ${new Date(ultimoSalvamento).toLocaleString()}` : "Salvar progresso no navegador"}
           >
             <Save className="size-4" /> Salvar Progresso
           </Button>
@@ -122,7 +122,7 @@ export default function Processamento() {
           <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
             <span>
               {phase === "running" && <RotateCcw className="size-3 inline animate-spin mr-1" />}
-              {processed}/{totalAtivos} processados{excluidosCount > 0  ` · ${excluidosCount} excluído${excluidosCount > 1  's' : ''}` : ''}
+              {processed}/{totalAtivos} processados{excluidosCount > 0 ? ` · ${excluidosCount} excluído${excluidosCount > 1 ? 's' : ''}` : ''}
               {phase === "running" && total > 0 && ` · atual #${currentIndex + 1}`}
             </span>
             <span className="tabular-nums font-medium">{progressPct}%</span>
@@ -140,7 +140,7 @@ export default function Processamento() {
         <>
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Pontos ({totalAtivos} ativos{excluidosCount > 0  `, ${excluidosCount} excluído${excluidosCount > 1  's' : ''}` : ''})
+            Pontos ({totalAtivos} ativos{excluidosCount > 0 ? `, ${excluidosCount} excluído${excluidosCount > 1 ? 's' : ''}` : ''})
             </div>
             {total > 0 && (
               <div className="text-[11px] text-muted-foreground mb-2">

@@ -110,7 +110,7 @@ const FormControl = React.forwardRef<
     <Slot
       ref={ref}
       id={formItemId}
-      aria-describedby={!error  `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
+      aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
       aria-invalid={!!error}
       {...props}
     />
@@ -140,7 +140,7 @@ const FormMessage = React.forwardRef<
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
   const { error, formMessageId } = useFormField();
-  const body = error  String(error.message  "") : children;
+  const body = error ? String(error?.message ?? "") : children;
 
   if (!body) {
     return null;

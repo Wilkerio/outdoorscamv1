@@ -4,10 +4,10 @@ import { CheckingFooterLogos } from "../CheckingFooterLogos";
 import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
 function FotoBox({ foto }: { foto: CheckingFoto }) {
-  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada  CHECKING_ENHANCE_FILTER : undefined);
+  const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
   return (
     <div className="flex-1 h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
-      {fotoFiltrada  (
+      {fotoFiltrada ? (
         <img
           src={fotoFiltrada}
           alt="Ônibus"
