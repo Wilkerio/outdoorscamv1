@@ -1,5 +1,6 @@
 import { Camera } from "lucide-react";
-import logoEhMidia from "@/assets/checking/eh-midia-logo.svg";
+import logoAsset from "@/assets/checking/logo-branco.png.asset.json";
+const logoEhMidia = logoAsset.url;
 import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
 
 export function TituloSlide({ texto }: { texto: string }) {

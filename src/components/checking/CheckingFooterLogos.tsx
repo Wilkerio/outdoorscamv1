@@ -1,4 +1,5 @@
-import logoEhMidia from "@/assets/checking/eh-midia-logo.svg";
+import logoAsset from "@/assets/checking/logo-branco.png.asset.json";
+const logoEhMidia = logoAsset.url;
 import { CHECKING_COLORS as C } from "./slideTokens";
 
 export function CheckingFooterLogos() {
