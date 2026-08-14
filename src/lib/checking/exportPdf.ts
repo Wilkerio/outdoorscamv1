@@ -65,16 +65,16 @@ export async function buildPdfBlob(elements: HTMLElement[]): Promise<Blob> {
   const doc = new jsPDF({ orientation: "landscape", unit: "px", format: [SLIDE_W, SLIDE_H], compress: true });
 
   for (let i = 0; i < elements.length; i++) {
-    // Prioridade é qualidade, não tamanho de arquivo — scale 4 + PNG sem perda nenhuma.
+    // scale 2 + JPEG qualidade alta — nitidez ok pra tela/impressão, arquivo bem menor e mais rápido que scale 4 + PNG.
     const canvas = await html2canvas(elements[i], {
-      scale: 4,
+      scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
       imageTimeout: 15000,
     });
-    const imgData = canvas.toDataURL("image/png");
+    const imgData = canvas.toDataURL("image/jpeg", 0.92);
     if (i > 0) doc.addPage([SLIDE_W, SLIDE_H], "landscape");
-    doc.addImage(imgData, "PNG", 0, 0, SLIDE_W, SLIDE_H);
+    doc.addImage(imgData, "JPEG", 0, 0, SLIDE_W, SLIDE_H);
 
     for (const link of coletarLinks(elements[i])) {
       doc.link(link.x, link.y, link.w, link.h, { url: link.href });
