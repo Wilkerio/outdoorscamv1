@@ -26,6 +26,6 @@ export function imagePanZoomTransform(position?: string, zoom?: number): string 
   const [x, y] = (position ?? "0% 0%").split(" ").map((v) => parseInt(v, 10));
   const px = Number.isFinite(x) ? x : 0;
   const py = Number.isFinite(y) ? y : 0;
-  const z = Math.max(zoom ?? ?? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 00, 80);
+  const z = Math.max(zoom ?? 100, 80);
   return `translate(${px}%, ${py}%) scale(${z / 100})`;
 }
