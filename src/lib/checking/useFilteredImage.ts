@@ -18,6 +18,7 @@ export function useFilteredImage(src: string | undefined, filterCss: string | un
 
     let cancelado = false;
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       if (cancelado) return;
       const canvas = document.createElement("canvas");
@@ -30,7 +31,11 @@ export function useFilteredImage(src: string | undefined, filterCss: string | un
       }
       ctx.filter = filterCss;
       ctx.drawImage(img, 0, 0);
-      setSaida(canvas.toDataURL("image/png"));
+      try {
+        setSaida(canvas.toDataURL("image/png"));
+      } catch {
+        setSaida(src);
+      }
     };
     img.onerror = () => setSaida(src);
     img.src = src;
