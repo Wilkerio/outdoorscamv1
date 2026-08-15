@@ -1,6 +1,6 @@
 import { Camera } from "lucide-react";
 import logoAsset from "@/assets/checking/logo-branco.png.asset.json";
-import logoSouzaBranco from "@/assets/logo-souza-branco.png";
+import { logoSouzaBranca } from "@/assets/logoSouza";
 const logoEhMidia = logoAsset.url;
 import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
 
@@ -42,7 +42,7 @@ export function TituloSlide({ texto }: { texto: string }) {
 
         <div className="shrink-0 flex items-center gap-3">
           <img src={logoEhMidia} alt="EH! Mídia" style={{ height: 36 }} />
-          <img src={logoSouzaBranco} alt="Souza" style={{ height: 40 }} />
+          <img src={logoSouzaBranca} alt="Souza" style={{ height: 40 }} />
         </div>
       </div>
     </div>
