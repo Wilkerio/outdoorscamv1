@@ -3,10 +3,13 @@ import { CHECKING_COLORS as C, CHECKING_ENHANCE_FILTER, CHECKING_FONT_BODY, SLID
 import { CheckingFooterLogos } from "../CheckingFooterLogos";
 import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
-function FotoBox({ foto }: { foto: CheckingFoto }) {
+function FotoBox({ foto, solo }: { foto: CheckingFoto; solo?: boolean }) {
   const fotoFiltrada = useFilteredImage(foto.imageDataUrl, foto.melhorada ? CHECKING_ENHANCE_FILTER : undefined);
   return (
-    <div className="flex-1 h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
+    <div
+      className={`h-full rounded-md overflow-hidden ${solo ? "" : "flex-1"}`}
+      style={{ border: `4px solid ${C.navy}`, width: solo ? "calc(50% - 12px)" : undefined }}
+    >
       {fotoFiltrada ? (
         <img
           src={fotoFiltrada}
@@ -31,9 +34,12 @@ export function GaleriaOnibusSlide({ fotos }: { fotos: CheckingFoto[] }) {
     >
       <div style={{ position: "absolute", top: 0, left: 0, width: 10, height: "100%", background: C.black }} />
 
-      <div className="flex-1 flex gap-6" style={{ padding: "40px 40px 12px 56px" }}>
+      <div
+        className={`flex-1 flex gap-6 ${fotos.length === 1 ? "justify-center" : ""}`}
+        style={{ padding: "40px 40px 12px 56px" }}
+      >
         {fotos.map((foto) => (
-          <FotoBox key={foto.id} foto={foto} />
+          <FotoBox key={foto.id} foto={foto} solo={fotos.length === 1} />
         ))}
       </div>
 

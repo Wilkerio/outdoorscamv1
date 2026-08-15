@@ -92,7 +92,7 @@ export function CapaSlide({ data }: { data: CheckingData }) {
         </div>
 
         <div className="mt-auto" style={{ paddingTop: 32 }}>
-          <CheckingFooterLogos />
+          <CheckingFooterLogos variant="dark" />
         </div>
       </div>
     </div>
