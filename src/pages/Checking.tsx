@@ -691,7 +691,7 @@ export default function Checking() {
                             label="Solte a foto do outdoor"
                             value={foto.imageDataUrl}
                             onChange={(v) => updateFoto(local.id, foto.id, { imageDataUrl: v })}
-                            aspect="aspect-video"
+                            aspect={data.tipo === "onibus" ? "aspect-[832/648]" : "aspect-video"}
                             position={foto.imagePosition}
                             onPositionChange={(p) => updateFoto(local.id, foto.id, { imagePosition: p })}
                             zoom={foto.imageZoom}

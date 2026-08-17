@@ -68,11 +68,20 @@ export function ImageDropZone({
           <img
             src={value}
             alt={label}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer"
+            onClick={() => inputRef.current?.click()}
+            title="Clique para trocar a foto"
             style={{
               transform: `translate(${x}%, ${y}%) scale(${z / 100})`,
               filter: melhorada ? CHECKING_ENHANCE_FILTER : undefined,
             }}
+          />
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0])}
           />
           {guiaCapa && (
             <svg
@@ -87,7 +96,7 @@ export function ImageDropZone({
           <button
             type="button"
             onClick={() => onChange("")}
-            className="absolute top-2 right-2 p-1.5 rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+            className="absolute top-2 right-2 p-1.5 rounded-md bg-black/60 text-white transition-colors hover:bg-destructive"
             title="Remover imagem"
           >
             <X className="size-3.5" />
