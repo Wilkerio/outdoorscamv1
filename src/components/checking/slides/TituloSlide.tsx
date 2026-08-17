@@ -1,7 +1,5 @@
 import { Camera } from "lucide-react";
-import logoAsset from "@/assets/checking/logo-branco.png.asset.json";
-import { logoSouzaBranca } from "@/assets/logoSouza";
-const logoEhMidia = logoAsset.url;
+import { CheckingFooterLogos } from "../CheckingFooterLogos";
 import { CHECKING_COLORS as C, CHECKING_FONT_BODY, CHECKING_FONT_DISPLAY, SLIDE_H, SLIDE_W } from "../slideTokens";
 
 export function TituloSlide({ texto }: { texto: string }) {
@@ -21,7 +19,7 @@ export function TituloSlide({ texto }: { texto: string }) {
           >
             <Camera size={14} color={C.black} />
           </div>
-          <span style={{ color: C.white, fontSize: 13, fontWeight: 700, letterSpacing: 1.5 }}>
+          <span style={{ color: C.white, fontSize: 13, fontWeight: 400, letterSpacing: 1.5 }}>
             CHECKING FOTOGRÁFICO
           </span>
         </div>
@@ -40,9 +38,8 @@ export function TituloSlide({ texto }: { texto: string }) {
           </div>
         </div>
 
-        <div className="shrink-0 flex items-center gap-3">
-          <img src={logoEhMidia} alt="EH! Mídia" style={{ height: 36 }} />
-          <img src={logoSouzaBranca} alt="Souza" style={{ height: 40 }} />
+        <div className="shrink-0">
+          <CheckingFooterLogos variant="dark" />
         </div>
       </div>
     </div>

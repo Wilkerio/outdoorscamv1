@@ -9,7 +9,7 @@ import {
   SLIDE_W,
   imagePanZoomTransform,
 } from "../slideTokens";
-import { CheckingFooterLogos } from "../CheckingFooterLogos";
+import { logoSouzaBranca } from "@/assets/logoSouza";
 import { useFilteredImage } from "@/lib/checking/useFilteredImage";
 
 export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
@@ -20,8 +20,12 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
       style={{ width: SLIDE_W, height: SLIDE_H, fontFamily: CHECKING_FONT_BODY, background: C.white }}
       className="relative overflow-hidden flex flex-col"
     >
-      <div style={{ background: C.black, padding: "26px 0", textAlign: "center" }}>
-        <div style={{ fontFamily: CHECKING_FONT_DISPLAY, color: C.white, fontSize: 32, letterSpacing: 1 }}>
+      <div className="relative flex items-center" style={{ background: C.black, padding: "26px 40px" }}>
+        <img src={logoSouzaBranca} alt="M.Souza" style={{ height: 26 }} />
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ fontFamily: CHECKING_FONT_DISPLAY, color: C.white, fontSize: 32, letterSpacing: 1 }}
+        >
           POTENCIAL DE IMPACTO
         </div>
       </div>
@@ -53,15 +57,15 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
             >
               <MapPin size={14} color={C.black} />
             </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.black }}>
+            <div style={{ fontSize: 15, fontWeight: 400, color: C.black }}>
               {local.localVeiculacao || "Endereço do ponto"}
             </div>
           </div>
         </div>
 
         <div className="flex flex-col justify-center shrink-0" style={{ width: 240 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.black }}>Fluxo de passantes/dia:</div>
-          <div style={{ color: C.yellow, fontSize: 46, fontWeight: 900, lineHeight: 1.1, marginTop: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 400, color: C.black }}>Fluxo de passantes/dia:</div>
+          <div style={{ color: C.yellow, fontSize: 46, fontWeight: 400, lineHeight: 1.1, marginTop: 4 }}>
             {local.fluxoPassantes || "—"}
           </div>
           <div style={{ height: 3, background: C.yellow, marginTop: 10 }} />
@@ -69,10 +73,6 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
             Fonte: Economapas
           </div>
         </div>
-      </div>
-
-      <div style={{ padding: "0 40px 24px" }}>
-        <CheckingFooterLogos />
       </div>
     </div>
   );

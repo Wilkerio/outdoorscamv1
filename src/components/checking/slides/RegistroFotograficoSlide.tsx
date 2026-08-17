@@ -20,7 +20,7 @@ function Campo({ label, value }: { label: string; value: string }) {
           background: C.yellow,
           color: C.black,
           fontSize: 11,
-          fontWeight: 800,
+          fontWeight: 400,
           letterSpacing: 0.5,
           padding: "2px 6px",
           borderRadius: 2,
@@ -28,7 +28,7 @@ function Campo({ label, value }: { label: string; value: string }) {
       >
         {label.toUpperCase()}:
       </span>
-      <div style={{ color: C.black, fontSize: 15, fontWeight: 700, marginTop: 6, lineHeight: 1.35 }}>{value || "—"}</div>
+      <div style={{ color: C.black, fontSize: 15, fontWeight: 400, marginTop: 6, lineHeight: 1.35 }}>{value || "—"}</div>
     </div>
   );
 }
@@ -75,7 +75,7 @@ export function RegistroFotograficoSlide({
 
         {videoUrl && (
           <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.black, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 400, letterSpacing: 0.5, color: C.black, marginBottom: 8 }}>
               COMPROVAÇÃO EM VÍDEO
             </div>
             <a
@@ -88,7 +88,7 @@ export function RegistroFotograficoSlide({
                 color: C.black,
                 padding: "8px 16px",
                 borderRadius: 20,
-                fontWeight: 800,
+                fontWeight: 400,
                 fontSize: 13,
               }}
               title="Abrir vídeo"

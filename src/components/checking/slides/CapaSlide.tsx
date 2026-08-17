@@ -67,7 +67,7 @@ export function CapaSlide({ data }: { data: CheckingData }) {
           <div style={{ fontFamily: CHECKING_FONT_DISPLAY, color: C.yellow, fontSize: 46, lineHeight: 1.02 }}>
             FOTOGRÁFICO
           </div>
-          <div style={{ color: "#CFCFCF", fontSize: 12, letterSpacing: 1.5, marginTop: 10, fontWeight: 600 }}>
+          <div style={{ color: "#CFCFCF", fontSize: 12, letterSpacing: 1.5, marginTop: 10, fontWeight: 400 }}>
             COMPROVAÇÃO DE MÍDIA INSTALADA
           </div>
         </div>
@@ -82,10 +82,10 @@ export function CapaSlide({ data }: { data: CheckingData }) {
                 <Icon size={16} color={C.black} />
               </div>
               <div>
-                <div style={{ color: C.yellow, fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+                <div style={{ color: C.yellow, fontSize: 11, fontWeight: 400, letterSpacing: 0.5 }}>
                   {label.toUpperCase()}:
                 </div>
-                <div style={{ color: C.white, fontSize: 15, fontWeight: 700 }}>{data[key] || "—"}</div>
+                <div style={{ color: C.white, fontSize: 15, fontWeight: 400 }}>{data[key] || "—"}</div>
               </div>
             </div>
           ))}

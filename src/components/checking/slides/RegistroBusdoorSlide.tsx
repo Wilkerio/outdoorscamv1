@@ -36,7 +36,7 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
               background: C.yellow,
               color: C.black,
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 400,
               letterSpacing: 0.5,
               padding: "2px 6px",
               borderRadius: 2,
@@ -44,7 +44,7 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
           >
             FORMATO:
           </span>
-          <div style={{ color: C.black, fontSize: 15, fontWeight: 700, marginTop: 6 }}>{local.formato || "—"}</div>
+          <div style={{ color: C.black, fontSize: 15, fontWeight: 400, marginTop: 6 }}>{local.formato || "—"}</div>
         </div>
 
         <div style={{ marginTop: 18, flex: 1, overflow: "hidden" }}>
@@ -53,7 +53,7 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
               background: C.yellow,
               color: C.black,
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 400,
               letterSpacing: 0.5,
               padding: "2px 6px",
               borderRadius: 2,
@@ -64,7 +64,7 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
           <div style={{ marginTop: 8 }}>
             {linhas.length ? (
               linhas.map((linha, idx) => (
-                <div key={idx} style={{ color: C.black, fontSize: 13, fontWeight: 600, lineHeight: 1.7 }}>
+                <div key={idx} style={{ color: C.black, fontSize: 13, fontWeight: 400, lineHeight: 1.7 }}>
                   {linha}
                 </div>
               ))
