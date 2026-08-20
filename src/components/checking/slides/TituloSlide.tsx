@@ -9,7 +9,6 @@ export function TituloSlide({ texto }: { texto: string }) {
       className="relative overflow-hidden"
     >
       <div style={{ position: "absolute", top: 24, left: 40, right: 40, height: 3, background: C.yellow }} />
-      <div style={{ position: "absolute", bottom: 24, left: 40, right: 40, height: 3, background: C.yellow }} />
 
       <div className="h-full flex flex-col" style={{ padding: "56px 56px 70px" }}>
         <div className="flex items-center gap-2 shrink-0">

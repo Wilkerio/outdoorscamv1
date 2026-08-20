@@ -8,13 +8,13 @@ function FotoBox({ foto, solo }: { foto: CheckingFoto; solo?: boolean }) {
   return (
     <div
       className={`h-full rounded-md overflow-hidden ${solo ? "" : "flex-1"}`}
-      style={{ border: `4px solid ${C.navy}`, width: solo ? "calc(50% - 12px)" : undefined }}
+      style={{ border: `4px solid ${C.navy}`, width: solo ? "calc(50% - 12px)" : undefined, background: C.white }}
     >
       {fotoFiltrada ? (
         <img
           src={fotoFiltrada}
           alt="Ônibus"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           style={{ transform: imagePanZoomTransform(foto.imagePosition, foto.imageZoom) }}
         />
       ) : (

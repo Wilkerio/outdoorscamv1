@@ -40,7 +40,7 @@ export function PotencialImpactoSlide({ local }: { local: CheckingLocal }) {
               <img
                 src={mapaFiltrado}
                 alt="Mapa de impacto"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 style={{ transform: imagePanZoomTransform(local.mapaImagePosition, local.mapaImageZoom) }}
               />
             ) : (

@@ -18,6 +18,8 @@ export interface CheckingLocal {
   mapaImagePosition?: string;
   mapaImageZoom?: number;
   mapaMelhorada?: boolean;
+  // Slide "Potencial de Impacto" é opcional — nem todo local tem dado de fluxo/mapa pra mostrar.
+  incluirPotencial?: boolean;
   fotos: CheckingFoto[];
 }
 
@@ -65,6 +67,7 @@ export function novoLocal(): CheckingLocal {
     localVeiculacao: "",
     formato: "",
     fluxoPassantes: "",
+    incluirPotencial: true,
     fotos: [],
   };
 }
@@ -93,7 +96,10 @@ export function checkingVazio(tipo: CheckingTipo = "outdoor"): CheckingData {
 // Preenche campos que podem faltar em checkings salvos antes de existirem (ex.: ordem, tipo).
 export function normalizarChecking(data: CheckingData): CheckingData {
   const slidesTitulo = data.slidesTitulo ?? [];
-  const locais = data.locais ?? [];
+  const locais = (data.locais ?? []).map((l) => ({
+    ...l,
+    incluirPotencial: l.incluirPotencial ?? true,
+  }));
   const ordem =
     data.ordem?.length
       ? data.ordem

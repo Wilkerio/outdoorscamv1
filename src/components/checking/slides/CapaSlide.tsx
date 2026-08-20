@@ -33,7 +33,7 @@ export function CapaSlide({ data }: { data: CheckingData }) {
         <img
           src={capaFiltrada}
           alt="Capa"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-contain"
           style={{ transform: imagePanZoomTransform(data.capaImagePosition, data.capaImageZoom) }}
         />
       ) : (

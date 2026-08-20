@@ -4,6 +4,7 @@ import "@/components/checking/checking-fonts.css";
 import { ChevronDown, ChevronRight, ChevronUp, Download, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -223,11 +224,13 @@ export default function Checking() {
         return;
       }
 
-      pgs.push({
-        key: `${local.id}-potencial`,
-        label: `Potencial de Impacto â€” ${nomeLocal}`,
-        node: <PotencialImpactoSlide local={local} />,
-      });
+      if (local.incluirPotencial ?? true) {
+        pgs.push({
+          key: `${local.id}-potencial`,
+          label: `Potencial de Impacto â€” ${nomeLocal}`,
+          node: <PotencialImpactoSlide local={local} />,
+        });
+      }
       local.fotos.forEach((foto, idx) => {
         pgs.push({
           key: `${local.id}-foto-${foto.id}`,
@@ -626,27 +629,39 @@ export default function Checking() {
                       </div>
                     ) : (
                       <>
-                        <FieldInput
-                          label="Fluxo de passantes/dia"
-                          value={local.fluxoPassantes}
-                          onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
-                          placeholder="18.387"
-                        />
-                        <div>
-                          <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
-                          <ImageDropZone
-                            label="Solte o print aqui"
-                            value={local.mapaImageDataUrl}
-                            onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
-                            aspect="aspect-[4/3]"
-                            position={local.mapaImagePosition}
-                            onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
-                            zoom={local.mapaImageZoom}
-                            onZoomChange={(z) => updateLocal(local.id, { mapaImageZoom: z })}
-                            melhorada={local.mapaMelhorada}
-                            onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
+                        <label className="flex items-center gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={local.incluirPotencial ?? true}
+                            onCheckedChange={(v) => updateLocal(local.id, { incluirPotencial: v === true })}
                           />
-                        </div>
+                          Incluir slide "Potencial de Impacto"
+                        </label>
+
+                        {(local.incluirPotencial ?? true) && (
+                          <>
+                            <FieldInput
+                              label="Fluxo de passantes/dia"
+                              value={local.fluxoPassantes}
+                              onChange={(v) => updateLocal(local.id, { fluxoPassantes: v })}
+                              placeholder="18.387"
+                            />
+                            <div>
+                              <Label className="text-xs mb-1.5 block">Print do mapa (Economapas)</Label>
+                              <ImageDropZone
+                                label="Solte o print aqui"
+                                value={local.mapaImageDataUrl}
+                                onChange={(v) => updateLocal(local.id, { mapaImageDataUrl: v })}
+                                aspect="aspect-[4/3]"
+                                position={local.mapaImagePosition}
+                                onPositionChange={(p) => updateLocal(local.id, { mapaImagePosition: p })}
+                                zoom={local.mapaImageZoom}
+                                onZoomChange={(z) => updateLocal(local.id, { mapaImageZoom: z })}
+                                melhorada={local.mapaMelhorada}
+                                onToggleMelhorada={() => updateLocal(local.id, { mapaMelhorada: !local.mapaMelhorada })}
+                              />
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
 

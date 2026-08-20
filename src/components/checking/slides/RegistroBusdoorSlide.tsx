@@ -80,12 +80,15 @@ export function RegistroBusdoorSlide({ local, foto }: { local: CheckingLocal; fo
       </div>
 
       <div className="flex-1 flex items-center" style={{ padding: "36px 40px 36px 8px" }}>
-        <div className="w-full h-full rounded-md overflow-hidden" style={{ border: `4px solid ${C.navy}` }}>
+        <div
+          className="w-full h-full rounded-md overflow-hidden"
+          style={{ border: `4px solid ${C.navy}`, background: C.white }}
+        >
           {fotoFiltrada ? (
             <img
               src={fotoFiltrada}
               alt="Registro fotográfico"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               style={{ transform: imagePanZoomTransform(foto?.imagePosition, foto?.imageZoom) }}
             />
           ) : (

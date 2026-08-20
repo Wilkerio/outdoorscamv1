@@ -68,7 +68,7 @@ export function ImageDropZone({
           <img
             src={value}
             alt={label}
-            className="w-full h-full object-cover cursor-pointer"
+            className="w-full h-full object-contain cursor-pointer"
             onClick={() => inputRef.current?.click()}
             title="Clique para trocar a foto"
             style={{
